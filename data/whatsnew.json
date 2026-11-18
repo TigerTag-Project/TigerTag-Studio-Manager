@@ -15400,5 +15400,155 @@
         }
       }
     ]
+  },
+  "2.59.0": {
+    "date": "2026-11-18",
+    "items": [
+      {
+        "icon": "filter",
+        "title": {
+          "en": "Filters live in the search bar now",
+          "fr": "Les filtres vivent dans la barre de recherche",
+          "de": "Filter wohnen jetzt in der Suchleiste",
+          "es": "Los filtros viven en la barra de búsqueda",
+          "it": "I filtri ora vivono nella barra di ricerca",
+          "zh": "筛选条件现在直接写在搜索栏里",
+          "pt": "Os filtros agora moram na barra de busca",
+          "pt-pt": "Os filtros agora vivem na barra de pesquisa",
+          "pl": "Filtry mieszkają teraz w pasku wyszukiwania",
+          "ru": "Фильтры теперь живут в строке поиска",
+          "nl": "Filters wonen nu in de zoekbalk"
+        },
+        "body": {
+          "en": "Click the search bar or type a field name (brand, material, aspect, type, tag, list, weight, rack) and each filter becomes a pill you can combine. The TigerTag and TigerData tiles up top set the type for you. Five dropdowns fewer, one bar more.",
+          "fr": "Clique dans la barre de recherche ou tape un nom de champ (marque, matière, aspect, type, balise, liste, poids, rack) et chaque filtre devient une pastille à combiner. Les tuiles TigerTag et TigerData tout en haut règlent le type pour toi. Cinq menus déroulants en moins, une barre en plus.",
+          "de": "Klick in die Suchleiste oder tippe einen Feldnamen (Marke, Material, Aspekt, Typ, Tag, Liste, Gewicht, Regal) und jeder Filter wird zu einem Baustein, den du kombinieren kannst. Die TigerTag- und TigerData-Kacheln ganz oben setzen den Typ für dich. Fünf Dropdowns weniger, eine Leiste mehr.",
+          "es": "Haz clic en la barra de búsqueda o escribe el nombre de un campo (marca, material, aspecto, tipo, etiqueta, lista, peso, estante) y cada filtro se convierte en una ficha combinable. Los mosaicos TigerTag y TigerData de la cabecera fijan el tipo por ti. Cinco menús desplegables menos, una barra más.",
+          "it": "Clicca la barra di ricerca o scrivi il nome di un campo (marca, materiale, aspetto, tipo, tag, lista, peso, scaffale) e ogni filtro diventa un bollino combinabile. I riquadri TigerTag e TigerData in alto impostano il tipo per te. Cinque menu a tendina in meno, una barra in più.",
+          "zh": "点一下搜索栏，或输入字段名（品牌、材料、外观、类型、标签、清单、重量、货架），每个筛选条件都会变成可组合的小标签。顶部的 TigerTag 和 TigerData 方块会替你设好类型。少了五个下拉菜单，多了一个搜索栏。",
+          "pt": "Clique na barra de busca ou digite o nome de um campo (marca, material, aspecto, tipo, tag, lista, peso, prateleira) e cada filtro vira uma etiqueta combinável. Os blocos TigerTag e TigerData do cabeçalho definem o tipo pra você. Cinco menus a menos, uma barra a mais.",
+          "pt-pt": "Clica na barra de pesquisa ou escreve o nome de um campo (marca, material, aspeto, tipo, etiqueta, lista, peso, prateleira) e cada filtro torna-se uma etiqueta combinável. Os blocos TigerTag e TigerData do cabeçalho definem o tipo por ti. Cinco menus a menos, uma barra a mais.",
+          "pl": "Kliknij pasek wyszukiwania albo wpisz nazwę pola (marka, materiał, wygląd, typ, tag, lista, waga, regał), a każdy filtr stanie się znaczkiem, który możesz łączyć. Kafelki TigerTag i TigerData w nagłówku ustawiają typ za Ciebie. Pięć list rozwijanych mniej, jeden pasek więcej.",
+          "ru": "Щёлкните по строке поиска или введите название поля (бренд, материал, вид, тип, тег, список, вес, стеллаж) — и каждый фильтр станет плашкой, которые можно сочетать. Плитки TigerTag и TigerData наверху сами задают тип. На пять выпадающих списков меньше, на одну строку больше.",
+          "nl": "Klik in de zoekbalk of typ een veldnaam (merk, materiaal, aspect, type, tag, lijst, gewicht, rek) en elk filter wordt een blokje dat je kunt combineren. De TigerTag- en TigerData-tegels bovenaan stellen het type voor je in. Vijf keuzelijsten minder, één balk meer."
+        }
+      },
+      {
+        "icon": "palette",
+        "title": {
+          "en": "Find a product by its colour",
+          "fr": "Trouve un produit par sa couleur",
+          "de": "Finde ein Produkt über seine Farbe",
+          "es": "Encuentra un producto por su color",
+          "it": "Trova un prodotto dal suo colore",
+          "zh": "按颜色找到产品",
+          "pt": "Ache um produto pela cor",
+          "pt-pt": "Encontra um produto pela cor",
+          "pl": "Znajdź produkt po kolorze",
+          "ru": "Найдите продукт по цвету",
+          "nl": "Vind een product op kleur"
+        },
+        "body": {
+          "en": "In the catalogue, the new colour button takes a HEX code, a RAL colour in your own language, or a point of a photo. The closest products come first, with a ΔE badge on each picture. Yes, you can finally match that sofa.",
+          "fr": "Dans le catalogue, le nouveau bouton couleur accepte un code HEX, une couleur RAL dans ta langue, ou un point d’une photo. Les produits les plus proches passent en premier, avec un badge ΔE sur chaque image. Oui, tu peux enfin assortir ce canapé.",
+          "de": "Im Katalog nimmt der neue Farb-Button einen HEX-Code, eine RAL-Farbe in deiner Sprache oder einen Punkt aus einem Foto. Die ähnlichsten Produkte kommen zuerst, mit einem ΔE-Badge auf jedem Bild. Ja, du kannst endlich zum Sofa passen.",
+          "es": "En el catálogo, el nuevo botón de color acepta un código HEX, un color RAL en tu idioma o un punto de una foto. Los productos más cercanos salen primero, con una insignia ΔE en cada imagen. Sí, por fin puedes igualar ese sofá.",
+          "it": "Nel catalogo, il nuovo pulsante colore accetta un codice HEX, un colore RAL nella tua lingua o un punto di una foto. I prodotti più vicini vengono per primi, con un badge ΔE su ogni immagine. Sì, finalmente puoi abbinare quel divano.",
+          "zh": "在目录里，新的颜色按钮可以输入 HEX 代码、用你自己语言写的 RAL 颜色，或者点选照片上的一个点。最接近的产品排在最前，每张图上都有 ΔE 徽章。对，你终于可以去配那张沙发了。",
+          "pt": "No catálogo, o novo botão de cor aceita um código HEX, uma cor RAL no seu idioma ou um ponto de uma foto. Os produtos mais próximos vêm primeiro, com um selo ΔE em cada imagem. Sim, dá pra combinar com aquele sofá.",
+          "pt-pt": "No catálogo, o novo botão de cor aceita um código HEX, uma cor RAL no teu idioma ou um ponto de uma foto. Os produtos mais próximos vêm primeiro, com um selo ΔE em cada imagem. Sim, finalmente podes combinar com aquele sofá.",
+          "pl": "W katalogu nowy przycisk koloru przyjmuje kod HEX, kolor RAL w Twoim języku albo punkt ze zdjęcia. Najbliższe produkty są pierwsze, z plakietką ΔE na każdym obrazku. Tak, w końcu dopasujesz ten fotel.",
+          "ru": "В каталоге новая кнопка цвета принимает код HEX, цвет RAL на вашем языке или точку на фото. Самые близкие продукты идут первыми, на каждой картинке — значок ΔE. Да, наконец-то можно подобрать цвет под тот диван.",
+          "nl": "In de catalogus neemt de nieuwe kleurknop een HEX-code, een RAL-kleur in je eigen taal of een punt van een foto. De dichtstbijzijnde producten komen eerst, met een ΔE-badge op elke afbeelding. Ja, eindelijk kun je die bank matchen."
+        }
+      },
+      {
+        "icon": "bell",
+        "title": {
+          "en": "No more chirp concerto",
+          "fr": "Fini le concert de bips",
+          "de": "Schluss mit dem Piep-Konzert",
+          "es": "Se acabó el concierto de pitidos",
+          "it": "Basta con il concerto di bip",
+          "zh": "不再有一连串提示音",
+          "pt": "Chega do concerto de bipes",
+          "pt-pt": "Acabou o concerto de bipes",
+          "pl": "Koniec koncertu piknięć",
+          "ru": "Концерт писков окончен",
+          "nl": "Het gepiep is voorbij"
+        },
+        "body": {
+          "en": "Opening the catalogue after an update no longer plays the “spool added” sound for every spool you already had. It rings only for a new one.",
+          "fr": "Ouvrir le catalogue après une mise à jour ne joue plus le son « bobine ajoutée » pour chaque bobine que tu avais déjà. Il ne sonne que pour une nouvelle.",
+          "de": "Den Katalog nach einem Update zu öffnen spielt nicht mehr für jede schon vorhandene Spule den „Spule hinzugefügt“-Ton ab. Er klingt nur noch bei einer neuen.",
+          "es": "Abrir el catálogo tras una actualización ya no reproduce el sonido de «bobina añadida» por cada bobina que ya tenías. Solo suena con una nueva.",
+          "it": "Aprire il catalogo dopo un aggiornamento non riproduce più il suono «bobina aggiunta» per ogni bobina che avevi già. Suona solo per una nuova.",
+          "zh": "更新后打开目录，不会再为每一个你已有的线材盘播放“已添加”提示音了。只有新增的才会响。",
+          "pt": "Abrir o catálogo depois de uma atualização não toca mais o som de “carretel adicionado” para cada carretel que você já tinha. Ele só toca para um novo.",
+          "pt-pt": "Abrir o catálogo depois de uma atualização já não toca o som de «bobina adicionada» por cada bobina que já tinhas. Só toca para uma nova.",
+          "pl": "Otwarcie katalogu po aktualizacji nie odtwarza już dźwięku „dodano szpulę” dla każdej szpuli, którą już miałeś. Dzwoni tylko przy nowej.",
+          "ru": "Открытие каталога после обновления больше не проигрывает звук «катушка добавлена» для каждой уже имеющейся катушки. Он звучит только для новой.",
+          "nl": "Na een update de catalogus openen speelt niet meer het geluid ‘spoel toegevoegd’ af voor elke spoel die je al had. Het klinkt alleen bij een nieuwe."
+        }
+      },
+      {
+        "icon": "camera",
+        "title": {
+          "en": "Creality camera starts on the first try",
+          "fr": "La caméra Creality démarre du premier coup",
+          "de": "Creality-Kamera startet beim ersten Versuch",
+          "es": "La cámara Creality arranca a la primera",
+          "it": "La fotocamera Creality parte al primo colpo",
+          "zh": "Creality 摄像头一次就能启动",
+          "pt": "A câmera Creality liga de primeira",
+          "pt-pt": "A câmara Creality arranca à primeira",
+          "pl": "Kamera Creality startuje za pierwszym razem",
+          "ru": "Камера Creality запускается с первого раза",
+          "nl": "Creality-camera start meteen"
+        },
+        "body": {
+          "en": "On the printers board, pressing play on a Creality camera (or letting it start by itself) now opens the live picture right away.",
+          "fr": "Dans le tableau des imprimantes, appuyer sur lecture sur une caméra Creality (ou la laisser démarrer toute seule) ouvre maintenant l’image en direct tout de suite.",
+          "de": "Im Druckerboard öffnet ein Druck auf Play bei einer Creality-Kamera (oder ihr automatischer Start) jetzt sofort das Livebild.",
+          "es": "En el tablero de impresoras, pulsar reproducir en una cámara Creality (o dejar que arranque sola) abre ahora la imagen en directo enseguida.",
+          "it": "Nella bacheca delle stampanti, premere play su una fotocamera Creality (o lasciarla partire da sola) apre ora subito l’immagine dal vivo.",
+          "zh": "在打印机看板上，点击 Creality 摄像头的播放键（或让它自动启动）现在会立刻打开实时画面。",
+          "pt": "No painel de impressoras, apertar play numa câmera Creality (ou deixá-la iniciar sozinha) agora abre a imagem ao vivo na hora.",
+          "pt-pt": "No painel de impressoras, carregar em play numa câmara Creality (ou deixá-la arrancar sozinha) abre agora a imagem em direto logo.",
+          "pl": "Na tablicy drukarek naciśnięcie play na kamerze Creality (lub automatyczny start) od razu otwiera obraz na żywo.",
+          "ru": "На доске принтеров нажатие play на камере Creality (или её автозапуск) теперь сразу открывает живую картинку.",
+          "nl": "Op het printerbord opent play indrukken op een Creality-camera (of hem vanzelf laten starten) nu meteen het live beeld."
+        }
+      },
+      {
+        "icon": "eye",
+        "title": {
+          "en": "The camera wall shows your IP cameras",
+          "fr": "Le mur de caméras affiche tes caméras IP",
+          "de": "Die Kamerawand zeigt deine IP-Kameras",
+          "es": "El muro de cámaras muestra tus cámaras IP",
+          "it": "Il muro di telecamere mostra le tue telecamere IP",
+          "zh": "摄像头墙现在显示你的 IP 摄像头",
+          "pt": "O mural de câmeras mostra suas câmeras IP",
+          "pt-pt": "O mural de câmaras mostra as tuas câmaras IP",
+          "pl": "Ściana kamer pokazuje Twoje kamery IP",
+          "ru": "Стена камер показывает ваши IP-камеры",
+          "nl": "De camerawand toont je IP-camera’s"
+        },
+        "body": {
+          "en": "The detached camera wall now shows the IP cameras of your account, chosen or not linked to a printer, instead of an error card.",
+          "fr": "Le mur de caméras détaché affiche maintenant les caméras IP de ton compte, choisies ou liées à aucune imprimante, au lieu d’une carte d’erreur.",
+          "de": "Die abgelöste Kamerawand zeigt jetzt die IP-Kameras deines Kontos, ausgewählte oder keinem Drucker zugeordnete, statt einer Fehlerkarte.",
+          "es": "El muro de cámaras separado muestra ahora las cámaras IP de tu cuenta, elegidas o sin impresora asociada, en lugar de una tarjeta de error.",
+          "it": "Il muro di telecamere staccato mostra ora le telecamere IP del tuo account, scelte o non collegate a una stampante, invece di una scheda di errore.",
+          "zh": "独立的摄像头墙现在会显示账户里的 IP 摄像头（已选用的，或未关联打印机的），不再是一张错误卡片。",
+          "pt": "O mural de câmeras destacado agora mostra as câmeras IP da sua conta, escolhidas ou sem impressora, em vez de um cartão de erro.",
+          "pt-pt": "O mural de câmaras destacado mostra agora as câmaras IP da tua conta, escolhidas ou sem impressora associada, em vez de um cartão de erro.",
+          "pl": "Odłączona ściana kamer pokazuje teraz kamery IP Twojego konta, wybrane lub niepowiązane z drukarką, zamiast karty z błędem.",
+          "ru": "Отдельная стена камер теперь показывает IP-камеры вашего аккаунта — выбранные или не привязанные к принтеру — вместо карточки с ошибкой.",
+          "nl": "De losgekoppelde camerawand toont nu de IP-camera’s van je account, gekozen of aan geen printer gekoppeld, in plaats van een foutkaart."
+        }
+      }
+    ]
   }
 }

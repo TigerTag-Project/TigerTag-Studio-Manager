@@ -928,26 +928,38 @@
   /* ── view toggle ── */
   /* Main inventory search — input + magnifier icon aligned right (matches the
      pattern used by .rp-side-search inside the rack-view sidebar). */
+  /* The pill is the BOX, not the input: it holds the filter chips (#fbBar,
+     renderer/filter-bar.js) and then the text, like Shopify admin's search. Always
+     ONE line: chips that do not fit scroll sideways in their strip. */
   .inv-search {
     position: relative;
     flex: 1;
     min-width: 200px;        /* readable even when many filters are open */
+    display: flex; flex-wrap: nowrap; align-items: center; gap: 4px;
+    height: 40px; box-sizing: border-box;
+    padding: 4px 92px 4px 42px;
+    border-radius: 20px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    cursor: text;
+    transition: background-color .15s, border-color .15s;
   }
+  .inv-search:focus-within { background: var(--surface); border-color: var(--primary); }
   /* Match the stat tile styling so the toolbar reads as one cohesive row.
      Same background, border, height and radius as .rv-stat / .rv-stat-add. */
   /* Rounded like a search pill, with room on the left for the inline "+" and on
      the right for the clear button and the magnifier. */
-  .inv-search input {
-    width: 100%;
-    height: 40px;
-    border-radius: 999px;
-    /* Right padding accommodates BOTH the clear button AND the magnifier
-       so typed text never slides under either icon. The magnifier hugs
-       the right edge; the clear button sits to its left when visible. */
-    padding: 0 64px 0 46px;
+  /* The text takes what the chips leave. Direct child only: the chip editors'
+     own search fields open inside this box too. */
+  .inv-search > input {
+    flex: 1 1 160px;
+    min-width: 120px;
+    height: 30px;
+    padding: 0 4px;
     margin: 0;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
     font-size: 13px;
     box-sizing: border-box;
   }
@@ -969,10 +981,10 @@
   .inv-search-add:hover .icon { background: var(--on-accent); }
   .inv-search-add:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
-  .inv-search input:focus {
-    background: var(--surface);
-    border-color: var(--primary);
-  }
+  /* The pill draws the field and its focus ring; the text has none of its own
+     (the app's global input look would draw a second box inside the pill). */
+  .inv-search #searchInv,
+  .inv-search #searchInv:focus { outline: none; border: 0; background: transparent; box-shadow: none; }
   /* DIRECT child only — the magnifier. As a descendant rule it also caught every
      icon nested in a button inside the field, absolutely positioning them at the
      field's right edge: the inline "+" landed 4 px off centre inside its own
@@ -998,6 +1010,17 @@
   .inv-search-scan:hover { background: var(--border); }
   .inv-search-scan:hover .icon { background: var(--text); }
   .inv-search-scan:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  /* The colour search button (renderer/color-search.js), left of the QR one — Search
+     views only, where the field makes room for it. Accent while a colour filters. */
+  /* Right to left: magnifier, QR, Filter (not in the printer views), colour
+     (Search views only). */
+  .inv-search-filter { right: 62px; }
+  body.printer-filters .inv-search { padding-right: 64px; }
+  .inv-search-color { right: 90px; display: none; }
+  body.catalog-filters .inv-search-color { display: inline-flex; }
+  body.catalog-filters .inv-search { padding-right: 120px; }
+  .inv-search-filter[hidden] { display: none; }
+  .inv-search-color.is-on .icon, .inv-search-color.is-on:hover .icon { background: var(--primary); }
   /* The QR side card (#qrScanPanel): the search bar's scan button opens it at the
      right edge; the add chooser shows it in its pane (linked.css). The live picture
      sits under the scanner overlay. */
@@ -1228,11 +1251,66 @@
 
   /* Quick-filter group — keeps the 3 dropdowns clustered together,
      so the search bar can absorb all the remaining horizontal space. */
+  /* The printer views' Brand / State / Tag selects: shown only there
+     (`body.printer-filters`, 40-printers.css); every other view filters through
+     the filter bar below. */
   .inv-filter-group {
-    display: flex;
+    display: none;
     gap: 4px;
     flex-shrink: 0;
   }
+  /* ── Filter bar (renderer/filter-bar.js) — the "Filter" button, then one chip
+     per condition, right of the search field. The button is the filter pill
+     (.inv-brand-filter), each chip the colour chip (.cv-color-chip), every menu
+     and editor the app's dropdown (.csel-pop / .csel-opt / .csel-search): only
+     what those do not already have is here. */
+  /* The chips' strip, before the text: it never takes the line from the text
+     (which keeps at least 120 px) and scrolls sideways, without a scrollbar,
+     when the chips are longer than the room left. The editors open in the field
+     (renderer/filter-bar.js), not in this strip, which would clip them. */
+  .fb-bar { display: flex; align-items: center; gap: 4px; flex: 0 1 auto; min-width: 0;
+    overflow-x: auto; scrollbar-width: none; }
+  .fb-bar::-webkit-scrollbar { display: none; }
+  .fb-bar[hidden], .fb-bar:empty { display: none; }
+  .fb-slot { flex-shrink: 0; cursor: default; }
+  .fb-chip.cv-color-chip { height: 30px; max-width: 300px; }
+  .fb-chip .cv-color-chip-main { min-width: 0; }
+  .fb-chip .cv-color-chip-main { padding-left: 11px; }
+  .fb-chip .cv-color-chip-swatch { width: 18px; }
+  .fb-chip:has(.cv-color-chip-swatch) .cv-color-chip-main { padding-left: 5px; }
+  .fb-chip .cv-color-chip-text { overflow: hidden; text-overflow: ellipsis; }
+  .fb-chip .cv-color-chip-x { width: 28px; }
+  /* The field list opens under the whole pill, at its width. */
+  .inv-search > .csel-pop.fb-pop { left: 0; right: auto; min-width: 260px; cursor: default; }
+  /* A chip being created: dashed until it holds a value. */
+  .fb-chip.is-pending { border-style: dashed; background: transparent; }
+  .csel-pop.fb-pop { min-width: 230px; max-width: 300px; }
+  .fb-pop .csel-pop-list { max-height: 300px; }
+  /* is / is not — a two-way switch above the values. */
+  .fb-head { display: flex; flex-direction: column; gap: 6px; }
+  .fb-op { display: flex; padding: 2px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border); }
+  .fb-op-btn { flex: 1; height: 26px; border: 0; border-radius: 7px; background: transparent; color: var(--muted);
+    font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .12s, color .12s; }
+  .fb-op-btn:hover { color: var(--text); }
+  .fb-op-btn.is-on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  /* A value: tick box, optional swatch, name, count. */
+  .fb-opt.csel-opt { display: flex; align-items: center; gap: 9px; }
+  .fb-opt.csel-opt.is-sel { color: var(--text); font-weight: 400; }
+  .fb-check { position: relative; flex: 0 0 16px; height: 16px; border-radius: 5px; box-sizing: border-box;
+    border: 1.5px solid var(--border-strong); background: var(--surface); transition: background .12s, border-color .12s; }
+  .fb-opt.is-sel .fb-check { background: var(--primary); border-color: var(--primary); }
+  .fb-opt.is-sel .fb-check::after { content: ""; position: absolute; left: 4.5px; top: 1px; width: 4px; height: 8px;
+    border: solid var(--on-accent); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  .fb-opt .cv-color-chip-swatch { width: 16px; }
+  .fb-opt-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .fb-count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .fb-empty { padding: 10px 12px; color: var(--muted); font-size: 12.5px; }
+  /* A number range (at least / at most). */
+  .fb-range { display: flex; align-items: flex-end; gap: 8px; padding: 6px; }
+  .fb-range-field { display: flex; flex-direction: column; gap: 4px; flex: 1; color: var(--muted); font-size: 11.5px; }
+  .fb-range-field .csel-search { width: 90px; }
+  .fb-range-sep, .fb-range-unit { padding-bottom: 7px; color: var(--muted); font-size: 12.5px; }
+
   /* Grid-only sort control: the column select (reuses .inv-brand-filter) + a
      square asc/desc toggle, matching the filter pills. */
   .inv-grid-sort { display: flex; gap: 4px; flex-shrink: 0; }
@@ -1364,23 +1442,6 @@
   .csel-search::-webkit-search-cancel-button { -webkit-appearance: none; }
   /* Mirror the select's own `.hidden` onto the whole custom control. */
   .csel:has(> select.hidden) { display: none; }
-  /* ❤ / ★ product-flag toggle filters — square icon buttons matching the selects. */
-  .inv-flag-filter {
-    flex-shrink: 0; width: 40px; height: 40px; box-sizing: border-box;
-    display: inline-flex; align-items: center; justify-content: center;
-    background-color: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 50%; cursor: pointer; transition: background-color .15s, border-color .15s;
-  }
-  .inv-flag-filter .icon { background-color: var(--muted); }
-  .inv-flag-filter:hover { background-color: var(--surface); border-color: var(--primary); }
-  .inv-flag-filter--wish.is-active { border-color: var(--buy); background-color: color-mix(in srgb, var(--buy) 14%, transparent); }
-  /* Colour alone marks the state. Swapping the glyph as well — a cart with a
-     plus when off, a plain cart when on — made the button look like a different
-     control depending on whether it was pressed. */
-  .inv-flag-filter--wish.is-active .icon { background-color: var(--buy); }
-  .inv-flag-filter--like.is-active { border-color: var(--favorite); background-color: color-mix(in srgb, var(--favorite) 16%, transparent); }
-  .inv-flag-filter--like.is-active .icon { background-color: var(--favorite); -webkit-mask-image: url('../../assets/svg/icons/icon_star_filled.svg'); mask-image: url('../../assets/svg/icons/icon_star_filled.svg'); }
-
   /* ── Products view (order recommendation + liked/favorite) ── */
   .inv-products-view { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; overflow-y: auto; margin-top: var(--view-gap); scrollbar-width: none; }
   .inv-products-view::-webkit-scrollbar { width: 0; height: 0; }
@@ -5043,6 +5104,92 @@ body.catalog-filters .cv-count { display: inline-flex; align-items: center; }
 .cv-empty-cta { margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 18px; border: 0; border-radius: 10px; background: var(--primary); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
 .cv-empty-cta .icon { background: #fff; }
 .cv-empty-cta:hover { filter: brightness(1.08); }
+
+/* ── Colour search (#colorSearchPanel, renderer/color-search.js) ──────────────
+   Its side card, the chip of the active colour in the catalogue filters, and the
+   "ΔE 1.4" of each result, tinted by the site's bands. */
+#colorSearchPanel { width: 400px; max-width: 95vw; z-index: 101; display: flex; flex-direction: column; }
+.csr-root { gap: 14px; }
+.csr-root.is-drag { outline: 2px dashed var(--primary); outline-offset: -8px; }
+.csr-modes { display: flex; }
+.csr-modes .eac-seg-btn { flex: 1; padding: 7px 6px; white-space: nowrap; }
+.csr-pane { display: flex; flex-direction: column; gap: 10px; }
+.csr-pane[hidden] { display: none; }
+/* height: auto — the swatches are buttons, and the global `button { height: 40px }`
+   would win over aspect-ratio and draw ovals. */
+.csr-swatch { width: 24px; height: auto; aspect-ratio: 1; flex-shrink: 0; padding: 0; border-radius: 50%; border: 1px solid var(--border-strong); box-sizing: border-box; }
+button.csr-swatch { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+button.csr-swatch:hover { transform: scale(1.1); }
+button.csr-swatch:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.csr-swatch.is-empty { background: repeating-conic-gradient(var(--surface-3) 0 25%, var(--surface) 0 50%) 50% / 10px 10px; }
+.csr-hex-row { display: flex; align-items: center; gap: 10px; }
+.csr-swatch--pick { width: 36px; }
+.csr-hex-input { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
+/* 14 quick picks in two even rows of 7, spread across the card. */
+.csr-presets { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px 8px; justify-items: center; }
+.csr-preset { width: 30px; }
+.csr-preset.is-on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
+.csr-ral-list { display: flex; flex-direction: column; gap: 2px; max-height: 300px; overflow-y: auto; }
+.csr-ral-row { display: flex; align-items: center; justify-content: flex-start; gap: 10px; height: auto; min-height: 36px; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.csr-ral-row:hover { background: var(--surface-hover); }
+.csr-ral-row.is-on { background: var(--primary-soft); }
+.csr-ral-code { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.csr-ral-name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csr-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; aspect-ratio: 4 / 3;
+  padding: 20px; border: 2px dashed var(--border-strong); border-radius: 12px; background: var(--surface-2); color: var(--text);
+  font-size: 13px; font-weight: 600; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+.csr-drop:hover { border-color: var(--primary); }
+.csr-drop[hidden] { display: none; }
+.csr-drop .icon { width: 36px; height: 36px; background: var(--primary); }
+.csr-photo { position: relative; line-height: 0; }
+.csr-photo[hidden] { display: none; }
+.csr-canvas { display: block; width: 100%; height: auto; border-radius: 10px; cursor: crosshair; touch-action: none; }
+.csr-dot { position: absolute; width: 20px; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  border: 2px solid var(--on-accent); box-shadow: 0 0 0 1px var(--border-strong), 0 2px 6px rgba(0, 0, 0, .35); }
+.csr-dot[hidden] { display: none; }
+.csr-photo-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.csr-photo-actions[hidden] { display: none; }
+.csr-photo-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .12s, border-color .12s; }
+.csr-photo-btn:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+.csr-photo-btn .icon { background: currentColor; }
+.csr-current[hidden] { display: none; }
+.csr-current { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.csr-swatch--big { width: 40px; }
+.csr-current-text { min-width: 0; }
+.csr-current-hex { font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.csr-current.is-empty .csr-current-hex { font-weight: 500; color: var(--muted); }
+.csr-current-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csr-current-sub:empty { display: none; }
+.csr-max-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.csr-range { width: 100%; accent-color: var(--primary); }
+.csr-band { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.csr-band[data-band="same"], .csr-band[data-band="veryClose"] { color: var(--success-text); }
+.csr-band[data-band="close"] { color: var(--game-ok-text); }
+.csr-band[data-band="near"] { color: var(--warning-text); }
+.csr-band[data-band="far"] { color: var(--muted); }
+/* A hit's ΔE: the TD badge (.card-td-badge / .thumb-td-badge) with a dot in its
+   band's colour before the figure. */
+.cv-de { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cv-de::before { content: ""; width: 6px; aspect-ratio: 1; border-radius: 50%; background: var(--muted); }
+.thumb-td-badge.cv-de { gap: 2px; }
+.thumb-td-badge.cv-de::before { width: 4px; }
+.cv-de[data-band="same"]::before, .cv-de[data-band="veryClose"]::before { background: var(--success); }
+.cv-de[data-band="close"]::before { background: var(--game-ok); }
+.cv-de[data-band="near"]::before { background: var(--warning); }
+.cv-de[data-band="declared"]::before { background: var(--primary); }
+.cv-card .card-weight { white-space: nowrap; }
+.csr-multi { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text); cursor: pointer; }
+/* The active colour, first in the catalogue filters: a pill like the selects beside it. */
+.cv-color-chip { display: inline-flex; align-items: center; height: 32px; border: 1px solid var(--primary); border-radius: 999px; background: var(--primary-soft); overflow: hidden; }
+.cv-color-chip[hidden] { display: none; }
+.cv-color-chip-main { display: inline-flex; align-items: center; gap: 7px; height: 100%; padding: 0 4px 0 6px; border: 0; background: transparent;
+  color: var(--text); font: inherit; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; white-space: nowrap; }
+.cv-color-chip-swatch { width: 20px; aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--border-strong); box-sizing: border-box; }
+.cv-color-chip-x { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.cv-color-chip-x .icon { background: var(--muted); transition: background .12s; }
+.cv-color-chip-x:hover .icon { background: var(--text); }
+.cv-color-chip-main:focus-visible, .cv-color-chip-x:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 999px; }
 
 /* Hover preview of a table thumbnail (issue #67): the photo at 220 px, framed in
    the spool colour like the thumbnail itself; scales in from its edge. */

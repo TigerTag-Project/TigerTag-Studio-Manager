@@ -10,7 +10,7 @@ It is neutral and agnostic by design: TigerTag takes no side between filament br
 distributors. The protocol is open and anyone can build a different ecosystem on it; nothing in this repo is a
 prerequisite for doing so.
 
-Current version: **2.58.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **2.59.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 Showcase site (11 languages, built from `site/`, deployed by `.github/workflows/pages.yml`): https://tigertag-project.github.io/TigerTag-Studio-Manager/ — downloads: https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases/latest
 
@@ -37,6 +37,8 @@ Showcase site (11 languages, built from `site/`, deployed by `.github/workflows/
 - `preload.js` — contextBridge: exposes `electronAPI` (IPC wrappers), `td1s` (TD1S sensor events)
 - `services/nfc-process.js` — NFC utilityProcess: reader lifecycle, NTAG read (READ_START_PAGE=4, READ_LENGTH=144, READ_BLOCK_SIZE=4), card-present events; `read-now` also takes a `start` / `length` (capability container, a NTAG215/216's larger NDEF area)
 - `services/ndef.js` — NDEF encoder (URI / Wi‑Fi / vCard records in a Type 2 TLV, sized to the chip) behind `rfid:write-ndef`, `rfid:ndef-size`, `rfid:ndef-capacity`
+- `renderer/filter-bar.js` — the search bar's filter chips (`mountFilterBar`; fields, conditions and counts are supplied by `inventory.js`)
+- `renderer/color-search.js` — the catalogue colour search side card (HEX / RAL / photo, CIEDE2000 ΔE)
 - `renderer/rfid_protocol/eraser/` — the NFC tools view (format, NDEF writing, Auto mode) of the new-chip card
 - `renderer/rfid_protocol/restore/` — the Restore TigerTag+ view (rewrites a chip from its `rfidList` backup)
 - `renderer/labels/` — printed spool and filament labels: nine templates, each one SVG in printer dots (`buildLabel`), Print / PDF / PNG / SVG through `main.js` `label:render`
@@ -329,7 +331,7 @@ All brands: printer discovery (mDNS + port scan + manual IP), camera; filament e
 npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..." ru="..." nl="..."
 npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```
-3137 keys × 11 locales as of v2.58.0
+3169 keys × 11 locales as of v2.59.0
 
 ## CSS conventions
 

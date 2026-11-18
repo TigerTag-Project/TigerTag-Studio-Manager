@@ -391,6 +391,13 @@
           <button type="button" id="searchAddBtn" class="inv-search-add" aria-label="">
             <span class="icon icon-plus icon-14" aria-hidden="true"></span>
           </button>
+          <!-- The filter chips, written in the field before the text (Shopify
+               admin's pattern, renderer/filter-bar.js): brand, material, aspect,
+               type, tag, list, weight, rack; in the Search views type, brand,
+               series, material, aspect and the colour search. A click in the
+               field (or the Filter button) lists the fields. Every view except
+               the printer ones. -->
+          <div class="fb-bar" id="fbBar"></div>
           <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" data-i18n-placeholder="searchPlaceholder" />
           <!-- Clear button — takes the magnifier's place while the field has
                text (the loupe is hidden in CSS), so only one glyph is ever shown. -->
@@ -398,53 +405,35 @@
                   aria-label="Clear search" data-i18n-aria="clearSearch">
             <span class="icon icon-close icon-13" aria-hidden="true"></span>
           </button>
+          <!-- Search views only: find a catalogue product by colour — HEX, RAL or a
+               point of a photo, within a ΔE (renderer/color-search.js). -->
+          <button type="button" id="searchColor" class="inv-search-scan inv-search-color" aria-label="Find by colour" data-i18n-aria="colorSearchBtn">
+            <span class="icon icon-pipette icon-14" aria-hidden="true"></span>
+          </button>
           <!-- Scan a TigerQR label with the computer's camera (renderer/qr-scan.js). -->
-          <button type="button" id="searchQrScan" class="inv-search-scan" aria-label="Scan a QR code with the camera" data-i18n-aria="qrScanBtn">
+          <button type="button" id="searchQrScan" class="inv-search-scan inv-search-qr" aria-label="Scan a QR code with the camera" data-i18n-aria="qrScanBtn">
             <span class="icon icon-qr icon-14" aria-hidden="true"></span>
+          </button>
+          <!-- The list of fields to filter by (the same list a click in the field opens). -->
+          <button type="button" id="fbAddBtn" class="inv-search-scan inv-search-filter" aria-label="Filter" data-i18n-aria="fbAdd" aria-haspopup="true">
+            <span class="icon icon-filter icon-14" aria-hidden="true"></span>
           </button>
           <span class="icon icon-search icon-13"></span>
         </div>
+        <!-- The printer views' filters (Brand / State / Tag). -->
         <div class="inv-filter-group">
-          <!-- Product-flag quick filters: ❤ wishlist / ★ liked (mutually exclusive) —
-               placed right after the search bar, before the attribute filters. -->
-          <button type="button" id="wishFilter" class="inv-flag-filter inv-flag-filter--wish" data-i18n-title="productLike" title="To order">
-            <span class="icon icon-cart icon-14"></span>
-          </button>
-          <button type="button" id="likeFilter" class="inv-flag-filter inv-flag-filter--like" data-i18n-title="productFavorite" title="Favorite">
-            <span class="icon icon-star icon-14"></span>
-          </button>
           <select id="brandFilter" class="inv-brand-filter" title="Filter by brand">
             <option value="" data-i18n="filterAllBrands">All</option>
           </select>
           <select id="materialFilter" class="inv-brand-filter" title="Filter by material">
             <option value="" data-i18n="filterAllMaterials">All</option>
           </select>
-          <!-- Aspect filter — matches Aspect 1 OR Aspect 2 (finish + colour arrangement). -->
-          <select id="aspectFilter" class="inv-brand-filter" data-i18n-title="filterShortAspect" title="Aspect">
-            <option value="" data-i18n="filterAllAspects">All</option>
-          </select>
-          <select id="typeFilter" class="inv-brand-filter" data-i18n-title="filterShortProtocol" title="Type">
-            <option value="" data-i18n="filterAllVersions">All</option>
-          </select>
-          <!-- Tag filter — lists the tags that exist in the inventory. -->
           <select id="tagFilter" class="inv-brand-filter" data-i18n-title="filterShortTag" title="Tag">
             <option value="" data-i18n="filterAllTags">All</option>
           </select>
         </div>
-        <!-- Search-view filters — same set as the public catalogue page
-             (tigersystem.io/…/catalog): Type · Brand · Material · Series · Sort,
-             each option carrying its count. Series stays disabled until a brand
-             is picked, since a series only means something within one brand.
-             They sit here, right of the search bar, in place of the stock
-             filters (which describe the user's own spools, not the catalogue);
-             shown only in the Search views via `body.catalog-filters`. -->
+        <!-- Search views: the sort (their filters are chips of the filter bar). -->
         <div class="cv-filter-group" id="cvFilters">
-          <select id="cvType" class="inv-brand-filter"></select>
-          <select id="cvBrand" class="inv-brand-filter"></select>
-          <!-- Series sits right after Brand because it is scoped BY it — the two
-               read as one narrowing step. -->
-          <select id="cvSeries" class="inv-brand-filter" disabled></select>
-          <select id="cvMaterial" class="inv-brand-filter"></select>
           <select id="cvSort" class="inv-brand-filter"></select>
         </div>
         <!-- Grid-only sort control, pushed to the far right (table view sorts
@@ -3121,6 +3110,21 @@
   <div class="qr-scan-win qrs-side">
     <div class="qrs-root" id="qrScanPanelRoot"></div>
   </div>
+</aside>
+
+<!-- The colour search side card (renderer/color-search.js mountColorSearch): HEX,
+     RAL or a photo, and the ΔE ceiling. Opened by the search bar's colour button
+     in the Search views; it filters and sorts the catalogue view live. -->
+<button class="pp-close-tab" id="colorSearchCloseTab" aria-label="Close" hidden>»</button>
+<aside class="detail-panel pba-panel cer-panel" id="colorSearchPanel">
+  <div class="pba-header">
+    <div class="pba-header-text">
+      <div class="pba-title qrs-title"><span class="icon icon-pipette" aria-hidden="true"></span><span data-i18n="colorSearchBtn">Find by colour</span></div>
+      <div class="pba-sub" data-i18n="colorSearchSub">Type a HEX or RAL code, or take the colour from a photo.</div>
+    </div>
+    <button class="panel-close" id="colorSearchPanelClose" aria-label="Close" data-i18n-aria="tutoClose">✕</button>
+  </div>
+  <div class="pba-body csr-root" id="colorSearchRoot"></div>
 </aside>
 
 <button class="pp-close-tab" id="chipLinkCloseTab" aria-label="Close" hidden>»</button>

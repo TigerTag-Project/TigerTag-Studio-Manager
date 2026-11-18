@@ -34,6 +34,8 @@ import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squa
 import { artImg } from './art.js';
 import { openDialog, initDialogs } from './dialog.js';
 import { mountQrScanner } from './qr-scan.js';
+import { mountFilterBar } from './filter-bar.js';
+import { mountColorSearch, hexToLab, deltaE2000, normHex as _csNormHex, ralColor, deltaBand } from './color-search.js';
 import { initAiAssistant, aiOnToolCall, aiAccountChanged, aiJournalChanged, renderAiPage, closeAiHistory, closeAiSetup, aiDisconnectAll } from './ai/assistant.js';
 import { initTrophies, trophiesSignIn, trophiesSignOut, renderTrophiesView, trophyEarned } from './quests/trophies.js';
 import { fillHeroScenes } from './hero-scene.js';
@@ -1063,12 +1065,10 @@ import { initScreenTools } from './ai/screen-tools.js';
     displayName: null,
     search: "",
     locateUid: null,                  // transient "locate this spool" highlight in the rack view (no search text); cleared on the next outside click
-    brandFilter: "",                  // exact brand name to keep, "" = all
-    materialFilter: "",               // exact material name to keep, "" = all
-    typeFilter: "",                   // exact product type to keep, "" = all
-    aspectFilter: "",                 // exact aspect/finish to keep — matches Aspect 1 OR Aspect 2, "" = all
-    tagFilter: "",                    // exact tag to keep (spool must carry it), "" = all
-    flagFilter: "",                   // product flag to keep: "liked" (❤) | "favorite" (★) | "" = all
+    // The filter bar's conditions (renderer/filter-bar.js): [{ field, op, values }],
+    // AND across them, OR inside one. Values are reference-table IDs as strings.
+    // Belongs to the view segment: reset by _clearSearchFilters.
+    filters: [],
     printerBrandFilter: "",           // printer view: exact brand key to keep, "" = all
     printerStatusFilter: "",          // printer view: "online" | "offline" | "" = all
     printerTagFilter: "",             // printer view: exact tag the printer must carry, "" = all
@@ -2294,6 +2294,10 @@ import { initScreenTools } from './ai/screen-tools.js';
       material: mat ? mat.label : (data.material || data.series || "-"),
       materialData: mat,
       brand: brandName(data.id_brand),
+      // The IDs the filter bar compares (labels are display text and can change).
+      brandId: data.id_brand ?? null,
+      materialId: data.id_material ?? null,
+      diameterId: data.data1 ?? null,
       colorName: data.color_name || data.name || data.message || "-",
       // User note (chip `message`). For TigerTag / TigerCloud it also feeds
       // colorName above, but for TigerTag+ colorName comes from the API, so the
@@ -3724,6 +3728,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (e.key === "Escape" && $("catalogPickPanel")?.classList.contains("open")) closeCatalogPick();
     if (e.key === "Escape" && $("chipChoicePanel")?.classList.contains("open")) closeChipChoice();
     if (e.key === "Escape" && $("qrScanPanel")?.dataset.mode === "find") closeQrScanPanel();
+    if (e.key === "Escape" && $("colorSearchPanel")?.classList.contains("open")) closeColorSearch();
   });
   // Delegated on the container: the rows are re-rendered on every open.
   $("matSourceList")?.addEventListener("click", e => {
@@ -9868,7 +9873,9 @@ import { initScreenTools } from './ai/screen-tools.js';
     const intFmt = n => String(Math.max(0, Math.round(n)));
     const kgFmt  = n => `${n.toLocaleString(state.lang || "en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
     const valFmt = n => `${_fmtMoney(n)} ${vat.symbol}`;
-    const tf = state.typeFilter;
+    // The tile of the type the filter bar's Type chip keeps (a single "is" value).
+    const tierCond = state.filters.find(c => c.field === "tier");
+    const tf = tierCond && tierCond.op === "is" && tierCond.values.length === 1 ? tierCond.values[0] : "";
     const cards = [
       { key: "active", label: t("statActive"), mini: t("statActiveMini"), num: active.length,  fmt: intFmt, filter: "reset" },
       { key: "kg",     label: t("statTotal"),  mini: t("statTotalMini"),  num: totalW / 1000,  fmt: kgFmt,  filter: "reset" },
@@ -9884,14 +9891,14 @@ import { initScreenTools } from './ai/screen-tools.js';
         num: valueShown, fmt: valFmt, filter: "reset", info: t("statValueTip") },
       // Tier tiles read as the capability ladder, cheapest first: no chip →
       // chip → chip + online layer.
-      { key: "cloud",  label: '<span class="tag-cloud">TigerData</span>', mini: t("statCloudMini"), num: cloud.length, fmt: intFmt, filter: "TigerData", cloud: true },
+      { key: "cloud",  label: '<span class="tag-cloud">TigerData</span>', mini: t("statCloudMini"), num: cloud.length, fmt: intFmt, filter: "tigerdata", cloud: true },
       // TigerData+ — chipless like its neighbour, but tied to a real catalogue
       // product. Its own tile because that is the whole point of the tier: how much
       // of your digital-only stock the app can actually identify. It filters on its
       // own `protocol` value, so the two tiles light independently.
-      { key: "cloudplus", label: '<span class="tag-cloud tag-cloud-plus">TigerData+</span>', mini: t("statCloudPlusMini"), num: cloudPlus.length, fmt: intFmt, filter: "TigerData+", cloud: true },
-      { key: "diy",    label: '<span class="tag-diy">TigerTag</span>',        mini: t("statDiyMini"),   num: diy,          fmt: intFmt, filter: "TigerTag" },
-      { key: "plus",   label: '<span class="tag-plus">TigerTag+</span>',      mini: t("statPlusMini"),  num: plus.length,  fmt: intFmt, filter: "TigerTag+" },
+      { key: "cloudplus", label: '<span class="tag-cloud tag-cloud-plus">TigerData+</span>', mini: t("statCloudPlusMini"), num: cloudPlus.length, fmt: intFmt, filter: "tigerdataplus", cloud: true },
+      { key: "diy",    label: '<span class="tag-diy">TigerTag</span>',        mini: t("statDiyMini"),   num: diy,          fmt: intFmt, filter: "tigertag" },
+      { key: "plus",   label: '<span class="tag-plus">TigerTag+</span>',      mini: t("statPlusMini"),  num: plus.length,  fmt: intFmt, filter: "tigertagplus" },
     // A friend's stock weight and money value are theirs alone: their counts only.
     ].filter(c => !state.friendView || !FRIEND_HIDDEN_STATS.has(c.key));
     if (fromCache) cards.forEach(c => { if (typeof cachedStats[c.key] === "number") c.num = cachedStats[c.key]; });
@@ -10270,26 +10277,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       const q = state.search.toLowerCase();
       rows = rows.filter(r => _rowMatchesSearch(r, q));
     }
-    if (state.brandFilter) {
-      rows = rows.filter(r => String(r.brand) === state.brandFilter);
-    }
-    if (state.materialFilter) {
-      rows = rows.filter(r => String(r.material) === state.materialFilter);
-    }
-    if (state.typeFilter) {
-      rows = rows.filter(r => String(r.protocol) === state.typeFilter);
-    }
-    if (state.aspectFilter) {
-      const af = state.aspectFilter;
-      rows = rows.filter(r => String(r.aspect1) === af || String(r.aspect2) === af);
-    }
-    if (state.tagFilter) {
-      const tf = state.tagFilter.toLowerCase();
-      rows = rows.filter(r => (r.tags || []).some(t => String(t).toLowerCase() === tf));
-    }
-    if (state.flagFilter && !state.friendView) {
-      rows = rows.filter(r => !!_getProduct(r)?.[state.flagFilter]);
-    }
+    rows = rows.filter(r => _fbPass(r, "inv"));
     return sortRows(deduplicateTwins(rows));
   }
 
@@ -10313,113 +10301,12 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (mid != null) { const m = materialLabel(mid); if (m && m !== "-") return m; }
     return l.material || "";
   }
-  // Refresh quick-filter dropdowns (brand + material). In the inventory views they
-  // reflect the whole inventory; in the Products (favorites) views they reflect only
-  // the favorites. Preserves the user's current selection if it still exists.
+  // The filter bar's chips follow the data (labels, the tag list, the racks):
+  // redrawn in place when anything they show changed (signature guard in
+  // renderer/filter-bar.js). The name stays: every view render calls it.
   function populateQuickFilters() {
-    const faves = _isProductsMode(state.viewMode) ? _favesForFilters() : null;
-    populateOneQuickFilter({
-      sel: $("brandFilter"),
-      currentKey: "brandFilter",
-      labelKey: "filterAllBrands",
-      defaultLabel: "All brands",
-      shortKey: "filterShortBrand",
-      pickValue: r => r.brand,
-      rawValues: faves ? faves.map(p => p.label?.brand) : undefined,
-    });
-    populateOneQuickFilter({
-      sel: $("materialFilter"),
-      currentKey: "materialFilter",
-      labelKey: "filterAllMaterials",
-      defaultLabel: "All materials",
-      shortKey: "filterShortMaterial",
-      pickValue: r => r.material,
-      rawValues: faves ? faves.map(_faveMaterialRaw) : undefined,
-    });
-    populateOneQuickFilter({
-      sel: $("typeFilter"),
-      currentKey: "typeFilter",
-      labelKey: "filterAllVersions",
-      defaultLabel: "All versions",
-      shortKey: "filterShortProtocol",
-      pickValue: r => r.protocol,
-      // r.protocol is now "TigerData" for chipless (normalizeRow). This map is a
-      // safety net for any legacy "TigerCloud" value that might still surface.
-      labelOf: v => (v === "TigerCloud" ? "TigerData" : v),
-    });
-    populateAspectFilter(faves);
-    populateTagFilter(faves);
-  }
-  // Aspect filter — unlike the single-value filters, an aspect can come from
-  // EITHER Aspect 1 (finish: Matte, Silk, Carbon…) or Aspect 2 (colour
-  // arrangement: Bicolor, Tricolor, Rainbow…), so build the option list from the
-  // union of both and match a row if either equals the picked value. In the
-  // Products views the source is the favorites' labels (aspect + aspect2). The
-  // "empty" aspects ("-" and "None") are dropped — they're not worth filtering by.
-  function populateAspectFilter(faves) {
-    const sel = $("aspectFilter");
-    if (!sel) return;
-    const EMPTY = new Set(["", "-", "None"]);
-    const seen = new Map();   // lowercase → first-seen casing (case-insensitive dedup)
-    const add = v => { const s = String(v ?? "").trim(); if (EMPTY.has(s)) return; const k = s.toLowerCase(); if (!seen.has(k)) seen.set(k, s); };
-    if (faves) faves.forEach(p => { add(p.label?.aspect); add(p.label?.aspect2); });
-    else state.rows.filter(r => !r.deleted).forEach(r => { add(r.aspect1); add(r.aspect2); });
-    const values = Array.from(seen.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-    const allLabel = t("filterAllAspects") || "All aspects";
-    sel.innerHTML = `<option value="" data-i18n="filterAllAspects">${esc(allLabel)}</option>`
-      + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
-    const match = values.find(v => v.toLowerCase() === String(state.aspectFilter || "").toLowerCase());
-    if (match) { sel.value = match; state.aspectFilter = match; }
-    else { sel.value = ""; state.aspectFilter = ""; }
-    sel.classList.toggle("is-active", !!state.aspectFilter);
-    sel.classList.remove("hidden");
-    sel.dataset.cselShort = "filterShortAspect";
-    sel._cselRefresh?.();
-  }
-  // Tags are an array per spool/product, so the generic single-value populate
-  // doesn't fit — build the option list from the union of all tags. In the Products
-  // views the source is the favorites' tags (else the inventory's `_allTags`).
-  function populateTagFilter(faves) {
-    const sel = $("tagFilter");
-    if (!sel) return;
-    let values;
-    if (faves) {
-      const seen = new Map();   // lowercase → first-seen casing (case-insensitive dedup)
-      faves.forEach(p => (p.tags || []).forEach(tg => { const k = String(tg).toLowerCase(); if (!seen.has(k)) seen.set(k, String(tg)); }));
-      values = Array.from(seen.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-    } else {
-      values = _allTags();   // sorted, case-insensitive-deduped union (inventory)
-    }
-    const allLabel = t("filterAllTags") || "All tags";
-    sel.innerHTML = `<option value="" data-i18n="filterAllTags">${esc(allLabel)}</option>`
-      + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
-    const match = values.find(v => v.toLowerCase() === String(state.tagFilter || "").toLowerCase());
-    if (match) { sel.value = match; state.tagFilter = match; }
-    else { sel.value = ""; state.tagFilter = ""; }
-    sel.classList.toggle("is-active", !!state.tagFilter);
-    sel.classList.remove("hidden"); // may have been hidden by the printer view
-    sel.dataset.cselShort = "filterShortTag";
-    sel._cselRefresh?.();   // sync the custom dropdown's button label
-  }
-  // `labelOf` projects a stored value to what the user reads. The option's VALUE
-  // stays the stored string — it is what the filter compares against — so a tier
-  // can be renamed in the UI without orphaning the filter.
-  function populateOneQuickFilter({ sel, currentKey, labelKey, defaultLabel, pickValue, rawValues, shortKey, labelOf }) {
-    if (!sel) return;
-    sel.dataset.cselShort = shortKey || "";
-    // `rawValues` (Products views) overrides the default inventory source.
-    const raw = rawValues != null ? rawValues : state.rows.filter(r => !r.deleted).map(pickValue);
-    const values = Array.from(new Set(
-      raw.filter(v => v && v !== "-").map(v => String(v))
-    )).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-    const current = state[currentKey];
-    const allLabel = t(labelKey) || defaultLabel;
-    sel.innerHTML = `<option value="" data-i18n="${labelKey}">${esc(allLabel)}</option>`
-      + values.map(v => `<option value="${esc(v)}">${esc(labelOf ? labelOf(v) : v)}</option>`).join("");
-    if (current && values.includes(current)) sel.value = current;
-    else { sel.value = ""; state[currentKey] = ""; }
-    sel.classList.toggle("is-active", !!state[currentKey]);
-    sel._cselRefresh?.();   // sync the custom dropdown's button label
+    _fb?.render();
+    _fbSyncTiles();
   }
 
   // The nearest ancestor that actually CLIPS its overflow. An absolutely
@@ -11058,26 +10945,10 @@ import { initScreenTools } from './ai/screen-tools.js';
   // search box no longer flashes the whole grid.
   function applyInventoryFilter() {
     const q = (state.search || "").trim().toLowerCase();
-    const brand = state.brandFilter || "";
-    const material = state.materialFilter || "";
-    const type = state.typeFilter || "";
-    const aspect = state.aspectFilter || "";
-    const tag = (state.tagFilter || "").toLowerCase();
-    const flag = (!state.friendView && state.flagFilter) ? state.flagFilter : "";
     const hueOn = _hueFilterOn();
-    const noFilter = !q && !brand && !material && !type && !aspect && !tag && !flag && !hueOn;
+    const noFilter = !q && !state.filters.length && !hueOn;
     const rowsById = new Map(state.rows.map(r => [r.spoolId, r]));
-    const rowMatches = r => {
-      const matchSearch = !q || _rowMatchesSearch(r, q);
-      const matchBrand = !brand || String(r.brand) === brand;
-      const matchMaterial = !material || String(r.material) === material;
-      const matchType = !type || String(r.protocol) === type;
-      const matchAspect = !aspect || String(r.aspect1) === aspect || String(r.aspect2) === aspect;
-      const matchTag = !tag || (r.tags || []).some(t => String(t).toLowerCase() === tag);
-      const matchFlag = !flag || !!_getProduct(r)?.[flag];
-      const matchHue = !hueOn || _rowMatchesHue(r);
-      return matchSearch && matchBrand && matchMaterial && matchType && matchAspect && matchTag && matchFlag && matchHue;
-    };
+    const rowMatches = r => (!q || _rowMatchesSearch(r, q)) && _fbPass(r, "inv") && (!hueOn || _rowMatchesHue(r));
     let visible = 0;
 
     // ── Table rows are group-aware ──────────────────────────────────────────
@@ -13066,7 +12937,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     // Optional second sub-line (Products grid: Series for TigerTag+, else Aspect).
     const subExtra = opts.subExtraText ? `<div class="card-sub card-sub--extra">${esc(opts.subExtraText)}</div>` : "";
     return `
-      <div class="card-img-wrap"><span class="sel-check" aria-hidden="true"></span>${imgHtml}${tlBadges}${tdBadge}${chipDot}${_productBadgesHTML(r)}</div>
+      <div class="card-img-wrap"><span class="sel-check" aria-hidden="true"></span>${imgHtml}${tlBadges}${tdBadge}${opts.imgBadgeHTML || ""}${chipDot}${_productBadgesHTML(r)}</div>
       <div class="card-body">
         <div class="card-name">${swatch}${esc(nameText)}</div>
         <div class="card-sub">${esc(subText)}</div>
@@ -13604,6 +13475,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   // friend→own — so the previous user's open spool never bleeds into the next view.
   function _closeAllSideCards() {
     if ($("qrScanPanel")?.dataset.mode === "find") closeQrScanPanel();   // the search bar's QR card
+    closeColorSearch();                                                   // the search bar's colour card
     closeDetail();        // also clears state.selected + any queued scan-open
     _closeGroupPanel();
     closeProductCard();   // light product "business card"
@@ -14434,6 +14306,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     // Search views browse the OFFICIAL catalogue, not the user's stock, so every
     // stock-derived selector beside the search bar is meaningless there.
     document.body.classList.toggle("catalog-filters", _isCatalogMode(mode));
+    if (!_isCatalogMode(mode)) closeColorSearch();   // the colour search is the catalogue's
     // Cam view: the search bar + Scan/Add buttons are useless there, so hide
     // them (via #card-inv.is-cam-view) and surface the cam-wall "Detach" button
     // in the actions slot instead.
@@ -15182,31 +15055,16 @@ import { initScreenTools } from './ai/screen-tools.js';
   $("btnViewPrinter")?.addEventListener("click",      () => setViewMode("printer"));
   $("btnViewPrinterTable")?.addEventListener("click", () => setViewMode("printer-table"));
   $("btnViewCam")?.addEventListener("click",          () => setViewMode("printer-cam"));
-  // Changing the brand re-scopes Series, so its previous value must go.
-  $("cvBrand")?.addEventListener("change", () => {
-    const s = $("cvSeries"); if (s) s.value = "";
-    _catViewSearch();
-    const id = _catByName("brand", $("cvBrand").value, ["name"]);
-    if (id) questBump(`brand_${id}`);
-  });
-  $("cvMaterial")?.addEventListener("change", () => {
-    _catViewSearch();
-    const id = _catMaterialId($("cvMaterial").value);
-    if (id) questBump(`material_${id}`);
-  });
-  ["cvType", "cvSeries", "cvSort"].forEach(id =>
-    $(id)?.addEventListener("change", _catViewSearch));
+  $("cvSort")?.addEventListener("change", _catViewSearch);
   $("btnViewCatalogGrid")?.addEventListener("click",  () => setViewMode("catalogGrid"));
   $("btnViewCatalogTable")?.addEventListener("click", () => setViewMode("catalogTable"));
   // Delegated on the stable container — cards/rows are rebuilt on every query.
   $("catalogViewBody")?.addEventListener("click", e => {
     if (e.target.closest?.("[data-cv-create]")) { openAddProductPanel(); return; }
     if (e.target.closest?.("[data-cv-clear-filters]")) {
-      ["cvType", "cvBrand", "cvMaterial", "cvSeries"].forEach(id => {
-        const sel = $(id);
-        if (sel) { sel.value = ""; sel.classList.remove("is-active"); sel._cselRefresh?.(); }
-      });
-      _catViewSearch();
+      state.filters = [];
+      _catColorSet(null, { search: false });
+      _onFilterChange();
       return;
     }
     const el = e.target.closest?.(".cv-card, .cv-row");
@@ -15316,30 +15174,225 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (!btn) return;
     btn.hidden = !value || !value.length;
   }
+  /* ── Filter bar: fields, matching, options ───────────────────────────────
+     The ONE search bar holds the typed text plus filter chips
+     (renderer/filter-bar.js, Shopify admin's pattern). Each field reads the
+     IDs a record carries (id_brand, id_material, id_aspect1/2, data1, rack id…)
+     and the conditions compare those, never a label. Three scopes, one per
+     view family:
+       inv  — the spools (grid, table, Storage)
+       prod — product identities (Products views, Lists)
+       cat  — the catalogue (Search views)
+     `keys[scope](record)` gives the record's values for that field (several =
+     the record answers to any of them: a spool's two aspects, its tags); a
+     range field gives one number. */
+  const FB_TIERS = { tigertag: "TigerTag", tigertagplus: "TigerTag+", tigerdata: "TigerData", tigerdataplus: "TigerData+" };
+  const FB_EMPTY_ASPECTS = new Set(["0", "255"]);   // "-" and "None": nothing to filter by
+  function _fbScope(mode = state.viewMode) {
+    if (_isPrinterMode(mode) || _isProgressMode(mode)) return null;
+    if (_isCatalogMode(mode)) return "cat";
+    if (_isProductsMode(mode) || _isListsMode(mode)) return "prod";
+    return "inv";
+  }
+  function _rowTier(r) {
+    return r.isCloud ? (r.isCloudPlus ? "tigerdataplus" : "tigerdata") : r.isPlus ? "tigertagplus" : "tigertag";
+  }
+  // A product identity's IDs: its chip seed when it has one, else its label
+  // resolved against the reference tables (older products carry only names).
+  const _prodIdCache = new WeakMap();
+  function _prodIds(p) {
+    let v = _prodIdCache.get(p);
+    if (!v) {
+      const s = p?.cloudSeed || {}, l = p?.label || {};
+      v = {
+        brand: s.id_brand || _catByName("brand", l.brand, ["name"]) || null,
+        material: s.id_material || _catMaterialId(l.materialRaw || l.material) || null,
+        aspects: [s.id_aspect1, s.id_aspect2],
+      };
+      _prodIdCache.set(p, v);
+    }
+    return v;
+  }
+  // A catalogue entry's brand: the reference-table id (99.9 % of entries
+  // resolve); a name the table does not know keeps its own key.
+  const _catBrandCache = new WeakMap();
+  function _catBrandKey(it) {
+    let k = _catBrandCache.get(it);
+    if (k == null) {
+      const id = _catByName("brand", it.brand, ["name"]);
+      k = id ? String(id) : (it.brand ? "n:" + it.brand : "");
+      _catBrandCache.set(it, k);
+    }
+    return k;
+  }
+  const _fbTagCase = new Map();   // lowercase tag → the casing shown
+  const _lower = v => String(v).toLowerCase();
+  const FB_FIELDS = [
+    { id: "brand", key: "thBrand", neg: true,
+      keys: { inv: r => [r.brandId], prod: p => [_prodIds(p).brand], cat: it => [_catBrandKey(it)] },
+      label: v => v.startsWith("n:") ? v.slice(2) : brandName(+v) },
+    { id: "series", key: "thSeries",
+      keys: { cat: it => [it._series ? _catBrandKey(it) + "|" + it._series : null] },
+      label: v => { const [b, s] = [v.slice(0, v.indexOf("|")), v.slice(v.indexOf("|") + 1)];
+                    return `${s} · ${b.startsWith("n:") ? b.slice(2) : brandName(+b)}`; } },
+    { id: "material", key: "thMaterial", neg: true,
+      // The catalogue filters by material FAMILY (`material_type`): brands file
+      // the same spool under "PLA" or "PLA Silk" (#217).
+      keys: { inv: r => [r.materialId], prod: p => [_prodIds(p).material], cat: it => [_catFamily(it)] },
+      label: (v, scope) => scope === "cat" ? v : (materialFull(+v)?.label || "") },
+    { id: "aspect", key: "filterShortAspect", neg: true, skip: FB_EMPTY_ASPECTS,
+      keys: { inv: r => [r.aspect1Id, r.aspect2Id], prod: p => _prodIds(p).aspects,
+              cat: it => [it.RFID_Data?.id_aspect1, it.RFID_Data?.id_aspect2] },
+      label: v => aspectLabel(+v) || "" },
+    { id: "tier", key: "thType", neg: true, order: Object.keys(FB_TIERS),
+      keys: { inv: r => [_rowTier(r)] }, label: v => FB_TIERS[v] || v },
+    { id: "ptype", key: "thType",
+      keys: { cat: it => [it.product_type] }, label: v => v },
+    { id: "diameter", key: "detDiameter",
+      keys: { inv: r => [r.diameterId] }, label: v => diamLabel(+v) || "" },
+    { id: "tag", key: "filterShortTag", neg: true,
+      keys: { inv: r => (r.tags || []).map(_lower), prod: p => (p.tags || []).map(_lower) },
+      label: v => _fbTagCase.get(v) || v },
+    { id: "list", key: "fbList", when: () => !state.friendView,
+      keys: { inv: r => { const p = _getProduct(r); return [p?.liked && "liked", p?.favorite && "favorite"]; },
+              prod: p => [p.liked && "liked", p.favorite && "favorite"] },
+      label: v => t(v === "liked" ? "productLike" : "productFavorite") },
+    { id: "weight", key: "thWeight", kind: "range", unit: "g",
+      keys: { inv: r => r.weightAvailable } },
+    { id: "rack", key: "thRack", neg: true, when: () => (state.racks || []).length > 0,
+      keys: { inv: r => [r.rackId || "none"] },
+      label: v => v === "none" ? t("fbNotStored") : ((state.racks || []).find(x => x.id === v)?.name || v) },
+  ];
+  const FB_BY_ID = Object.fromEntries(FB_FIELDS.map(f => [f.id, f]));
+  const _fbKeys = (f, scope, x) =>
+    (f.keys[scope]?.(x) || []).filter(v => v != null && v !== "" && v !== false && v !== 0).map(String);
+  // Does a record pass every condition (except `skip`, for the facet counts)?
+  function _fbPass(x, scope, skip = null, conds = state.filters) {
+    for (const c of conds) {
+      if (c.field === skip) continue;
+      const f = FB_BY_ID[c.field];
+      if (!f?.keys[scope]) continue;
+      if (f.kind === "range") {
+        const v = f.keys[scope](x);
+        if (v == null || v === "" || !Number.isFinite(Number(v))) return false;
+        const [lo, hi] = c.values;
+        if ((lo != null && Number(v) < lo) || (hi != null && Number(v) > hi)) return false;
+        continue;
+      }
+      const hit = _fbKeys(f, scope, x).some(k => c.values.includes(k));
+      if (c.op === "isNot" ? hit : !hit) return false;
+    }
+    return true;
+  }
+  // What a field's menu counts over: the records the typed search, the colour
+  // bars / colour search and the OTHER chips leave (so a count is what you get).
+  function _fbBase(scope) {
+    const q = (state.search || "").trim().toLowerCase();
+    if (scope === "inv") return state.rows.filter(r => !r.deleted && (!q || _rowMatchesSearch(r, q)) && _rowMatchesHue(r));
+    if (scope === "prod") {
+      const src = _isListsMode(state.viewMode) ? _listItems(_selectedList()) : _favesForFilters();
+      return src.filter(p => _prodTextPass(p, q));
+    }
+    if (scope === "cat") return _catColorApply(_catalogFilter($("searchInv")?.value, "", ""));
+    return [];
+  }
+  function _fbOptions(f, scope) {
+    const m = new Map();
+    for (const x of _fbBase(scope)) {
+      if (!_fbPass(x, scope, f.id)) continue;
+      for (const k of new Set(_fbKeys(f, scope, x))) if (!f.skip?.has(k)) m.set(k, (m.get(k) || 0) + 1);
+      if (f.id === "tag") ((scope === "inv" ? x.tags : x.tags) || []).forEach(tg => { const k = _lower(tg); if (!_fbTagCase.has(k)) _fbTagCase.set(k, String(tg)); });
+    }
+    // A picked value stays listed (at 0) so it can be unticked.
+    state.filters.find(c => c.field === f.id)?.values.forEach(v => { if (!m.has(v)) m.set(v, 0); });
+    // A value with no name (an ID the bundled tables do not know yet) or a
+    // placeholder one ("-", the reference table's "unknown" entry) says nothing
+    // in a list of names.
+    const opts = [...m].map(([value, count]) => ({ value, count, label: f.label(value, scope) }))
+      .filter(o => o.label && o.label !== "-");
+    if (f.order) opts.sort((a, b) => f.order.indexOf(a.value) - f.order.indexOf(b.value));
+    else opts.sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { sensitivity: "base" }));
+    return opts;
+  }
+  function _fbFieldDefs() {
+    const scope = _fbScope();
+    if (!scope) return [];
+    return FB_FIELDS.filter(f => f.keys[scope] && (!f.when || f.when())).map(f => ({
+      id: f.id, label: t(f.key), kind: f.kind || "values", neg: !!f.neg, unit: f.unit,
+      labelOf: v => f.label(v, scope), options: () => _fbOptions(f, scope),
+    }));
+  }
+  // The chips the bar shows but other controls edit: the colour bars and the
+  // catalogue's colour search.
+  function _fbExtraChips() {
+    const out = [];
+    const c = state.catColor;
+    if (c && _fbScope() === "cat") out.push({
+      key: "color", text: `${c.ral || c.hex.toUpperCase()} · ΔE ≤ ${c.max}`, swatch: colorBg({ colorList: [c.hex] }),
+      onEdit: () => openColorSearch(), onRemove: () => _catColorSet(null),
+    });
+    const f = _hueFilter();
+    if (_hueFilterOn(f) && _fbScope()) {
+      const w = f.axis === "lum" ? f.lum : f.hue;
+      const swatch = f.axis === "lum"
+        ? `linear-gradient(90deg, hsl(0 0% ${100 - w.lo}%), hsl(0 0% ${Math.max(0, 100 - w.lo - w.width)}%))`
+        : `linear-gradient(90deg, hsl(${w.lo} 85% 55%), hsl(${(w.lo + w.width / 2) % 360} 85% 55%), hsl(${(w.lo + w.width) % 360} 85% 55%))`;
+      out.push({
+        key: "hue", text: t("rackHue"), swatch,
+        onRemove: () => {
+          Object.assign(f.hue, HUE_DEFAULT); Object.assign(f.lum, LUM_DEFAULT); f.axis = "hue";
+          _hueViewsRedraw?.();
+          _onFilterChange();
+        },
+      });
+    }
+    return out;
+  }
+  // The header's type tiles light up with the Type chip they set.
+  function _fbSyncTiles() {
+    const c = state.filters.find(x => x.field === "tier");
+    const tf = c && c.op === "is" && c.values.length === 1 ? c.values[0] : "";
+    document.querySelectorAll("#sbStats .sb-stat[data-filter]").forEach(el =>
+      el.classList.toggle("is-active", !!tf && el.dataset.filter === tf));
+  }
+  function _fbSetConds(list) {
+    const before = state.filters;
+    state.filters = list;
+    // Quests count the brands and materials looked up in the catalogue.
+    if (_fbScope() === "cat") for (const c of list) {
+      if (c.op !== "is" || !["brand", "material"].includes(c.field)) continue;
+      const old = before.find(x => x.field === c.field)?.values || [];
+      for (const v of c.values) if (!old.includes(v)) {
+        const id = c.field === "brand" ? (v.startsWith("n:") ? 0 : +v) : _catMaterialId(v);
+        if (id) questBump(`${c.field}_${id}`);
+      }
+    }
+    _onFilterChange();
+  }
+  let _fb = null;
+  let _hueViewsRedraw = null;   // set where the colour bars are wired
+
   // Reset the search bar + all quick-filters when switching instance
   // (account switch or friend view). Called before rendering the new view
   // so the first render is always unfiltered.
   function _clearSearchFilters() {
     state.search        = "";
-    state.brandFilter    = "";
-    state.materialFilter = "";
-    state.typeFilter     = "";
-    state.aspectFilter   = "";
-    state.tagFilter      = "";
-    state.flagFilter     = "";
+    state.filters        = [];
     state.printerBrandFilter  = "";
     state.printerStatusFilter = "";
     state.printerTagFilter    = "";
     const si = $("searchInv");
     if (si) { si.value = ""; _refreshSearchClearVisibility(""); }
-    ["brandFilter", "materialFilter", "aspectFilter", "typeFilter", "tagFilter"].forEach(id => {
+    // The printer views' selects: reset the native select AND its custom
+    // dropdown button (_enhanceSelect), or the button keeps the old label.
+    ["brandFilter", "materialFilter", "tagFilter"].forEach(id => {
       const sel = $(id);
-      // Reset the native select AND its custom dropdown button (_enhanceSelect) —
-      // otherwise the styled `.csel-btn` keeps showing the old filter label.
       if (sel) { sel.value = ""; sel.classList.remove("is-active"); sel._cselRefresh?.(); }
     });
-    $("wishFilter")?.classList.remove("is-active");
-    $("likeFilter")?.classList.remove("is-active");
+    // The catalogue's colour search is one of the chips: it goes with them.
+    if (state.catColor) _catColorSet(null, { search: false });
+    _fb?.close();
+    populateQuickFilters();
   }
 
   // Skip the full DOM rebuild on filter changes and just toggle `.hidden`
@@ -15351,15 +15404,11 @@ import { initScreenTools } from './ai/screen-tools.js';
   /* Is anything actually filtering right now? Drives the reset button's state:
      it should look usable only while it has something to undo. */
   function _anyFilterActive() {
-    if (state.search || state.brandFilter || state.materialFilter || state.typeFilter
-        || state.aspectFilter || state.tagFilter || state.flagFilter || _hueFilterOn()) return true;
+    if (state.search || state.filters.length || _hueFilterOn()) return true;
     // The button lives on the search row now, so it is on screen in the printer
     // views too — where the filters it clears are the printer ones.
     if (state.printerBrandFilter || state.printerStatusFilter || state.printerTagFilter) return true;
-    // The Search views browse the catalogue and carry their own selectors.
-    if (_isCatalogMode(state.viewMode))
-      return ["cvType", "cvBrand", "cvMaterial", "cvSeries"].some(id => $(id)?.value);
-    return false;
+    return _isCatalogMode(state.viewMode) && !!state.catColor;
   }
   function _syncFilterReset() {
     $("rvHueReset")?.classList.toggle("is-armed", _anyFilterActive());
@@ -15377,6 +15426,7 @@ import { initScreenTools } from './ai/screen-tools.js';
 
   function _onFilterChange() {
     _syncFilterReset();
+    populateQuickFilters();
     if (state.viewMode === "rack") { applyRackSearchDim(); return; }
     // Search views: the query is the catalogue query — re-run our own engine
     // rather than filtering spool rows that aren't on screen.
@@ -15475,6 +15525,121 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (!$("qrScanPanel")?.classList.contains("open")) return;
     $("qrScanPanel").classList.remove("open");
     _syncPanels();
+  }
+
+  /* ── Colour search (#colorSearchPanel, renderer/color-search.js) ─────────────
+     The Search views' colour finder, the same matching as tigersystem.io's: a HEX,
+     a RAL Classic code or a point of a photo, ranked by CIEDE2000 and kept within
+     a ΔE ceiling. `state.catColor` = { mode, hex, ral, max, multi, lab } | null;
+     _catViewSearch runs it after the other filters (_catColorApply). The card
+     stands alone at the right edge and gives way to any other side card. */
+  let _csr = null, _csrLang = "";
+  $("searchColor")?.addEventListener("click", () => {
+    if ($("colorSearchPanel")?.classList.contains("open")) { closeColorSearch(); return; }
+    openColorSearch();
+  });
+  $("colorSearchPanelClose")?.addEventListener("click", () => closeColorSearch());
+  $("colorSearchCloseTab")?.addEventListener("click", () => closeColorSearch());
+  function openColorSearch() {
+    const panel = $("colorSearchPanel"), root = $("colorSearchRoot");
+    if (!panel || !root) return;
+    _closeAllSideCards();
+    // Built once and kept (an opened photo stays), rebuilt only for a new language.
+    if (!_csr || _csrLang !== state.lang) {
+      _csrLang = state.lang;
+      _csr = mountColorSearch(root, {
+        t, esc, openColorPop,
+        swatchBg: hex => colorBg({ colorList: [hex] }),
+        value: state.catColor || {},
+        onChange: v => _catColorSet(v),
+      });
+    } else {
+      _csr.setValue(state.catColor || { hex: null, ral: "" });
+    }
+    panel.classList.add("open");
+    _csrWatchOthers(true);
+    _syncPanels();
+  }
+  function closeColorSearch() {
+    _csrWatchOthers(false);
+    const panel = $("colorSearchPanel");
+    if (!panel?.classList.contains("open")) return;
+    panel.classList.remove("open");
+    _syncPanels();
+  }
+  // Another side card opening (a result's product card…) takes the right edge.
+  let _csrOthersObs = null;
+  function _csrWatchOthers(on) {
+    _csrOthersObs?.disconnect();
+    _csrOthersObs = null;
+    if (!on) return;
+    _csrOthersObs = new MutationObserver(recs => {
+      if (recs.some(r => r.target.classList.contains("open") && !r.oldValue?.split(" ").includes("open"))) closeColorSearch();
+    });
+    document.querySelectorAll(".detail-panel").forEach(el => {
+      if (el.id !== "colorSearchPanel") _csrOthersObs.observe(el, { attributes: true, attributeFilter: ["class"], attributeOldValue: true });
+    });
+  }
+  function _catColorSet(v, { search = true } = {}) {
+    state.catColor = v && v.hex ? { ...v, lab: hexToLab(v.hex) } : null;
+    if (!state.catColor) _csr?.setValue({ hex: null, ral: "" });
+    _catColorChipSync();
+    if (search && _isCatalogMode(state.viewMode)) _onFilterChange();
+  }
+  // The active colour is one of the filter bar's chips (_fbExtraChips): a click
+  // reopens the colour card, its cross removes it.
+  function _catColorChipSync() {
+    $("searchColor")?.classList.toggle("is-on", !!state.catColor);
+    populateQuickFilters();
+  }
+  // Each product's colours in CIELAB, computed once per catalogue item.
+  const _catLabCache = new WeakMap();
+  function _catLabs(it) {
+    let l = _catLabCache.get(it);
+    if (!l) {
+      l = _catColors(it).map(_csNormHex).filter(Boolean).map(hexToLab);
+      _catLabCache.set(it, l);
+    }
+    return l;
+  }
+  // The RAL codes a brand declared, one per colour (`rals`), or the first colour's (`ral`).
+  function _catRals(it) {
+    const list = Array.isArray(it.rals) && it.rals.length ? it.rals : [it.ral];
+    return list.map(c => ralColor(c)?.code || "");
+  }
+  // item → { de, declared } for the hits of the current colour search.
+  const _catColorDE = new Map();
+  function _catColorApply(hits) {
+    _catColorDE.clear();
+    const c = state.catColor;
+    if (!c) return hits;
+    const out = [];
+    for (const it of hits) {
+      const labs = _catLabs(it);
+      if (!labs.length) continue;
+      const declared = !!c.ral && _catRals(it).includes(c.ral);
+      // A rainbow is not "a blue filament": multicolour on request, or when its
+      // brand declared the RAL searched for (as on the site).
+      if (!c.multi && labs.length > 1 && !declared) continue;
+      let de = Infinity;
+      for (const l of labs) { const d = deltaE2000(c.lab, l); if (d < de) de = d; }
+      if (!declared && de > c.max) continue;
+      out.push({ it, de, declared });
+    }
+    out.sort((a, z) => Number(z.declared) - Number(a.declared) || a.de - z.de);
+    for (const o of out) _catColorDE.set(o.it, o);
+    return out.map(o => o.it);
+  }
+  // "ΔE 1.4" on a result, tinted by the site's bands; a declared RAL says so.
+  // While a colour search is on, each hit's distance as a badge at the bottom
+  // left of its picture — the TD badge's place and look (`cls`: card-td-badge on
+  // a card, thumb-td-badge on a table thumbnail), a dot in the band's colour.
+  function _catDeHTML(it, cls = "card-td-badge") {
+    const m = _catColorDE.get(it);
+    if (!m) return "";
+    const band = m.declared ? "declared" : deltaBand(m.de);
+    const label = m.declared ? t("colorSearchDeclared", { code: state.catColor?.ral || "" }) : t(`colorSearchBand_${band}`);
+    return `<span class="${cls} cv-de" data-band="${band}" aria-label="${esc(label)}">${m.declared ? esc(state.catColor?.ral || "") : `ΔE ${m.de.toFixed(1)}`}</span>`;
   }
   /* ── Add with TigerTag (#tagAddPanel, the new-chip card's pane) ───────────────
      The only way a scanned chip enters the inventory (founder, 2026-11-13). A
@@ -15815,78 +15980,54 @@ import { initScreenTools } from './ai/screen-tools.js';
   // Initial sync — covers the case where the input was pre-populated
   // by a previous render or autofill (rare but possible).
   _refreshSearchClearVisibility($("searchInv")?.value);
+  // The filter bar: the chips written in the field (see "Filter bar: fields").
+  if ($("fbBar")) _fb = mountFilterBar({
+    bar: $("fbBar"), input: $("searchInv"), searchBox: $("searchInv").closest(".inv-search"), addBtn: $("fbAddBtn"),
+    t, esc, registry: _cselOpen,
+    active: () => !!_fbScope(),
+    fields: _fbFieldDefs,
+    conds: () => state.filters,
+    setConds: _fbSetConds,
+    extraChips: _fbExtraChips,
+  });
   $("brandFilter")?.addEventListener("change", e => {
     const v = e.target.value;
     e.target.classList.toggle("is-active", !!v);
-    // Same select, two contexts: printer brands in the printer view, else materials.
-    if (_isPrinterMode(state.viewMode)) { state.printerBrandFilter = v; applyPrinterFilter(); }
-    else { state.brandFilter = v; _onFilterChange(); }
+    // The printer views' selects (the other views filter through the chips).
+    state.printerBrandFilter = v; applyPrinterFilter(); _syncFilterReset();
   });
   $("materialFilter")?.addEventListener("change", e => {
     const v = e.target.value;
     e.target.classList.toggle("is-active", !!v);
-    // Printer view repurposes this select as the State (online/offline) filter.
-    if (_isPrinterMode(state.viewMode)) { state.printerStatusFilter = v; applyPrinterFilter(); }
-    else { state.materialFilter = v; _onFilterChange(); }
-  });
-  $("typeFilter")?.addEventListener("change", e => {
-    state.typeFilter = e.target.value;
-    e.target.classList.toggle("is-active", !!state.typeFilter);
-    _onFilterChange();
-  });
-  $("aspectFilter")?.addEventListener("change", e => {
-    state.aspectFilter = e.target.value;
-    e.target.classList.toggle("is-active", !!state.aspectFilter);
-    _onFilterChange();
+    // The printer views use this select as the State (online/offline) filter.
+    state.printerStatusFilter = v; applyPrinterFilter(); _syncFilterReset();
   });
   $("tagFilter")?.addEventListener("change", e => {
     const v = e.target.value;
     e.target.classList.toggle("is-active", !!v);
-    if (_isPrinterMode(state.viewMode)) { state.printerTagFilter = v; applyPrinterFilter(); }
-    else { state.tagFilter = v; _onFilterChange(); }
+    state.printerTagFilter = v; applyPrinterFilter(); _syncFilterReset();
   });
   // Replace the native OS dropdowns of the toolbar filters with app-styled popups.
-  ["brandFilter", "materialFilter", "aspectFilter", "typeFilter", "tagFilter", "gridSort",
-   // Search-view filters — same app-styled dropdown as every other filter, so
-   // the two view families are visually indistinguishable.
-   "cvType", "cvBrand", "cvMaterial", "cvSeries", "cvSort"].forEach(id => _enhanceSelect($(id)));
-  // Field name on the button while nothing is picked — same convention as the
-  // inventory / printer filters (see `cselShort` above).
-  Object.entries({ cvType: "thType", cvBrand: "thBrand", cvMaterial: "thMaterial",
-                   cvSeries: "thSeries", cvSort: "sortBy" }).forEach(([id, key]) => {
-    const el = $(id); if (el) { el.dataset.cselShort = key; el._cselRefresh?.(); }
-  });
+  // (The printer views' Brand / State / Tag, the grid sort and the Search
+  // views' sort; every other filter is a chip of the filter bar.)
+  ["brandFilter", "materialFilter", "tagFilter", "gridSort", "cvSort"].forEach(id => _enhanceSelect($(id)));
   // Same treatment for the Add-product panel's identity selects (Brand/Material
   // use their own bottom-sheets; these are the plain <select>s). The button
   // mirrors the .adp-select look; only the OS option list is replaced.
   _ADP_CSEL_IDS.forEach(id => _enhanceSelect($(id)));
-  // ❤ Liked / ★ Favorite quick filters — toggle on/off, mutually exclusive.
-  // The value doubles as the product field key (`_getProduct(r)?.[flagFilter]`).
-  function _toggleFlagFilter(flag) {
-    state.flagFilter = (state.flagFilter === flag) ? "" : flag;
-    _syncFlagFilterUI();
+  // ── Stat tile click → the Type chip ────────────────────────────────────────
+  // A type tile (TigerTag / TigerTag+ / TigerData / TigerData+) sets the filter
+  // bar's Type chip to that type and lights up; a second click removes it. The
+  // other tiles (spools, stock, value) only inform.
+  $("sbStats")?.addEventListener("click", e => {
+    const el = e.target.closest?.(".sb-stat[data-filter]");
+    if (!el || !FB_TIERS[el.dataset.filter] || _fbScope() !== "inv") return;
+    _fb?.toggle("tier", el.dataset.filter);
     _onFilterChange();
-  }
-  function _syncFlagFilterUI() {
-    $("wishFilter")?.classList.toggle("is-active", state.flagFilter === "liked");
-    $("likeFilter")?.classList.toggle("is-active", state.flagFilter === "favorite");
-  }
-  $("wishFilter")?.addEventListener("click", () => _toggleFlagFilter("liked"));
-  $("likeFilter")?.addEventListener("click", () => _toggleFlagFilter("favorite"));
-
-  // ── Stat tile click → quick type filter ────────────────────────────────────
-  // Clicking a version tile (TigerTag / TigerTag+ / TigerCloud) sets the
-  // typeFilter and highlights the tile. Clicking it again, or clicking a
-  // "reset" tile (SPOOLS / STOCK), clears the filter back to "All versions".
+  });
   // The ⓘ info bubble on the "Stock value" stat (reuses the toolbox tooltip pop).
   $("sbStats")?.addEventListener("mouseover", e => { const el = e.target.closest?.(".tool-info"); if (el) _showToolInfoTip(el); });
   $("sbStats")?.addEventListener("mouseout",  e => { const el = e.target.closest?.(".tool-info"); if (el && !el.contains(e.relatedTarget)) _hideToolInfoTip(); });
-  // The header mini-dashboard is INFORMATIONAL only — clicking a stat card no
-  // longer filters the inventory. It used to set state.typeFilter and poke
-  // `#typeFilter.value` directly, which left the custom `_enhanceSelect` dropdown
-  // showing a stale label (the visible button mirrors the <select> and only
-  // refreshes on a real change event). Protocol filtering stays where it belongs:
-  // the filter controls next to the search field.
 
   function updateSortIndicators() {
     document.querySelectorAll("th.sortable").forEach(th => {
@@ -17468,6 +17609,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if ($("notifPanel")?.classList.contains("open"))       closeNotifs();
     if ($("matSourcePanel")?.classList.contains("open"))   closeMaterialSourcePicker();
     if ($("qrScanPanel")?.dataset.mode === "find")         closeQrScanPanel();
+    closeColorSearch();
     closeCatalogPick();
     closeChipLink();
     if ($("addProductPanel")?.classList.contains("open"))  _adpCloseAllSheetsAndPanel();
@@ -17641,97 +17783,35 @@ import { initScreenTools } from './ai/screen-tools.js';
     return rank;
   }
 
-  // Counts are computed over the WHOLE catalogue, not the current result set —
-  // the number next to "Bambu Lab" answers "how many are there", which stays
-  // stable as the other filters move.
-  // The counts only move with the index (and the "All …" rows with the
-  // language), so the three catalogue-wide selects are rebuilt only then, and
-  // Series only when the brand changes too — not on every keystroke.
-  let _catFacetsKey = "", _catFacetsIdx = null;
+  // The Search views' only select left is the sort (the filters are chips of
+  // the filter bar). "Sort by: Brand", not a bare "Brand": the sort always HAS a
+  // value, and a bare field name would read like a filter.
   function _catViewFillFacets() {
-    const brandNow = $("cvBrand")?.value || "";
-    const key = state.lang + "|" + brandNow;
-    if (_catFacetsIdx === _catalogIndex && _catFacetsKey === key) return;
-    const fullRebuild = _catFacetsIdx !== _catalogIndex || !_catFacetsKey.startsWith(state.lang + "|");
-    _catFacetsIdx = _catalogIndex;
-    _catFacetsKey = key;
-    const idx = _catalogIndex.map(e => e.it);
-    const countBy = (list, key) => {
-      const m = new Map();
-      for (const it of list) {
-        const v = typeof key === "function" ? key(it) : it[key];
-        if (v) m.set(v, (m.get(v) || 0) + 1);
-      }
-      return [...m.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
-    };
-    const fill = (el, allLabel, pairs, { keepValue = true } = {}) => {
-      if (!el) return;
-      const cur = el.value;
-      el.innerHTML = `<option value="">${esc(allLabel)}</option>` +
-        pairs.map(([v, n]) => `<option value="${esc(String(v))}">${esc(String(v))} (${n})</option>`).join("");
-      if (keepValue && cur && pairs.some(([v]) => String(v) === cur)) el.value = cur;
-      // These selects are wrapped in the app's custom dropdown (_enhanceSelect):
-      // the native <select> is only the model, so the visible button has to be
-      // told the options changed.
-      el._cselRefresh?.();
-    };
-    // Iso with every other filter in the app: the LIST shows a plain "All" row,
-    // and the BUTTON shows the field name (via `data-csel-short`, which
-    // _enhanceSelect swaps in whenever no value is picked) so the user can see
-    // what the menu filters without opening it.
-    if (fullRebuild) {
-      fill($("cvType"),     t("filterAllVersions"),  countBy(idx, "product_type"));
-      fill($("cvBrand"),    t("filterAllBrands"),    countBy(idx, "brand"));
-      fill($("cvMaterial"), t("filterAllMaterials"), countBy(idx, _catFamily));
-    }
-
-    // Series depends on the chosen brand.
-    const brand = $("cvBrand")?.value || "";
-    const sEl = $("cvSeries");
-    if (sEl) {
-      if (!brand) {
-        sEl.disabled = true;
-        sEl.innerHTML = `<option value="">${esc(t("catFilterSeriesPick"))}</option>`;
-        sEl._cselRefresh?.();
-      } else {
-        sEl.disabled = false;
-        fill(sEl, t("filterAllSeries"), countBy(idx.filter(it => it.brand === brand), "_series"));
-      }
-      // The custom dropdown mirrors the <select>'s options but NOT its disabled
-      // state, so the wrapper carries it — otherwise the button stays clickable
-      // and opens an empty list.
-      sEl.closest(".csel")?.classList.toggle("is-disabled", sEl.disabled);
-    }
     const sortEl = $("cvSort");
     if (sortEl && !sortEl.options.length) {
-      // "Sort by: Brand", not a bare "Brand" — the sort always HAS a value, so
-      // `cselShort` never kicks in and the button shows the option text. A bare
-      // field name there would sit next to the Brand FILTER reading identically.
       sortEl.innerHTML = [["brand", "thBrand"], ["name", "thName"], ["material", "thMaterial"]]
         .map(([v, k]) => `<option value="${v}">${esc(t("sortBy") + ": " + t(k))}</option>`).join("");
+      sortEl._cselRefresh?.();
     }
   }
 
   function _catViewSearch() {
     _syncFilterReset();   // the catalogue's own selectors arm it too
-    // The Material filter lists families: once the table is read, list them again.
-    if (!_matFamiliesP) _loadMaterialFamilies().then(() => { _catFacetsIdx = null; _catViewSearch(); });
+    // The Material chip lists families: once the table is read, search again.
+    if (!_matFamiliesP) _loadMaterialFamilies().then(() => _catViewSearch());
     _catViewFillFacets();
-    const fType   = $("cvType")?.value || "";
-    const fBrand  = $("cvBrand")?.value || "";
-    const fMat    = $("cvMaterial")?.value || "";
-    const fSeries = $("cvSeries")?.value || "";
-    _catViewHits = _catalogFilter($("searchInv")?.value, fBrand, fMat)
-      .filter(it => (!fType || it.product_type === fType)
-                 && (!fSeries || it._series === fSeries));
+    _catViewHits = _catalogFilter($("searchInv")?.value, "", "").filter(it => _fbPass(it, "cat"));
     const rank = _catSortRank($("cvSort")?.value || "brand");
     _catViewHits.sort((a, b) => rank.get(a) - rank.get(b));
+    // A colour search keeps the products within its ΔE and puts the closest first.
+    _catViewHits = _catColorApply(_catViewHits);
     // Drop a selection the current query no longer contains.
     if (_catViewSelectedId && !_catViewHits.some(x => String(x.id) === _catViewSelectedId)) {
       _catViewSelectedId = null;
     }
     const body = $("catalogViewBody");
-    const sig = state.viewMode + "|" + state.lang;
+    const cc = state.catColor;
+    const sig = state.viewMode + "|" + state.lang + "|" + (cc ? cc.hex + cc.ral : "");
     const sameHits = _catViewHits.length === _catViewRenderedHits.length
       && _catViewHits.every((x, i) => x === _catViewRenderedHits[i]);
     if (body && sameHits && sig === _catViewRenderedSig && _catalogIndex === _catViewRenderedIndex && body.childElementCount) {
@@ -17759,7 +17839,7 @@ import { initScreenTools } from './ai/screen-tools.js';
         body.className = "cv-body";
         // The search finds products but the selectors above leave none: say so and
         // offer to clear them, rather than "make it yourself" (#217).
-        const filtered = (fType || fBrand || fMat || fSeries)
+        const filtered = (state.filters.length || state.catColor)
           && _catalogFilter($("searchInv")?.value, "", "").length > 0;
         body.innerHTML = filtered ? `
           <div class="cv-empty">
@@ -17851,6 +17931,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       subText:      [it.brand, it.material].filter(Boolean).join(" · ") || "—",
       subExtraText: String(it._series || ""),
       footerHTML:   `<span class="card-weight">${esc(String(it.measure || "—"))}</span>`,
+      imgBadgeHTML: _catDeHTML(it),
     });
     return `
       <div class="spool-card cv-card${sel}" role="button" tabindex="0" data-id="${esc(String(it.id))}"
@@ -17911,7 +17992,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   // `fill`: the thumb takes its size from CSS (the catalogue pick list's column
   // flush with the row's left edge); `size` then only picks the rendition.
   // `badges`: the top-left badges of the inventory thumbnails (here, Refill).
-  function _catThumbHTML(r, size = 50, { fill = false, badges = false } = {}) {
+  function _catThumbHTML(r, size = 50, { fill = false, badges = false, extra = "" } = {}) {
     const bg  = colorBg(r);
     const src = r.imgUrl ? resolvedImg(cdnImg(r.imgUrl, size)) : null;
     // data-zoom: the hover preview, as on the inventory table (_showThumbZoom).
@@ -17921,6 +18002,7 @@ import { initScreenTools } from './ai/screen-tools.js';
          + `<img class="cv-thumb-logo" src="${logoSrc(bg)}" alt="" />`
          + (src ? `<img class="cv-thumb-img" data-img-src="${esc(src)}" alt="" />` : "")
          + (badges ? _cardTlBadges(r, { compact: true, backup: false }) : "")
+         + extra
          + `</span>`;
   }
 
@@ -17932,12 +18014,12 @@ import { initScreenTools } from './ai/screen-tools.js';
     return `
       <tr class="cv-row${sel}" data-id="${esc(String(it.id))}" aria-selected="${sel ? "true" : "false"}">
         <td class="sel-cell"><span class="sel-check" aria-hidden="true"></span></td>
-        <td class="thumb-cell">${_catThumbHTML(r, 50, { badges: true })}</td>
+        <td class="thumb-cell">${_catThumbHTML(r, 50, { badges: true, extra: _catDeHTML(it, "thumb-td-badge") })}</td>
         <td>${tierBadgeHTML(r)}</td>
         ${cell(it.material)}
         ${cell(it.brand)}
         ${cell(it._series)}
-        ${cell(it._name)}
+        <td>${esc(String(it._name || "-"))}</td>
         <td style="font-variant-numeric:tabular-nums">${esc(String(it.measure || "-"))}</td>
       </tr>`;
   }
@@ -18484,36 +18566,21 @@ import { initScreenTools } from './ai/screen-tools.js';
       : `<span class="pv-thumb pv-thumb--swatch" style="--spool-bg:${esc(bg)}"></span>`;
   }
 
-  // Apply the shared search bar + right-side selectors (Brand / Material / Tag /
-  // ❤ Liked / ★ Favorite) to the product list, so the Products views react to the
-  // same controls as the inventory. `label.material` may carry the aspect
-  // ("PLA Basic") while the filter holds the raw material ("PLA") — match either.
+  // Apply the shared search bar and its filter chips to the product list, so the
+  // Products views react to the same controls as the inventory.
   function _filteredProducts(list) {
-    const q        = (state.search || "").trim().toLowerCase();
-    const brand    = state.brandFilter || "";
-    const material = state.materialFilter || "";
-    const aspect   = state.aspectFilter || "";
-    const tag      = (state.tagFilter || "").toLowerCase();
-    const flag     = state.flagFilter || "";        // "liked" | "favorite" | ""
-    return list.filter(p => {
-      const l = p.label || {};
-      if (flag && !p[flag]) return false;
-      if (brand && String(l.brand || "") !== brand) return false;
-      if (material) {
-        const m = String(l.material || "");
-        if (m !== material && !m.startsWith(material + " ")) return false;
-      }
-      if (aspect && String(l.aspect || "") !== aspect && String(l.aspect2 || "") !== aspect) return false;
-      if (tag && !(p.tags || []).some(tg => String(tg).toLowerCase() === tag)) return false;
-      // A product identity carries one colour, not a spool's three slots.
-      if (!_colorsMatchHue([l.colorHex])) return false;
-      if (q) {
-        const hay = [l.brand, l.series, l.material, l.aspect, l.aspect2, l.colorName, p.note, p.sku, p.ean, ...(p.tags || [])]
-          .filter(Boolean).join(" ").toLowerCase();
-        if (!_hayHasAll(hay, _searchTokens(q))) return false;
-      }
-      return true;
-    });
+    const q = (state.search || "").trim().toLowerCase();
+    return list.filter(p => _fbPass(p, "prod") && _prodTextPass(p, q));
+  }
+  // The typed search and the colour bars over one product identity.
+  function _prodTextPass(p, q) {
+    const l = p.label || {};
+    // A product identity carries one colour, not a spool's three slots.
+    if (!_colorsMatchHue([l.colorHex])) return false;
+    if (!q) return true;
+    const hay = [l.brand, l.series, l.material, l.aspect, l.aspect2, l.colorName, p.note, p.sku, p.ean, ...(p.tags || [])]
+      .filter(Boolean).join(" ").toLowerCase();
+    return _hayHasAll(hay, _searchTokens(q));
   }
 
   // Shared loading block — the comet spinner + a carousel of playful phrases that
@@ -20350,7 +20417,10 @@ import { initScreenTools } from './ai/screen-tools.js';
     const qrp = $("qrScanPanel"), qrOpen = !!qrp?.classList.contains("open") && !borrowed(qrp);
     _setTab($("qrScanCloseTab"), qrOpen, qrOpen ? qrp.offsetWidth : 0, qrp);
     // Only the new-chip card's own » shows while it is up.
-    if (ccOpen) ["catalogPickCloseTab", "chipLinkCloseTab", "addProductCloseTab", "qrScanCloseTab"].forEach(id => { if ($(id)) $(id).hidden = true; });
+    // The search bar's colour card, alone at the right edge too.
+    const csp = $("colorSearchPanel"), csOpen = !!csp?.classList.contains("open");
+    _setTab($("colorSearchCloseTab"), csOpen, csOpen ? csp.offsetWidth : 0, csp);
+    if (ccOpen) ["catalogPickCloseTab", "chipLinkCloseTab", "addProductCloseTab", "qrScanCloseTab", "colorSearchCloseTab"].forEach(id => { if ($(id)) $(id).hidden = true; });
     _setTab($("productCardCloseTab"), pcOpen, pcRight + (pcW || upPcW), pcp);
     _setTab($("reorderCloseTab"), roOpen, roRight + roW, rop);
     _setTab($("detailCloseTab"),     dOpen, matRight + detailW, dp);
@@ -37972,6 +38042,7 @@ import { initScreenTools } from './ai/screen-tools.js';
         return g;
       };
       const views = hueGroup(f, () => _onFilterChange());
+      _hueViewsRedraw = () => views.redraw();   // the filter bar's colour chip resets them
 
       /* One selector, driven twice. `win` is the {lo,width,active} it owns and
          `axis` says how wide the scale is, how thin the window may get, and
@@ -38296,13 +38367,9 @@ import { initScreenTools } from './ai/screen-tools.js';
         Object.assign(f.hue, HUE_DEFAULT);
         Object.assign(f.lum, LUM_DEFAULT);
         f.axis = "hue";            // the selector goes home with everything else
+        // Every chip goes, the catalogue's colour search with them; the sort
+        // order is not a filter and stays.
         _clearSearchFilters();
-        // The Search views browse the catalogue, not the user's stock, so they
-        // carry their own selectors. The sort order is not a filter and stays.
-        ["cvType", "cvBrand", "cvMaterial", "cvSeries"].forEach(id => {
-          const sel = $(id);
-          if (sel) { sel.value = ""; sel.classList.remove("is-active"); sel._cselRefresh?.(); }
-        });
         views.redraw(); _onFilterChange();
       });
       views.redraw();
@@ -38311,15 +38378,11 @@ import { initScreenTools } from './ai/screen-tools.js';
 
   function applyRackSearchDim() {
     const q = (state.search || "").trim().toLowerCase();
-    const brand = state.brandFilter || "";
-    const material = state.materialFilter || "";
     // Transient "locate this spool" highlight (from the detail panel) — lights
     // up one spool's slot WITHOUT writing anything in the search bar.
     const locate = state.locateUid ? String(state.locateUid).toLowerCase() : "";
-    const tag = (state.tagFilter || "").toLowerCase();
-    const aspect = state.aspectFilter || "";
     const hueOn = _hueFilterOn();
-    const noFilter = !q && !brand && !material && !aspect && !tag && !locate && !hueOn;
+    const noFilter = !q && !state.filters.length && !locate && !hueOn;
     document.querySelectorAll("#invRackView .rp-slot--filled").forEach(el => {
       if (noFilter) {
         el.classList.remove("rp-dim");
@@ -38329,17 +38392,10 @@ import { initScreenTools } from './ai/screen-tools.js';
       const sid = el.dataset.spoolId;
       const r = state.rows.find(x => x.spoolId === sid);
       if (!r) { el.classList.add("rp-dim"); el.classList.remove("rp-slot--match"); return; }
-      const matchSearch = !q || _rowMatchesSearch(r, q);
-      const matchBrand = !brand || String(r.brand) === brand;
-      const matchMaterial = !material || String(r.material) === material;
-      const type = state.typeFilter || "";
-      const matchType = !type || String(r.protocol) === type;
-      const matchAspect = !aspect || String(r.aspect1) === aspect || String(r.aspect2) === aspect;
-      const matchTag = !tag || (r.tags || []).some(t => String(t).toLowerCase() === tag);
       const matchLocate = !locate
         || String(r.uid).toLowerCase() === locate || String(r.spoolId).toLowerCase() === locate;
-      const matchHue = !hueOn || _rowMatchesHue(r);
-      const matches = matchSearch && matchBrand && matchMaterial && matchType && matchAspect && matchTag && matchLocate && matchHue;
+      const matches = (!q || _rowMatchesSearch(r, q)) && _fbPass(r, "inv") && matchLocate
+        && (!hueOn || _rowMatchesHue(r));
       el.classList.toggle("rp-dim", !matches);
       // Positive match indicator on the slot CONTAINER (border + glow) —
       // makes depleted spools (whose .rp-fill is invisible at 0%) still
@@ -39550,8 +39606,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     // transient "locate this spool" highlight is active — not just search text.
     // (The Storage-location row sets state.locateUid with no search text, so the
     // old `state.search`-only guard meant clicking it no longer lit the slot.)
-    if (state.search || state.locateUid || state.brandFilter || state.materialFilter
-        || state.typeFilter || state.aspectFilter || state.tagFilter) applyRackSearchDim();
+    if (state.search || state.locateUid || state.filters.length) applyRackSearchDim();
     return true;
   }
 

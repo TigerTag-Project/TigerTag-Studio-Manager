@@ -16,34 +16,16 @@
   .inv-printer-view::-webkit-scrollbar { width: 0; height: 0; }   /* Chromium */
   .inv-printer-view.hidden { display: none; }
 
-  /* Printer view repurposes the right-of-search selectors: Brand (printer
-     brands), the Material select becomes a State (online/offline) filter, Tags
-     (printer tags). Only the materials-only Version select is hidden. Toggled by
-     the `printer-filters` body class in setViewMode. */
-  /* #typeFilter is now wrapped in a custom-select (.csel) — hide the whole wrap.
-     #aspectFilter is materials-only too (a printer has no finish), so hide it. */
-  body.printer-filters .csel:has(> #typeFilter),
-  body.printer-filters .csel:has(> #aspectFilter),
-  body.printer-filters #wishFilter,
-  body.printer-filters #likeFilter { display: none; }
-  /* Products views hide the Version filter (no per-version notion for a product)
-     AND the ★ Favorite quick-filter — everything listed here is already a
-     Favorite, so filtering by it is a no-op; only the ❤ Love filter is useful. */
-  body.products-filters .csel:has(> #typeFilter),
-  body.products-filters #likeFilter { display: none; }
-  /* Search views browse the OFFICIAL catalogue, not the user's stock: a brand
-     list built from owned spools, a material/tag/aspect drawn from the same, or
-     a ❤/★ flag have no meaning over 2 700 catalogue products. EVERY stock filter
-     is hidden and the catalogue's own set (#cvFilters) takes their place, right
-     of the search bar. */
-  body.catalog-filters .inv-filter-group { display: none; }
-  /* …and the catalogue set only ever shows in those views. */
+  /* The right-of-search selectors are the printer views' own (Brand, State,
+     Tag); every other view filters through the filter bar's chips (#fbBar,
+     renderer/filter-bar.js). Toggled by the `printer-filters` body class in
+     setViewMode. */
+  body.printer-filters .inv-filter-group { display: flex; }
+  body.printer-filters #fbBar,
+  body.printer-filters #fbAddBtn { display: none; }
+  /* The Search views keep one select of their own: the sort. */
   #cvFilters { display: none; }
-  body.catalog-filters #cvFilters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  /* These are the app's custom dropdowns (_enhanceSelect), so they already look
-     exactly like the inventory filters. Only the disabled Series needs saying:
-     the component mirrors options, not the <select>'s disabled state. */
-  #cvFilters .csel.is-disabled .csel-btn { opacity: .5; pointer-events: none; }
+  body.catalog-filters #cvFilters { display: flex; align-items: center; gap: 6px; }
 
   .printers-section {
     display: flex; flex-direction: column; gap: 10px;

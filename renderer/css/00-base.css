@@ -870,22 +870,20 @@
   .top-stats .sb-stat--cloud          { background: var(--surface-2) !important; border-color: var(--border) !important; }
   .top-stats .sb-stat--cloud .value   { color: var(--text); }
   .top-stats .sb-stat--cloud .label   { color: var(--muted); }
-  /* Informational only — no pointer cursor on any stat card (filtering lives in
-     the controls next to the search field). */
+  /* Informational, except the four type tiles: they set the search field's Type
+     chip (renderer/filter-bar.js) and light up with it. */
   .top-stats .sb-stat { cursor: default; }
+  .top-stats .sb-stat[data-filter^="tiger"] { cursor: pointer; }
   .top-stats .sb-stat.is-active {
     background: color-mix(in srgb, var(--primary) 12%, transparent) !important;
     border-color: var(--primary) !important;
   }
   .top-stats .sb-stat.is-active .value { color: var(--primary-text); }
   .top-stats .sb-stat.is-active .label { color: var(--primary-text); opacity: .75; }
-  /* Cloud active state overrides */
-  .top-stats .sb-stat--cloud.is-active {
-    background: linear-gradient(135deg, rgba(100,116,139,.20), rgba(148,163,184,.12)) !important;
-    border-color: rgba(100,116,139,.70) !important;
-  }
-  .top-stats .sb-stat--cloud.is-active .value { color: #55637a; }
-  .top-stats .sb-stat--cloud.is-active .label { color: rgba(85,99,122,.9); opacity: 1; }
+  /* The TigerData tiles light up like the others (their grey slate read as
+     switched off, not on). */
+  .top-stats .sb-stat--cloud.is-active { background: color-mix(in srgb, var(--primary) 12%, transparent) !important; border-color: var(--primary) !important; }
+  .top-stats .sb-stat--cloud.is-active .value { color: var(--primary-text); }
 
 
   /* Sidebar friends quick-access list — plain menu items, no card.

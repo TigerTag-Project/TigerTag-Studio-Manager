@@ -22,21 +22,15 @@
     "id": 628,
     "name": "Buddy3D",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
-    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=628&v=1794706621"
+    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=628&v=1794731135"
   },
   {
     "id": 1068,
     "name": "SainSmart",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=1068&v=1794706715"
   },
@@ -44,10 +38,7 @@
     "id": 1120,
     "name": "Proto-Pasta",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=1120&v=1794706742"
   },
@@ -67,8 +58,6 @@
     "name": "Inslogic",
     "type_ids": [
       142,
-      116,
-      41,
       173
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=2049&v=1794706759"
@@ -93,10 +82,7 @@
     "id": 3132,
     "name": "Hatchbox",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=3132&v=1794706827"
   },
@@ -104,10 +90,7 @@
     "id": 3308,
     "name": "American Filament",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=3308&v=1794706831"
   },
@@ -124,10 +107,7 @@
     "id": 3924,
     "name": "FiloAlfa",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=3924&v=1794706836"
   },
@@ -135,10 +115,7 @@
     "id": 4011,
     "name": "QIDI Tech",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=4011&v=1794706840"
   },
@@ -154,10 +131,7 @@
     "id": 4344,
     "name": "MatterHackers",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=4344&v=1794706843"
   },
@@ -165,10 +139,7 @@
     "id": 4356,
     "name": "Landu",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=4356&v=1794706847"
   },
@@ -192,10 +163,7 @@
     "id": 5048,
     "name": "Marswork",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=5048&v=1794706851"
   },
@@ -203,10 +171,7 @@
     "id": 6305,
     "name": "Markforged",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=6305&v=1794706855"
   },
@@ -222,10 +187,7 @@
     "id": 7674,
     "name": "Extrudr",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=7674&v=1794706858"
   },
@@ -233,10 +195,7 @@
     "id": 7812,
     "name": "Jayo",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=7812&v=1794706863"
   },
@@ -244,10 +203,7 @@
     "id": 7980,
     "name": "Fillamentum",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=7980&v=1794706866"
   },
@@ -255,10 +211,7 @@
     "id": 8182,
     "name": "Fiberlogy",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=8182&v=1794706870"
   },
@@ -282,10 +235,7 @@
     "id": 8496,
     "name": "CaiLab",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=8496&v=1794706873"
   },
@@ -302,10 +252,7 @@
     "id": 8586,
     "name": "NinjaTek",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=8586&v=1794706877"
   },
@@ -329,10 +276,7 @@
     "id": 8921,
     "name": "Duramic 3D",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=8921&v=1794706880"
   },
@@ -356,21 +300,15 @@
     "id": 9299,
     "name": "FDPlast",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
-    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=9299&v=1794706884"
+    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=9299&v=1794731141"
   },
   {
     "id": 9394,
     "name": "Gizmo Dorks",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=9394&v=1794706887"
   },
@@ -378,10 +316,7 @@
     "id": 9596,
     "name": "Ziro",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=9596&v=1794706891"
   },
@@ -389,10 +324,7 @@
     "id": 9798,
     "name": "AMOLEN",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=9798&v=1794706894"
   },
@@ -400,10 +332,7 @@
     "id": 11379,
     "name": "Filaments.ca",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=11379&v=1794706898"
   },
@@ -411,10 +340,7 @@
     "id": 11429,
     "name": "3D4Makers",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=11429&v=1794706901"
   },
@@ -430,10 +356,7 @@
     "id": 11750,
     "name": "VOXELPLA",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=11750&v=1794706905"
   },
@@ -441,10 +364,7 @@
     "id": 12345,
     "name": "MakerBot",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=12345&v=1794706908"
   },
@@ -452,10 +372,7 @@
     "id": 12498,
     "name": "Forshape",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=12498&v=1794706912"
   },
@@ -465,19 +382,16 @@
     "type_ids": [
       142,
       116,
-      41,
-      173
+      41
     ],
-    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=12635&v=1794706915"
+    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=12635&v=1794706915",
+    "printer": true
   },
   {
     "id": 13667,
     "name": "RS Pro",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=13667&v=1794706919"
   },
@@ -485,10 +399,7 @@
     "id": 14250,
     "name": "Jessie (Printed Solid)",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=14250&v=1794706922"
   },
@@ -504,10 +415,7 @@
     "id": 14982,
     "name": "3D-Fuel",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=14982&v=1794706926"
   },
@@ -515,10 +423,7 @@
     "id": 15899,
     "name": "Kimya",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=15899&v=1794706930"
   },
@@ -537,10 +442,7 @@
     "id": 16433,
     "name": "3DKordo (Everfil)",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=16433&v=1794706937"
   },
@@ -572,10 +474,7 @@
     "id": 19265,
     "name": "CC3D",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=19265&v=1794706942"
   },
@@ -583,10 +482,7 @@
     "id": 19868,
     "name": "3DPower",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=19868&v=1794706945"
   },
@@ -594,10 +490,7 @@
     "id": 19961,
     "name": "Rosa3D",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=19961&v=1794706949"
   },
@@ -606,8 +499,6 @@
     "name": "Raise3D",
     "type_ids": [
       142,
-      116,
-      41,
       173
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=20523&v=1794706952"
@@ -616,10 +507,7 @@
     "id": 20851,
     "name": "Tronxy",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=20851&v=1794706955"
   },
@@ -643,10 +531,7 @@
     "id": 22652,
     "name": "Spectrum",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=22652&v=1794706959"
   },
@@ -654,10 +539,7 @@
     "id": 23181,
     "name": "ArianePlast",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=23181&v=1794706962"
   },
@@ -665,10 +547,7 @@
     "id": 23456,
     "name": "Monoprice",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=23456&v=1794706965"
   },
@@ -676,10 +555,7 @@
     "id": 24147,
     "name": "Cookiecad",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=24147&v=1794706970"
   },
@@ -687,10 +563,7 @@
     "id": 24363,
     "name": "Tecbears",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=24363&v=1794706973"
   },
@@ -722,10 +595,7 @@
     "id": 26595,
     "name": "Sovol",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=26595&v=1794706977"
   },
@@ -738,7 +608,8 @@
       41,
       173
     ],
-    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=26956&v=1794706980"
+    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=26956&v=1794706980",
+    "printer": true
   },
   {
     "id": 28055,
@@ -752,10 +623,7 @@
     "id": 28136,
     "name": "Polar Filament",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=28136&v=1794706983"
   },
@@ -763,10 +631,7 @@
     "id": 28940,
     "name": "Eryone",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=28940&v=1794706987"
   },
@@ -774,10 +639,7 @@
     "id": 28988,
     "name": "KINGROON",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=28988&v=1794706991"
   },
@@ -785,10 +647,7 @@
     "id": 29045,
     "name": "Yousu",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=29045&v=1794706994"
   },
@@ -804,10 +663,7 @@
     "id": 31367,
     "name": "3D Printing Canada",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=31367&v=1794706998"
   },
@@ -833,10 +689,7 @@
     "id": 32348,
     "name": "Addnorth",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=32348&v=1794707001"
   },
@@ -844,10 +697,7 @@
     "id": 32587,
     "name": "Amazon",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=32587&v=1794707004"
   },
@@ -856,8 +706,6 @@
     "name": "Siraya Tech",
     "type_ids": [
       142,
-      116,
-      41,
       173
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=33566&v=1794707008"
@@ -874,21 +722,23 @@
     "id": 33788,
     "name": "Verbatim",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=33788&v=1794707011"
+  },
+  {
+    "id": 34409,
+    "name": "3DTrcek",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
   },
   {
     "id": 34567,
     "name": "Push Plastic",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=34567&v=1794707014"
   },
@@ -906,19 +756,16 @@
     "type_ids": [
       142,
       116,
-      41,
-      173
+      41
     ],
-    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=35123&v=1794707018"
+    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=35123&v=1794707018",
+    "printer": true
   },
   {
     "id": 35501,
     "name": "Zortrax",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=35501&v=1794707021"
   },
@@ -926,10 +773,7 @@
     "id": 35857,
     "name": "Nobufil",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=35857&v=1794707025"
   },
@@ -962,21 +806,15 @@
     "id": 37434,
     "name": "Winkle",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
-    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=37434&v=1794707029"
+    "logo_url": "https://cdn.tigertag.io/img?type=brand&id=37434&v=1794731147"
   },
   {
     "id": 38533,
     "name": "Lotactree",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=38533&v=1794707033"
   },
@@ -992,10 +830,7 @@
     "id": 39002,
     "name": "GreenGate3D",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=39002&v=1794707036"
   },
@@ -1011,10 +846,7 @@
     "id": 39652,
     "name": "3DXTech",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=39652&v=1794707040"
   },
@@ -1022,21 +854,23 @@
     "id": 39851,
     "name": "3DFILS",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=39851&v=1794703639"
+  },
+  {
+    "id": 40403,
+    "name": "Filament2Print",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
   },
   {
     "id": 40853,
     "name": "Subink",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=40853&v=1794707044"
   },
@@ -1053,8 +887,6 @@
     "name": "Jamg He",
     "type_ids": [
       142,
-      116,
-      41,
       173
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=41932&v=1794707047"
@@ -1065,8 +897,7 @@
     "type_ids": [
       142,
       116,
-      41,
-      173
+      41
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=42911&v=1794707050"
   },
@@ -1098,10 +929,7 @@
     "id": 45589,
     "name": "iBOSS",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=45589&v=1794707054"
   },
@@ -1109,10 +937,7 @@
     "id": 45670,
     "name": "Panchroma",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=45670&v=1794707057"
   },
@@ -1120,10 +945,7 @@
     "id": 45678,
     "name": "Atomic Filament",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=45678&v=1794707060"
   },
@@ -1132,8 +954,6 @@
     "name": "AceAddity",
     "type_ids": [
       142,
-      116,
-      41,
       173
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=46010&v=1794707063"
@@ -1142,10 +962,7 @@
     "id": 46203,
     "name": "Overture",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=46203&v=1794707067"
   },
@@ -1185,8 +1002,6 @@
     "name": "eSun",
     "type_ids": [
       142,
-      116,
-      41,
       173
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=47930&v=1794707077"
@@ -1203,10 +1018,7 @@
     "id": 48804,
     "name": "R3D",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=48804&v=1794707081"
   },
@@ -1214,10 +1026,7 @@
     "id": 49784,
     "name": "GIANTARM",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=49784&v=1794707084"
   },
@@ -1225,10 +1034,7 @@
     "id": 50187,
     "name": "3DHoJor",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=50187&v=1794707088"
   },
@@ -1236,10 +1042,7 @@
     "id": 50266,
     "name": "IEMAI",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=50266&v=1794707092"
   },
@@ -1256,10 +1059,7 @@
     "id": 50604,
     "name": "Polymaker",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=50604&v=1794707096"
   },
@@ -1276,8 +1076,6 @@
     "name": "BASF",
     "type_ids": [
       142,
-      116,
-      41,
       173
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=51443&v=1794707101"
@@ -1287,8 +1085,6 @@
     "name": "Sunlu",
     "type_ids": [
       142,
-      116,
-      41,
       173
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=51857&v=1794707106"
@@ -1297,10 +1093,7 @@
     "id": 51978,
     "name": "Inland",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=51978&v=1794707110"
   },
@@ -1308,10 +1101,7 @@
     "id": 52222,
     "name": "ColorFabb",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=52222&v=1794707113"
   },
@@ -1319,10 +1109,7 @@
     "id": 52467,
     "name": "Geeetech",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=52467&v=1794707116"
   },
@@ -1332,8 +1119,7 @@
     "type_ids": [
       142,
       116,
-      41,
-      173
+      41
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=52757&v=1794707120"
   },
@@ -1342,8 +1128,6 @@
     "name": "FormFutura",
     "type_ids": [
       142,
-      116,
-      41,
       173
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=53043&v=1794707123"
@@ -1353,8 +1137,6 @@
     "name": "EPAX",
     "type_ids": [
       142,
-      116,
-      41,
       173
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=53146&v=1794707126"
@@ -1379,10 +1161,7 @@
     "id": 54112,
     "name": "Kexcelled",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=54112&v=1794707130"
   },
@@ -1390,10 +1169,7 @@
     "id": 55229,
     "name": "Filament PM",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=55229&v=1794707133"
   },
@@ -1411,8 +1187,7 @@
     "type_ids": [
       142,
       116,
-      41,
-      173
+      41
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=55869&v=1794707137"
   },
@@ -1420,10 +1195,7 @@
     "id": 56780,
     "name": "Fiberon",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=56780&v=1794707140"
   },
@@ -1466,10 +1238,7 @@
     "id": 58231,
     "name": "IC3D",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=58231&v=1794707147"
   },
@@ -1477,10 +1246,7 @@
     "id": 58410,
     "name": "AzureFilm",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=58410&v=1794707151"
   },
@@ -1488,10 +1254,7 @@
     "id": 58863,
     "name": "iSANMATE",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=58863&v=1794707154"
   },
@@ -1499,10 +1262,7 @@
     "id": 58972,
     "name": "Tinmorry",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=58972&v=1794707158"
   },
@@ -1510,10 +1270,7 @@
     "id": 59597,
     "name": "Filamentive",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=59597&v=1794707161"
   },
@@ -1529,10 +1286,7 @@
     "id": 60882,
     "name": "Recreus",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=60882&v=1794707165"
   },
@@ -1548,10 +1302,7 @@
     "id": 62436,
     "name": "Ambrosia",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=62436&v=1794707169"
   },
@@ -1559,10 +1310,7 @@
     "id": 62674,
     "name": "OVV3D",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=62674&v=1794707172"
   },
@@ -1578,10 +1326,7 @@
     "id": 63340,
     "name": "Flashforge",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=63340&v=1794707175"
   },
@@ -1597,10 +1342,7 @@
     "id": 64457,
     "name": "YXPOLYER",
     "type_ids": [
-      142,
-      116,
-      41,
-      173
+      142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=64457&v=1794707179"
   },

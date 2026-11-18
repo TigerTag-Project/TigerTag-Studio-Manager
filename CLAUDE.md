@@ -129,6 +129,8 @@ renderer/
   color-pop.js     — the in-app colour picker that opens beside what was clicked (SV area, hue, HEX) — used for the theme colours instead of the OS colour panel
   ral-classic.js   — the 215 RAL Classic codes → [name, approximate HEX] (data from ral-colors 1.0.1, MIT): names a product's RAL code
   qr-scan.js       — read a TigerQR label with the computer's camera (one side card #qrScanPanel: search bar button + "Add from QR code"; BarcodeDetector, else lib/jsqr)
+  filter-bar.js    — the filter chips written in the search field (Shopify admin's pattern): field list, chip editors, keyboard; the fields and conditions live in inventory.js (FB_FIELDS, state.filters)
+  color-search.js  — find a catalogue product by colour (one side card #colorSearchPanel, the search bar's colour button in the Search views): HEX / RAL / photo within a ΔE, CIEDE2000 as on tigersystem.io
   splash/          — the launch splash page (main.js createSplash), loaded before the main window
   locales/         — en fr de es it zh pt pt-pt pl ru nl (.json, reference: en)
   IoT/             — devices, each with its own CSS
