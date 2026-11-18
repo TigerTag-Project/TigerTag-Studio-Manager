@@ -122,6 +122,11 @@ function _nextSeq() {
  *   When the sidecard opens, call bambuConnect again without skipCam and the
  *   camera will start on the already-live MQTT session.
  */
+/* A camera start is only repeated after this long without a first picture. Every redraw of the
+   camera wall calls bambuConnect, and each call used to kill the stream still starting and begin
+   another: a machine slower than the redraw interval never delivered a picture. */
+const CAM_ASK_GUARD_MS = 20_000;
+
 export function bambuConnect(printer, { skipCam = false } = {}) {
   const key = bambuKey(printer);
   const ip       = printer.broker || printer.ip || "";
@@ -146,6 +151,8 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
          that has just been learned can never be read as a different machine. */
       if (existing.ip === ip || existing.cloud) {
         if (!skipCam && ip && password && !existing.data?.lastCamUrl && !existing.data?.camDisabled) {
+          if (Date.now() - (existing.camAskedAt || 0) < CAM_ASK_GUARD_MS) return;   // a start is already under way
+          existing.camAskedAt = Date.now();
           if (bambuUsesJpegCam(printer)) {
             window.bambulab?.camStart({ key, ip, password });
           } else {
@@ -207,6 +214,7 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
   // JPEG TCP  → A1 / A1 Mini / P1P / P1S (model IDs 1–4), port 6000.
   // RTSP/ffmpeg → X1C / X1E / P2S / H2x  (model IDs 5+),  port 322.
   if (!skipCam && ip && password && !conn.data.camDisabled) {
+    conn.camAskedAt = Date.now();
     if (bambuUsesJpegCam(printer)) {
       window.bambulab?.camStart({ key, ip, password });
     } else {
@@ -244,6 +252,7 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
 /** Stop only the camera stream (JPEG TCP + RTSP); keep the MQTT session alive. */
 export function bambuStopCam(key) {
   if (!_bambuConns.has(key)) return;
+  _bambuConns.get(key).camAskedAt = 0;   // a deliberate stop: the next start is never held back
   window.bambulab?.camStop(key);
   window.bambulab?.camStopRtsp(key);
 }
