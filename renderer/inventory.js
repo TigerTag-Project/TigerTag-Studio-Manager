@@ -37104,6 +37104,94 @@ import { initScreenTools } from './ai/screen-tools.js';
     }
   }
 
+  // True when the spool's coordinates are a real slot of `rk`: level, position
+  // and depth all inside the rack's grid.
+  function _slotFitsRack(x, rk) {
+    if (!Number.isInteger(x.rackLevel) || !Number.isInteger(x.rackPos)) return false;
+    if (x.rackLevel < 0 || x.rackLevel >= (rk.level    || 0)) return false;
+    if (x.rackPos   < 0 || x.rackPos   >= (rk.position || 0)) return false;
+    if (!Number.isInteger(x.rackDepth) || x.rackDepth < 0 || x.rackDepth >= rackDepthOf(rk)) return false;
+    return true;
+  }
+
+  /* GHOSTS (#278) — a spool tied to a rack that STILL EXISTS, at a slot that rack
+     no longer has. A rack made smaller used to leave the spools of the removed
+     shelves with coordinates outside its grid: in no slot, and not in "Spools not
+     stored" either, which skips any spool whose rack exists. Those already stuck
+     in that state are freed here, like the spools of a deleted rack (the orphan
+     sweep above): `rack: null` and the leftover flat fields go.
+     It writes real spools from a guess, so it is held to a high bar:
+       • the inventory settled and the racks confirmed BY THE SERVER, on the
+         signed-in account, never on a friend's;
+       • a rack doc without a real grid says nothing about its spools: untouched;
+       • the picture has to hold GHOST_SWEEP_DELAY_MS later, racks included — a
+         rack made bigger on another computer can reach this one AFTER the spool
+         placed in its new slot, and that spool looks out of bounds until the rack
+         arrives;
+       • a sweep that wants to free most of the racked stock has misread something
+         rather than found that many ghosts (half of a rack's spools can be genuine
+         after a shrink, hence a share above the orphan sweep's) and steps aside. */
+  const GHOST_SWEEP_DELAY_MS = 8000;
+  const GHOST_SWEEP_MAX_SHARE = 0.6;
+  let _ghostSweepTimer = null;
+
+  function _findGhostSpools() {
+    const byId = new Map(state.racks.map(r => [r.id, r]));
+    return state.rows.filter(x => {
+      if (x.deleted || !x.rackId) return false;
+      const rk = byId.get(x.rackId);
+      // No rack at all is the orphan sweep's case.
+      if (!rk || !(rk.level >= 1) || !(rk.position >= 1)) return false;
+      return !_slotFitsRack(x, rk);
+    });
+  }
+
+  const _ghostSignature = ghosts =>
+    state.racks.map(r => `${r.id}:${r.level}x${r.position}x${rackDepthOf(r)}`).sort().join(",")
+    + "|" + ghosts.map(x => `${x.spoolId}@${x.rackLevel},${x.rackPos},${x.rackDepth}`).sort().join(",");
+
+  function _scheduleGhostSweep() {
+    if (_ghostSweepTimer || state.friendView || state.invLoading || !_racksFromServer || !state.racks.length) return;
+    if (fbAuth().currentUser?.uid !== state.activeAccountId || _racksLoadedFor !== state.activeAccountId) return;
+    const seen = _findGhostSpools();
+    if (!seen.length) return;
+    const before = _ghostSignature(seen);
+    _ghostSweepTimer = setTimeout(() => {
+      _ghostSweepTimer = null;
+      _runGhostSweep(before).catch(e => console.warn("[rack-cleanup] ghost sweep failed:", e?.message || e));
+    }, GHOST_SWEEP_DELAY_MS);
+  }
+
+  async function _runGhostSweep(before) {
+    const user = fbAuth().currentUser;
+    if (!user || user.uid !== state.activeAccountId || state.friendView || state.invLoading || !_racksFromServer) return;
+    const ghosts = _findGhostSpools();
+    if (!ghosts.length) return;
+    if (_ghostSignature(ghosts) !== before) {   // the picture moved: this pass writes nothing, a fresh one starts from what is true now
+      _scheduleGhostSweep();
+      return;
+    }
+    const racked = state.rows.filter(x => !x.deleted && x.rackId).length;
+    if (ghosts.length > racked * GHOST_SWEEP_MAX_SHARE) {
+      console.warn(`[rack-cleanup] ghost sweep REFUSED — it wanted to free ${ghosts.length} of ${racked} racked spools. `
+        + `That is not leftovers; nothing was changed.`);
+      return;
+    }
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+    const FV = firebase.firestore.FieldValue;
+    for (let i = 0; i < ghosts.length; i += 400) {   // a batch holds 500 writes at most
+      const batch = _xanoQuietBatch(fbDb().batch());
+      ghosts.slice(i, i + 400).forEach(row => batch.update(invRef.doc(row.spoolId), {
+        rack:     null,
+        rack_id:  FV.delete(),
+        level:    FV.delete(),
+        position: FV.delete(),
+      }));
+      await batch.commit();
+    }
+    console.log(`[rack-cleanup] freed ${ghosts.length} spool(s) left outside the grid of their rack`);
+  }
+
   async function deleteRack(rackId) {
     const user = fbAuth().currentUser;
     if (!user) return;
@@ -39706,12 +39794,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const _isInValidSlot = x => {
       if (x.deleted || !x.rackId) return false;
       const rk = racksById.get(x.rackId);
-      if (!rk) return false;
-      if (!Number.isInteger(x.rackLevel) || !Number.isInteger(x.rackPos)) return false;
-      if (x.rackLevel < 0 || x.rackLevel >= (rk.level    || 0)) return false;
-      if (x.rackPos   < 0 || x.rackPos   >= (rk.position || 0)) return false;
-      if (!Number.isInteger(x.rackDepth) || x.rackDepth < 0 || x.rackDepth >= rackDepthOf(rk)) return false;
-      return true;
+      return !!rk && _slotFitsRack(x, rk);
     };
     let totalSlotsAll = 0, filledSlotsAll = 0, lockedSlotsAll = 0, lockedEmptyAll = 0;
     state.racks.forEach(r => {
@@ -39770,6 +39853,8 @@ import { initScreenTools } from './ai/screen-tools.js';
         _cleanupOrphanRackRefs(orphans).finally(() => { _orphanCleanupInFlight = false; });
       }
     }
+    // Spools left outside the grid of a rack that still exists (#278).
+    _scheduleGhostSweep();
     // Usable capacity = physical total minus locked-EMPTY (unusable) slots:
     // locking an empty slot takes it out of the rack's storable capacity, so
     // the "filled / total" denominator drops (198 → 197). Locked-FILLED
