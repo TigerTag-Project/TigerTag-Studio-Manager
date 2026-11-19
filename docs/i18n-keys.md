@@ -34,8 +34,6 @@
 | `tagRemove` | Remove-tag button tooltip |
 | `sortBy` | Grid-view sort dropdown title |
 | `sortDir` | Grid-view sort direction toggle title |
-| `filterAllTags` | Printer Tag filter dropdown — "All tags" default |
-| `filterAllStates` | Printer State filter dropdown — "All states" default (online/offline) |
 | `fbAdd` / `fbRemove` | Filter bar (renderer/filter-bar.js): the search field's filter icon (accessible name) / a chip's ✕ |
 | `fbChipIs` / `fbChipIsNot` (`{{field}}`, `{{values}}`) | A chip's text: "Brand is Bambu Lab, Sunlu +1" / "… is not …" |
 | `fbIs` / `fbIsNot` | The is / is not switch in a chip's editor |
@@ -258,7 +256,7 @@ Window and pill: `questsTitle`, `questsToday`, `questsJourney`, `questsOpenApp`,
 Built from ids (dynamic): daily missions `questDaily_<id>` (`findBrand` takes `{{brand}}`, `filterMaterial` takes `{{material}}`), journey actions `questAct_<level>_<action>` (e.g. `questAct_d1_displayName`, 85 keys), level themes `questLevel_d1`…`questLevel_e5` and `questLevel_m1`…`questLevel_m5` (the Mountaineer rank), ranks `questRank_1`…`questRank_20` and their worlds `questWorld_1`…`questWorld_20`. XP history parts: `xpAch_daily`, `xpAch_updates`, `xpAch_journey`.
 
 ### TigerSquad country league (account modal → Ligue des pays)
-`squadCountryChange` (the button beside the current flag), and its window: `squadCountryPickTitle`, `squadCountryPickSub`, `squadCountryCurrent`, `squadCountryDetected` (badge when the flag is the auto-detected one), `squadCountrySearch`, `squadCountryLockTitle` (`{{n}}` days), `squadCountryPickWarn` (the lock line), `squadCountryConfirm` (`{{country}}`, the held button), `squadCountryPickNone` (the button before a pick), `squadCountryKeep`
+`squadCountryChange` (the button beside the current flag); under it `squadCountryLockHint`, `squadCountryLockedUntil` (`{{date}}`) or `squadCountryPending` (`{{country}}`, `{{date}}`: a pick the 30-day lock still holds back); and its window: `squadCountryPickTitle`, `squadCountryPickSub`, `squadCountryCurrent`, `squadCountryDetected` (badge when the flag is the auto-detected one), `squadCountrySearch`, `squadCountryLockTitle` (`{{n}}` days), `squadCountryPickWarn` (the lock line), `squadCountryConfirm` (`{{country}}`, the held button), `squadCountryPickNone` (the button before a pick), `squadCountryKeep`
 
 ### Trophies (renderer/quests/trophies.js)
 Generic labels only: `trophyTier_<tier>`, `trophyFamilyAll`, `trophyFilter_<all|got|locked>`, `trophyHidden`, `trophyHiddenHow`, `trophySeenAt` (`{{name}}`: the friend who revealed it), `trophyUnlocked`, `trophySeeAll`… No `trophy_<id>` / `trophyHow_<id>` / `trophyFamily_<family>` key: each trophy's name and mission and each family's label come from the backend (`trophyCatalog.json`, `trophyFamilies.json` → cdn catalogue, `trophyCards`), see `docs/TROPHIES.md`.

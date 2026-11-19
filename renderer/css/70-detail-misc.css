@@ -1012,10 +1012,8 @@
   .inv-search-scan:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
   /* The colour search button (renderer/color-search.js), left of the QR one — Search
      views only, where the field makes room for it. Accent while a colour filters. */
-  /* Right to left: magnifier, QR, Filter (not in the printer views), colour
-     (Search views only). */
+  /* Right to left: magnifier, QR, Filter, colour (Search views only). */
   .inv-search-filter { right: 62px; }
-  body.printer-filters .inv-search { padding-right: 64px; }
   .inv-search-color { right: 90px; display: none; }
   body.catalog-filters .inv-search-color { display: inline-flex; }
   body.catalog-filters .inv-search { padding-right: 120px; }
@@ -1249,16 +1247,6 @@
   }
 
 
-  /* Quick-filter group — keeps the 3 dropdowns clustered together,
-     so the search bar can absorb all the remaining horizontal space. */
-  /* The printer views' Brand / State / Tag selects: shown only there
-     (`body.printer-filters`, 40-printers.css); every other view filters through
-     the filter bar below. */
-  .inv-filter-group {
-    display: none;
-    gap: 4px;
-    flex-shrink: 0;
-  }
   /* ── Filter bar (renderer/filter-bar.js) — the "Filter" button, then one chip
      per condition, right of the search field. The button is the filter pill
      (.inv-brand-filter), each chip the colour chip (.cv-color-chip), every menu

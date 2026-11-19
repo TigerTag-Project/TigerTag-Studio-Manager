@@ -16,13 +16,6 @@
   .inv-printer-view::-webkit-scrollbar { width: 0; height: 0; }   /* Chromium */
   .inv-printer-view.hidden { display: none; }
 
-  /* The right-of-search selectors are the printer views' own (Brand, State,
-     Tag); every other view filters through the filter bar's chips (#fbBar,
-     renderer/filter-bar.js). Toggled by the `printer-filters` body class in
-     setViewMode. */
-  body.printer-filters .inv-filter-group { display: flex; }
-  body.printer-filters #fbBar,
-  body.printer-filters #fbAddBtn { display: none; }
   /* The Search views keep one select of their own: the sort. */
   #cvFilters { display: none; }
   body.catalog-filters #cvFilters { display: flex; align-items: center; gap: 6px; }

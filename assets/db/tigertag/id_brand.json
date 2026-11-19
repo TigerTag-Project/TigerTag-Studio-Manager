@@ -71,6 +71,14 @@
     "logo_url": null
   },
   {
+    "id": 2542,
+    "name": "Recycling Fabrik",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 2833,
     "name": "Xstrand",
     "type_ids": [

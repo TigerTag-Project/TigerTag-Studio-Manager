@@ -122,9 +122,13 @@ function _nextSeq() {
  *   When the sidecard opens, call bambuConnect again without skipCam and the
  *   camera will start on the already-live MQTT session.
  */
-/* A camera start is only repeated after this long without a first picture. Every redraw of the
+/* EXPERIMENTAL (#271, PR #284) — a hypothesis tested on the demo simulator only, not on the
+   reporter's P2S nor in Cloud mode; what redraws their camera wall every 1–2 s is not identified.
+   A camera start is only repeated after this long without a first picture. Every redraw of the
    camera wall calls bambuConnect, and each call used to kill the stream still starting and begin
-   another: a machine slower than the redraw interval never delivered a picture. */
+   another: a machine slower than the redraw interval never delivered a picture.
+   Not covered: the restarts that bypass bambuConnect (_bblAdoptLanAddress, failover.js) do not
+   stamp camAskedAt. */
 const CAM_ASK_GUARD_MS = 20_000;
 
 export function bambuConnect(printer, { skipCam = false } = {}) {

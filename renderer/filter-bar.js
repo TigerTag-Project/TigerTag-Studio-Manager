@@ -15,7 +15,8 @@
 
    The host describes its fields (`fields()`), reads and writes the condition
    list (`conds()` / `setConds()`), and may add chips it edits itself
-   (`extraChips()`: the colour search, the colour bars). This module only draws
+   (`extraChips()`: the colour search, the colour bars). `onFieldTyped()`, when
+   given, is told a field was added by typing its name then Enter (a trophy). This module only draws
    and edits; it never filters anything. The look is the app's own dropdown
    (`.csel-pop` / `.csel-opt` / `.csel-search`) and the colour chip
    (`.cv-color-chip`), so nothing here is a new style of control. */
@@ -90,7 +91,7 @@ export function mountFilterBar(o) {
     popSlot = null; popField = null; cursor = -1;
     if (!keep && pending) { pending = null; render(); }
   }
-  // `key`: the chip slot to hang the popup on ("search" = under the field).
+  // `key`: the chip slot to hang the popup on ("search" = under the text cursor).
   function open(key, html, field = null) {
     close(true);
     if (pending && pending.field !== field) { pending = null; render(); }
@@ -110,7 +111,7 @@ export function mountFilterBar(o) {
     document.addEventListener("keydown", onKey, true);
     pop.querySelector(".csel-search, .fb-num")?.focus();
   }
-  // Under its chip (the field list: under the field's left edge), kept inside
+  // Under its chip (the field list: under the text cursor), kept inside
   // the card that would clip it.
   function place() {
     if (!pop) return;
@@ -122,6 +123,15 @@ export function mountFilterBar(o) {
       if (r.left < b.left) bar.scrollLeft -= b.left - r.left;
       else if (r.right > b.right) bar.scrollLeft += r.right - b.right;
       left = popSlot.getBoundingClientRect().left - searchBox.getBoundingClientRect().left;
+    } else {
+      // The field list opens under the text cursor: where the text starts, plus
+      // what is typed before the caret (measured in the field's own font).
+      const ctx = (place.ctx ||= document.createElement("canvas").getContext("2d"));
+      ctx.font = getComputedStyle(input).font;
+      const pad = parseFloat(getComputedStyle(input).paddingLeft) || 0;
+      const typed = ctx.measureText(input.value.slice(0, input.selectionStart ?? input.value.length)).width;
+      left = input.getBoundingClientRect().left - searchBox.getBoundingClientRect().left
+           + pad + Math.min(typed - input.scrollLeft, input.clientWidth - pad);
     }
     pop.style.left = Math.max(0, left) + "px";
     const host = searchBox.closest("#card-inv") || document.body;
@@ -167,7 +177,7 @@ export function mountFilterBar(o) {
     });
   }
 
-  // The field list, under the whole field (Galaxy / Shopify admin): opened by a
+  // The field list, under the text cursor (Galaxy / Shopify admin): opened by a
   // click in the field, the Filter button or ↓; the text typed narrows it, its
   // first row keeping that text as a plain search. A field already in use
   // reopens its chip.
@@ -190,7 +200,7 @@ export function mountFilterBar(o) {
             + `${esc(q ? t("fbFilterBy", { field: f.label }) : f.label)}</button>`).join("")
         : `<div class="fb-empty">${esc(t("fbNothing"))}</div>`) + `</div>`;
     cursor = -1;
-    if (popSlot === searchBox && pop) { pop.innerHTML = html; return; }
+    if (popSlot === searchBox && pop) { pop.innerHTML = html; place(); return; }
     open("search", html);
     if (!pop) return;
     pop.addEventListener("click", e => {
@@ -337,7 +347,7 @@ export function mountFilterBar(o) {
     } else if (e.key === "Enter") {
       if (menu && cursor >= 0) { e.preventDefault(); visibleOpts()[cursor]?.click(); return; }
       const hits = input.value.trim() ? matchingFields(input.value) : [];
-      if (hits.length === 1) { e.preventDefault(); pickField(hits[0].id); }
+      if (hits.length === 1) { e.preventDefault(); pickField(hits[0].id); o.onFieldTyped?.(); }
       else if (menu) close();
     } else if (e.key === "Backspace" && !input.value && input.selectionStart === 0) {
       const list = o.conds();

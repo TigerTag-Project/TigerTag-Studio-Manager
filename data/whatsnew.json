@@ -15550,5 +15550,184 @@
         }
       }
     ]
+  },
+  "2.59.1": {
+    "date": "2026-11-19",
+    "items": [
+      {
+        "icon": "camera",
+        "title": {
+          "en": "Bambu cameras that take their time (experimental)",
+          "fr": "Les caméras Bambu qui prennent leur temps (expérimental)",
+          "de": "Bambu-Kameras, die sich Zeit lassen (experimentell)",
+          "es": "Cámaras Bambu que se toman su tiempo (experimental)",
+          "it": "Telecamere Bambu che se la prendono comoda (sperimentale)",
+          "zh": "慢热的 Bambu 摄像头（实验性）",
+          "pt": "Câmeras Bambu que levam seu tempo (experimental)",
+          "pt-pt": "Câmaras Bambu que levam o seu tempo (experimental)",
+          "pl": "Kamery Bambu, które się nie spieszą (eksperymentalne)",
+          "ru": "Камеры Bambu, которые не торопятся (экспериментально)",
+          "nl": "Bambu-camera’s die de tijd nemen (experimenteel)"
+        },
+        "body": {
+          "en": "Some Bambu Lab printers, like the P2S, are slow to send their first picture, and Studio kept restarting the stream before it arrived. Now it waits. Experimental: if your camera still stays black, send us a report from the app.",
+          "fr": "Certaines imprimantes Bambu Lab, comme la P2S, mettent du temps à envoyer leur première image, et Studio relançait le flux avant qu’elle arrive. Maintenant, il attend. Expérimental : si ta caméra reste noire, envoie-nous un signalement depuis l’app.",
+          "de": "Manche Bambu-Lab-Drucker wie der P2S brauchen lange für ihr erstes Bild, und Studio hat den Stream neu gestartet, bevor es ankam. Jetzt wartet es. Experimentell: Bleibt deine Kamera schwarz, schick uns eine Meldung aus der App.",
+          "es": "Algunas impresoras Bambu Lab, como la P2S, tardan en enviar su primera imagen, y Studio reiniciaba el flujo antes de que llegara. Ahora espera. Experimental: si tu cámara sigue en negro, envíanos un reporte desde la app.",
+          "it": "Alcune stampanti Bambu Lab, come la P2S, sono lente a inviare la prima immagine, e Studio riavviava il flusso prima che arrivasse. Ora aspetta. Sperimentale: se la tua telecamera resta nera, mandaci una segnalazione dall’app.",
+          "zh": "部分 Bambu Lab 打印机（例如 P2S）发送第一帧画面较慢，Studio 过去会在画面到达前就重启视频流。现在它会等待。实验性功能：如果摄像头仍然黑屏，请在应用内向我们发送反馈。",
+          "pt": "Algumas impressoras Bambu Lab, como a P2S, demoram para enviar a primeira imagem, e o Studio reiniciava o fluxo antes de ela chegar. Agora ele espera. Experimental: se sua câmera continuar preta, mande um relato pelo app.",
+          "pt-pt": "Algumas impressoras Bambu Lab, como a P2S, demoram a enviar a primeira imagem, e o Studio reiniciava o fluxo antes de ela chegar. Agora espera. Experimental: se a tua câmara continuar preta, envia-nos um relatório a partir da app.",
+          "pl": "Niektóre drukarki Bambu Lab, jak P2S, długo wysyłają pierwszy obraz, a Studio restartowało strumień, zanim dotarł. Teraz czeka. Funkcja eksperymentalna: jeśli kamera nadal jest czarna, wyślij nam zgłoszenie z aplikacji.",
+          "ru": "Некоторые принтеры Bambu Lab, например P2S, долго присылают первый кадр, а Studio перезапускал поток, не дождавшись его. Теперь он ждёт. Экспериментально: если камера всё ещё чёрная, отправьте нам отчёт из приложения.",
+          "nl": "Sommige Bambu Lab-printers, zoals de P2S, sturen hun eerste beeld traag, en Studio herstartte de stream voordat het aankwam. Nu wacht het. Experimenteel: blijft je camera zwart, stuur ons dan een melding vanuit de app."
+        }
+      },
+      {
+        "icon": "filter",
+        "title": {
+          "en": "Printers get the search bar filters too",
+          "fr": "Les imprimantes ont aussi les filtres de la barre de recherche",
+          "de": "Auch Drucker bekommen die Filter der Suchleiste",
+          "es": "Las impresoras también tienen los filtros de la barra de búsqueda",
+          "it": "Anche le stampanti hanno i filtri della barra di ricerca",
+          "zh": "打印机也用上了搜索栏筛选",
+          "pt": "As impressoras também ganham os filtros da barra de busca",
+          "pt-pt": "As impressoras também têm os filtros da barra de pesquisa",
+          "pl": "Drukarki też mają filtry z paska wyszukiwania",
+          "ru": "У принтеров теперь тоже фильтры в строке поиска",
+          "nl": "Printers krijgen ook de filters van de zoekbalk"
+        },
+        "body": {
+          "en": "In the printers views, Brand, Model, State and Tag now work like the spool filters: pills in the search bar, “is” or “is not”, as many as you like. Your spool filters stay out of it.",
+          "fr": "Dans les vues imprimantes, Marque, Modèle, État et Tag fonctionnent comme les filtres des bobines : des pastilles dans la barre de recherche, « est » ou « n’est pas », autant que tu veux. Tes filtres de bobines restent à l’écart.",
+          "de": "In den Druckeransichten funktionieren Marke, Modell, Status und Tag wie die Spulenfilter: Pillen in der Suchleiste, „ist“ oder „ist nicht“, so viele du willst. Deine Spulenfilter bleiben außen vor.",
+          "es": "En las vistas de impresoras, Marca, Modelo, Estado y Etiqueta funcionan como los filtros de bobinas: píldoras en la barra de búsqueda, «es» o «no es», todas las que quieras. Tus filtros de bobinas no se mezclan.",
+          "it": "Nelle viste delle stampanti, Marca, Modello, Stato e Tag funzionano come i filtri delle bobine: pillole nella barra di ricerca, «è» o «non è», quante ne vuoi. I filtri delle bobine restano fuori.",
+          "zh": "在打印机视图中，品牌、型号、状态和标签现在和耗材盘筛选一样：搜索栏里的胶囊，可选“是”或“不是”，想加几个加几个。耗材盘的筛选不会混进来。",
+          "pt": "Nas vistas de impressoras, Marca, Modelo, Estado e Tag agora funcionam como os filtros de carretéis: pílulas na barra de busca, “é” ou “não é”, quantas você quiser. Seus filtros de carretéis ficam de fora.",
+          "pt-pt": "Nas vistas de impressoras, Marca, Modelo, Estado e Tag funcionam como os filtros de bobines: pílulas na barra de pesquisa, “é” ou “não é”, as que quiseres. Os teus filtros de bobines ficam de fora.",
+          "pl": "W widokach drukarek Marka, Model, Stan i Tag działają jak filtry szpul: pigułki na pasku wyszukiwania, „jest” lub „nie jest”, ile chcesz. Filtry szpul nie mieszają się z tym.",
+          "ru": "В видах принтеров Бренд, Модель, Состояние и Тег работают как фильтры катушек: плашки в строке поиска, «это» или «не это», сколько угодно. Фильтры катушек сюда не лезут.",
+          "nl": "In de printerweergaven werken Merk, Model, Status en Tag nu als de spoelfilters: pillen in de zoekbalk, “is” of “is niet”, zoveel je wilt. Je spoelfilters blijven erbuiten."
+        }
+      },
+      {
+        "icon": "search",
+        "title": {
+          "en": "The field list follows your cursor",
+          "fr": "La liste des champs suit ton curseur",
+          "de": "Die Feldliste folgt deinem Cursor",
+          "es": "La lista de campos sigue tu cursor",
+          "it": "L’elenco dei campi segue il cursore",
+          "zh": "字段列表跟着光标走",
+          "pt": "A lista de campos acompanha o cursor",
+          "pt-pt": "A lista de campos acompanha o cursor",
+          "pl": "Lista pól podąża za kursorem",
+          "ru": "Список полей идёт за курсором",
+          "nl": "De veldenlijst volgt je cursor"
+        },
+        "body": {
+          "en": "In the search bar, the list of fields now opens right under where you are typing, not way over at the left edge.",
+          "fr": "Dans la barre de recherche, la liste des champs s’ouvre maintenant juste sous l’endroit où tu tapes, plus tout à gauche.",
+          "de": "In der Suchleiste öffnet sich die Feldliste jetzt direkt unter der Stelle, an der du tippst, nicht mehr ganz links am Rand.",
+          "es": "En la barra de búsqueda, la lista de campos se abre ahora justo debajo de donde escribes, no en el borde izquierdo.",
+          "it": "Nella barra di ricerca, l’elenco dei campi si apre ora proprio sotto il punto in cui scrivi, non all’estremo sinistro.",
+          "zh": "在搜索栏里，字段列表现在直接在你输入的位置下方展开，不再跑到最左边。",
+          "pt": "Na barra de busca, a lista de campos agora abre logo abaixo de onde você digita, e não lá na borda esquerda.",
+          "pt-pt": "Na barra de pesquisa, a lista de campos abre agora mesmo por baixo de onde escreves, e não no canto esquerdo.",
+          "pl": "W pasku wyszukiwania lista pól otwiera się teraz tuż pod miejscem, w którym piszesz, a nie na lewym brzegu.",
+          "ru": "В строке поиска список полей теперь открывается прямо под тем местом, где вы печатаете, а не у левого края.",
+          "nl": "In de zoekbalk opent de veldenlijst nu vlak onder de plek waar je typt, niet helemaal links."
+        }
+      },
+      {
+        "icon": "cart",
+        "title": {
+          "en": "The to-order cart can count again",
+          "fr": "Le panier à commander sait de nouveau compter",
+          "de": "Der Bestellkorb kann wieder zählen",
+          "es": "El carrito de pedidos vuelve a saber contar",
+          "it": "Il carrello da ordinare sa di nuovo contare",
+          "zh": "待订购购物车又会数数了",
+          "pt": "O carrinho de pedidos voltou a saber contar",
+          "pt-pt": "O carrinho de encomendas voltou a saber contar",
+          "pl": "Koszyk do zamówienia znów umie liczyć",
+          "ru": "Корзина заказов снова умеет считать",
+          "nl": "De bestelmand kan weer tellen"
+        },
+        "body": {
+          "en": "A product with spools on your shelf no longer reads “0 in stock”. The cart, the red badge, the favourites and the low-stock alerts all count what you really have.",
+          "fr": "Un produit dont tu as des bobines en stock n’affiche plus « 0 en stock ». Le panier, la pastille rouge, les favoris et les alertes de stock bas comptent ce que tu as vraiment.",
+          "de": "Ein Produkt mit Spulen im Regal zeigt nicht mehr „0 auf Lager“. Korb, rotes Abzeichen, Favoriten und Warnungen bei niedrigem Bestand zählen, was du wirklich hast.",
+          "es": "Un producto con bobinas en tu estante ya no marca «0 en stock». El carrito, la insignia roja, los favoritos y los avisos de stock bajo cuentan lo que de verdad tienes.",
+          "it": "Un prodotto con bobine a scaffale non mostra più «0 in magazzino». Carrello, badge rosso, preferiti e avvisi di scorta bassa contano ciò che hai davvero.",
+          "zh": "架子上有耗材盘的产品不再显示“库存 0”。购物车、红色角标、收藏和低库存提醒都会按你真实的库存来数。",
+          "pt": "Um produto com carretéis na prateleira não mostra mais “0 em estoque”. O carrinho, a bolinha vermelha, os favoritos e os avisos de estoque baixo contam o que você realmente tem.",
+          "pt-pt": "Um produto com bobines na prateleira já não mostra “0 em stock”. O carrinho, o ponto vermelho, os favoritos e os avisos de stock baixo contam o que realmente tens.",
+          "pl": "Produkt ze szpulami na półce nie pokazuje już „0 w magazynie”. Koszyk, czerwona plakietka, ulubione i alerty o niskim stanie liczą to, co naprawdę masz.",
+          "ru": "Товар с катушками на полке больше не показывает «0 на складе». Корзина, красный значок, избранное и уведомления о низком запасе считают то, что у вас правда есть.",
+          "nl": "Een product met spoelen in de kast staat niet meer op “0 op voorraad”. Mand, rode badge, favorieten en lage-voorraadmeldingen tellen wat je echt hebt."
+        }
+      },
+      {
+        "icon": "rack_grid",
+        "title": {
+          "en": "Shrinking a rack no longer eats your spools",
+          "fr": "Réduire un rack ne mange plus tes bobines",
+          "de": "Ein Regal zu verkleinern frisst keine Spulen mehr",
+          "es": "Reducir un rack ya no se come tus bobinas",
+          "it": "Rimpicciolire un rack non mangia più le bobine",
+          "zh": "缩小货架不会再吞掉耗材盘",
+          "pt": "Diminuir um rack não engole mais seus carretéis",
+          "pt-pt": "Reduzir um rack já não come as tuas bobines",
+          "pl": "Zmniejszenie regału nie zjada już szpul",
+          "ru": "Уменьшение стеллажа больше не съедает катушки",
+          "nl": "Een rek verkleinen vreet geen spoelen meer"
+        },
+        "body": {
+          "en": "Spools freed by a smaller rack now land in “Spools not stored” instead of vanishing. Spools already stuck on a slot that no longer exists come back there too.",
+          "fr": "Les bobines libérées par un rack plus petit atterrissent dans « Bobines non rangées » au lieu de disparaître. Celles déjà coincées sur un emplacement qui n’existe plus y reviennent aussi.",
+          "de": "Spulen, die ein kleineres Regal freigibt, landen jetzt in „Nicht eingelagerte Spulen“, statt zu verschwinden. Spulen, die schon an einem nicht mehr existierenden Platz hängen, kommen ebenfalls dorthin zurück.",
+          "es": "Las bobinas liberadas por un rack más pequeño aterrizan en «Bobinas sin guardar» en vez de desaparecer. Las que ya estaban atascadas en un hueco que ya no existe también vuelven allí.",
+          "it": "Le bobine liberate da un rack più piccolo finiscono in «Bobine non riposte» invece di sparire. Anche quelle già bloccate su uno slot che non esiste più tornano lì.",
+          "zh": "被缩小的货架释放出的耗材盘现在会进入“未存放的耗材盘”，不再凭空消失。之前卡在已不存在的格子上的耗材盘也会回到那里。",
+          "pt": "Os carretéis liberados por um rack menor agora vão para “Carretéis não guardados” em vez de sumir. Os que já estavam presos num espaço que não existe mais também voltam para lá.",
+          "pt-pt": "As bobines libertadas por um rack mais pequeno vão agora para “Bobines não guardadas” em vez de desaparecerem. As que já estavam presas num lugar que já não existe também voltam para lá.",
+          "pl": "Szpule zwolnione przez mniejszy regał trafiają teraz do „Szpul nieprzechowywanych” zamiast znikać. Te już utknięte na nieistniejącym miejscu też tam wracają.",
+          "ru": "Катушки, освобождённые уменьшенным стеллажом, теперь попадают в «Катушки без места», а не исчезают. Те, что уже застряли на несуществующем слоте, тоже возвращаются туда.",
+          "nl": "Spoelen die een kleiner rek vrijgeeft komen nu in “Niet opgeslagen spoelen” terecht in plaats van te verdwijnen. Spoelen die al vastzaten op een vak dat niet meer bestaat komen daar ook terug."
+        }
+      },
+      {
+        "icon": "flag",
+        "title": {
+          "en": "Your league flag tells the truth",
+          "fr": "Ton drapeau de ligue dit la vérité",
+          "de": "Deine Ligaflagge sagt die Wahrheit",
+          "es": "Tu bandera de liga dice la verdad",
+          "it": "La tua bandiera di lega dice la verità",
+          "zh": "你的联赛旗帜不再说谎",
+          "pt": "Sua bandeira da liga diz a verdade",
+          "pt-pt": "A tua bandeira da liga diz a verdade",
+          "pl": "Flaga Twojej ligi mówi prawdę",
+          "ru": "Флаг вашей лиги говорит правду",
+          "nl": "Je competitievlag zegt de waarheid"
+        },
+        "body": {
+          "en": "In your profile, the flag now shows the league you are really ranked in. If your new pick is still on hold, you see the date it takes over.",
+          "fr": "Dans ton profil, le drapeau montre maintenant la ligue dans laquelle tu es vraiment classé. Si ton nouveau choix est encore en attente, tu vois la date à laquelle il prend le relais.",
+          "de": "In deinem Profil zeigt die Flagge jetzt die Liga, in der du wirklich platziert bist. Wartet deine neue Wahl noch, siehst du das Datum, an dem sie übernimmt.",
+          "es": "En tu perfil, la bandera muestra ahora la liga en la que estás clasificado de verdad. Si tu nueva elección aún está en espera, ves la fecha en que toma el relevo.",
+          "it": "Nel tuo profilo, la bandiera mostra ora la lega in cui sei davvero classificato. Se la tua nuova scelta è ancora in attesa, vedi la data in cui subentra.",
+          "zh": "在你的资料中，旗帜现在显示你真正所在的联赛。如果你的新选择仍在等待生效，会显示它生效的日期。",
+          "pt": "No seu perfil, a bandeira agora mostra a liga em que você realmente está classificado. Se a sua nova escolha ainda está em espera, você vê a data em que ela assume.",
+          "pt-pt": "No teu perfil, a bandeira mostra agora a liga em que realmente estás classificado. Se a tua nova escolha ainda está em espera, vês a data em que entra em vigor.",
+          "pl": "W Twoim profilu flaga pokazuje teraz ligę, w której naprawdę jesteś sklasyfikowany. Jeśli nowy wybór jeszcze czeka, zobaczysz datę, od której obowiązuje.",
+          "ru": "В вашем профиле флаг теперь показывает лигу, в которой вы реально ранжируетесь. Если новый выбор ещё ждёт, вы увидите дату, когда он вступит в силу.",
+          "nl": "In je profiel toont de vlag nu de competitie waarin je echt staat. Wacht je nieuwe keuze nog, dan zie je de datum waarop die ingaat."
+        }
+      }
+    ]
   }
 }

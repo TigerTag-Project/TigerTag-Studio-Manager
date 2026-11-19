@@ -1069,9 +1069,9 @@ import { initScreenTools } from './ai/screen-tools.js';
     // AND across them, OR inside one. Values are reference-table IDs as strings.
     // Belongs to the view segment: reset by _clearSearchFilters.
     filters: [],
-    printerBrandFilter: "",           // printer view: exact brand key to keep, "" = all
-    printerStatusFilter: "",          // printer view: "online" | "offline" | "" = all
-    printerTagFilter: "",             // printer view: exact tag the printer must carry, "" = all
+    // The printer views' own chips (brand, model, state, tag), same shape: the
+    // printers and the spools never share a field's values.
+    printerFilters: [],
 
     viewMode: localStorage.getItem("tigertag.view") || "table",
     // View-only grouping of identical spools (Table + Grid). Default ON. The
@@ -1225,9 +1225,8 @@ import { initScreenTools } from './ai/screen-tools.js';
     $("td1sHealth")?.setAttribute("data-tooltip", t(state.td1sConnected ? "td1sDetected" : "td1sNotDetected"));
     _syncSearchPlaceholder(); // the loop above reset #searchInv to the materials text
     _syncSearchAddLabel();   // the inline "+" mirrors the header button's name
-    // The printer filter options (State labels, brand names) aren't data-i18n,
-    // so re-localise them here on a language switch while the printer view is up.
-    if (_isPrinterMode(state.viewMode) && state.viewMode !== "printer-cam") populatePrinterFilters();
+    // The filter chips' text (field names, Online / Offline) follows the language.
+    populateQuickFilters();
     // Custom-select buttons mirror their <option> text — retranslated above, so
     // resync each one's visible label to the new language.
     document.querySelectorAll(".csel > select").forEach(s => s._cselRefresh?.());
@@ -5916,7 +5915,12 @@ import { initScreenTools } from './ai/screen-tools.js';
       const pubXp = ps.exists ? (ps.get("tigerSquad")?.xp ?? null) : null;
       // The flag's last move (server-written, squadLock.js lockedCountry): the picker locks for 30 days.
       const countryAt = ps.exists ? (ps.get("tigerSquad")?.countryAt?.toMillis?.() || null) : null;
-      if (countryAt !== state.squadCountryAt) { state.squadCountryAt = countryAt; _fillSquadCountry(); }
+      // …and the flag actually published (the league the member is ranked in), which the
+      // profile shows rather than a pick the lock still holds back (#290).
+      const countryPub = ps.exists ? (ps.get("tigerSquad")?.country || null) : null;
+      if (countryAt !== state.squadCountryAt || countryPub !== state.squadCountryPublished) {
+        state.squadCountryAt = countryAt; state.squadCountryPublished = countryPub; _fillSquadCountry();
+      }
       if (pubXp !== state.squadXpPublic) {
         state.squadXpPublic = pubXp; _squadRankCache = null;
         if (_squadBoardCache) _squadBoardCache.at = 0;   // my XP moved: the board's next open reloads
@@ -6184,14 +6188,19 @@ import { initScreenTools } from './ai/screen-tools.js';
   const _squadCountryUntil = () => state.squadCountryAt ? state.squadCountryAt + SQUAD_COUNTRY_LOCK_DAYS * 864e5 : 0;
   function _fillSquadCountry() {
     const cur = $("eacSquadCountryCur"); if (!cur) return;
-    const { name, detected } = _squadCountryOptions(), cc = state.squadCountry || detected;
+    // The flag the league ranks the member under (server-published), else their pick,
+    // else the detected country (not published yet).
+    const { name, detected } = _squadCountryOptions(), cc = state.squadCountryPublished || state.squadCountry || detected;
     cur.textContent = cc ? `${_flagOf(cc)}  ${name(cc)}` : "—";
     // The flag moves at most once every SQUAD_COUNTRY_LOCK_DAYS (enforced by the server).
     const until = _squadCountryUntil(), locked = until > Date.now();
     $("eacSquadCountryBtn").hidden = locked;
     const hint = $("eacSquadCountryHint");
-    if (hint) hint.textContent = locked
-      ? t("squadCountryLockedUntil", { date: new Date(until).toLocaleDateString(state.lang || "en", { day: "numeric", month: "long" }) })
+    const date = locked ? new Date(until).toLocaleDateString(state.lang || "en", { day: "numeric", month: "long" }) : "";
+    // A pick the lock is still holding back says when it takes over.
+    const pending = locked && state.squadCountry && state.squadCountryPublished && state.squadCountry !== state.squadCountryPublished;
+    if (hint) hint.textContent = pending ? t("squadCountryPending", { country: name(state.squadCountry), date })
+      : locked ? t("squadCountryLockedUntil", { date })
       : t("squadCountryLockHint");
   }
   // "Change": the countries as flag tiles in a window — the current one pinned on top,
@@ -14293,9 +14302,8 @@ import { initScreenTools } from './ai/screen-tools.js';
     // What the "+" will do here — Material, Device or Rack — said in its name.
     _syncSearchAddLabel();
     _syncSearchPlaceholder(); // materials ↔ printer search hint
-    // Right-of-search selectors: in the printer grid/table swap them to printer
-    // brand + tag (materials-only Material / Version selects hidden via the body
-    // class); materials views restore the full set on their next render.
+    // The printer grid/table filter through their own chips (_fbScope "prn");
+    // the body class hides what only spools have (the colour bars).
     const _printerFilters = _isPrinterMode(mode) && mode !== "printer-cam";
     document.body.classList.toggle("printer-filters", _printerFilters);
     /* The camera wall drops the printer FILTERS (there is nothing to filter on a
@@ -14305,7 +14313,6 @@ import { initScreenTools } from './ai/screen-tools.js';
        no spools. The wall says so itself now, and the two concerns stop sharing
        a switch. */
     document.body.classList.toggle("cam-wall-view", mode === "printer-cam");
-    if (_printerFilters) populatePrinterFilters();
     // Products views reuse the search + Brand / Material / Tag / ❤ / ★ selectors,
     // but hide the Version filter (no per-version notion for a product identity).
     document.body.classList.toggle("products-filters", _isProductsMode(mode) || _isListsMode(mode));
@@ -15151,7 +15158,6 @@ import { initScreenTools } from './ai/screen-tools.js';
   const _bootPrinterFilters = _isPrinterMode(state.viewMode) && state.viewMode !== "printer-cam";
   document.body.classList.toggle("cam-wall-view", state.viewMode === "printer-cam");
   document.body.classList.toggle("printer-filters", _bootPrinterFilters);
-  if (_bootPrinterFilters) populatePrinterFilters();
   document.body.classList.toggle("products-filters", _isProductsMode(state.viewMode));
   // The "Select" button shows only on button-select views (grid + printer) —
   // apply it on boot too (setViewMode, which normally does, isn't called on the
@@ -15190,13 +15196,15 @@ import { initScreenTools } from './ai/screen-tools.js';
        inv  — the spools (grid, table, Storage)
        prod — product identities (Products views, Lists)
        cat  — the catalogue (Search views)
+       prn  — the printers (grid / table), with their own list `state.printerFilters`
      `keys[scope](record)` gives the record's values for that field (several =
      the record answers to any of them: a spool's two aspects, its tags); a
      range field gives one number. */
   const FB_TIERS = { tigertag: "TigerTag", tigertagplus: "TigerTag+", tigerdata: "TigerData", tigerdataplus: "TigerData+" };
   const FB_EMPTY_ASPECTS = new Set(["0", "255"]);   // "-" and "None": nothing to filter by
   function _fbScope(mode = state.viewMode) {
-    if (_isPrinterMode(mode) || _isProgressMode(mode)) return null;
+    if (mode === "printer-cam" || _isProgressMode(mode)) return null;
+    if (_isPrinterMode(mode)) return "prn";
     if (_isCatalogMode(mode)) return "cat";
     if (_isProductsMode(mode) || _isListsMode(mode)) return "prod";
     return "inv";
@@ -15236,8 +15244,15 @@ import { initScreenTools } from './ai/screen-tools.js';
   const _lower = v => String(v).toLowerCase();
   const FB_FIELDS = [
     { id: "brand", key: "thBrand", neg: true,
-      keys: { inv: r => [r.brandId], prod: p => [_prodIds(p).brand], cat: it => [_catBrandKey(it)] },
-      label: v => v.startsWith("n:") ? v.slice(2) : brandName(+v) },
+      keys: { inv: r => [r.brandId], prod: p => [_prodIds(p).brand], cat: it => [_catBrandKey(it)], prn: p => [p.brand] },
+      label: (v, scope) => scope === "prn" ? (PRINTER_BRAND_META[v]?.label || v)
+                         : v.startsWith("n:") ? v.slice(2) : brandName(+v) },
+    { id: "model", key: "thModel", neg: true,
+      keys: { prn: p => [p.printerModelId != null && p.printerModelId !== "" ? `${p.brand}|${p.printerModelId}` : null] },
+      label: v => { const i = v.indexOf("|"); return printerModelName(v.slice(0, i), v.slice(i + 1)) || ""; } },
+    { id: "state", key: "filterShortState", order: ["online", "offline"],
+      keys: { prn: p => [_isPrinterOnline(p) ? "online" : "offline"] },
+      label: v => t(v === "online" ? "snapStatusOnline" : "snapStatusOffline") },
     { id: "series", key: "thSeries",
       keys: { cat: it => [it._series ? _catBrandKey(it) + "|" + it._series : null] },
       label: v => { const [b, s] = [v.slice(0, v.indexOf("|")), v.slice(v.indexOf("|") + 1)];
@@ -15258,7 +15273,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     { id: "diameter", key: "detDiameter",
       keys: { inv: r => [r.diameterId] }, label: v => diamLabel(+v) || "" },
     { id: "tag", key: "filterShortTag", neg: true,
-      keys: { inv: r => (r.tags || []).map(_lower), prod: p => (p.tags || []).map(_lower) },
+      keys: { inv: r => (r.tags || []).map(_lower), prod: p => (p.tags || []).map(_lower), prn: p => (p.tags || []).map(_lower) },
       label: v => _fbTagCase.get(v) || v },
     { id: "list", key: "fbList", when: () => !state.friendView,
       keys: { inv: r => { const p = _getProduct(r); return [p?.liked && "liked", p?.favorite && "favorite"]; },
@@ -15271,6 +15286,9 @@ import { initScreenTools } from './ai/screen-tools.js';
       label: v => v === "none" ? t("fbNotStored") : ((state.racks || []).find(x => x.id === v)?.name || v) },
   ];
   const FB_BY_ID = Object.fromEntries(FB_FIELDS.map(f => [f.id, f]));
+  // The chips of a scope: the printers keep their own, so a brand picked for the
+  // spools never filters the printers (their brands are other values).
+  const _fbConds = (scope = _fbScope()) => scope === "prn" ? state.printerFilters : state.filters;
   const _fbKeys = (f, scope, x) =>
     (f.keys[scope]?.(x) || []).filter(v => v != null && v !== "" && v !== false && v !== 0).map(String);
   // Does a record pass every condition (except `skip`, for the facet counts)?
@@ -15301,17 +15319,19 @@ import { initScreenTools } from './ai/screen-tools.js';
       return src.filter(p => _prodTextPass(p, q));
     }
     if (scope === "cat") return _catColorApply(_catalogFilter($("searchInv")?.value, "", ""));
+    if (scope === "prn") return (state.printers || []).filter(p => _printerMatchesSearch(p, q));
     return [];
   }
   function _fbOptions(f, scope) {
     const m = new Map();
+    const conds = _fbConds(scope);
     for (const x of _fbBase(scope)) {
-      if (!_fbPass(x, scope, f.id)) continue;
+      if (!_fbPass(x, scope, f.id, conds)) continue;
       for (const k of new Set(_fbKeys(f, scope, x))) if (!f.skip?.has(k)) m.set(k, (m.get(k) || 0) + 1);
-      if (f.id === "tag") ((scope === "inv" ? x.tags : x.tags) || []).forEach(tg => { const k = _lower(tg); if (!_fbTagCase.has(k)) _fbTagCase.set(k, String(tg)); });
+      if (f.id === "tag") (x.tags || []).forEach(tg => { const k = _lower(tg); if (!_fbTagCase.has(k)) _fbTagCase.set(k, String(tg)); });
     }
     // A picked value stays listed (at 0) so it can be unticked.
-    state.filters.find(c => c.field === f.id)?.values.forEach(v => { if (!m.has(v)) m.set(v, 0); });
+    conds.find(c => c.field === f.id)?.values.forEach(v => { if (!m.has(v)) m.set(v, 0); });
     // A value with no name (an ID the bundled tables do not know yet) or a
     // placeholder one ("-", the reference table's "unknown" entry) says nothing
     // in a list of names.
@@ -15339,7 +15359,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       onEdit: () => openColorSearch(), onRemove: () => _catColorSet(null),
     });
     const f = _hueFilter();
-    if (_hueFilterOn(f) && _fbScope()) {
+    if (_hueFilterOn(f) && _fbScope() && _fbScope() !== "prn") {
       const w = f.axis === "lum" ? f.lum : f.hue;
       const swatch = f.axis === "lum"
         ? `linear-gradient(90deg, hsl(0 0% ${100 - w.lo}%), hsl(0 0% ${Math.max(0, 100 - w.lo - w.width)}%))`
@@ -15363,6 +15383,12 @@ import { initScreenTools } from './ai/screen-tools.js';
       el.classList.toggle("is-active", !!tf && el.dataset.filter === tf));
   }
   function _fbSetConds(list) {
+    if (_fbScope() === "prn") {
+      state.printerFilters = list;
+      _fbTrophies(list);
+      _onFilterChange();
+      return;
+    }
     const before = state.filters;
     state.filters = list;
     // Quests count the brands and materials looked up in the catalogue.
@@ -15374,7 +15400,23 @@ import { initScreenTools } from './ai/screen-tools.js';
         if (id) questBump(`${c.field}_${id}`);
       }
     }
+    _fbTrophies(list);
     _onFilterChange();
+  }
+  /* The filter chips' trophies (backend trophyRules APP_REPORTED, asked once): a
+     first chip, 3 / 5 / 8 chips at once, an "is not", a weight range with both
+     ends, and (hidden) 3 chips or more that leave none of the inventory's spools. */
+  const FB_STACK_TROPHIES = [[3, "filterStack3"], [5, "filterStack5"], [8, "filterStack8"]];
+  function _fbTrophies(list) {
+    if (!list.length) return;
+    _appTrophy("filterFirst");
+    for (const [n, id] of FB_STACK_TROPHIES) if (list.length >= n) _appTrophy(id);
+    if (list.some(c => c.op === "isNot" && c.values.length)) _appTrophy("filterIsNot");
+    if (list.some(c => c.field === "weight" && c.values[0] != null && c.values[1] != null)) _appTrophy("filterWeightRange");
+    if (list.length >= 3 && _fbScope() === "inv" && !state.friendView) {
+      const rows = state.rows.filter(r => !r.deleted);
+      if (rows.length && !rows.some(r => _fbPass(r, "inv", null, list))) _appTrophy("filterNothing");
+    }
   }
   let _fb = null;
   let _hueViewsRedraw = null;   // set where the colour bars are wired
@@ -15385,17 +15427,9 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _clearSearchFilters() {
     state.search        = "";
     state.filters        = [];
-    state.printerBrandFilter  = "";
-    state.printerStatusFilter = "";
-    state.printerTagFilter    = "";
+    state.printerFilters = [];
     const si = $("searchInv");
     if (si) { si.value = ""; _refreshSearchClearVisibility(""); }
-    // The printer views' selects: reset the native select AND its custom
-    // dropdown button (_enhanceSelect), or the button keeps the old label.
-    ["brandFilter", "materialFilter", "tagFilter"].forEach(id => {
-      const sel = $(id);
-      if (sel) { sel.value = ""; sel.classList.remove("is-active"); sel._cselRefresh?.(); }
-    });
     // The catalogue's colour search is one of the chips: it goes with them.
     if (state.catColor) _catColorSet(null, { search: false });
     _fb?.close();
@@ -15411,10 +15445,11 @@ import { initScreenTools } from './ai/screen-tools.js';
   /* Is anything actually filtering right now? Drives the reset button's state:
      it should look usable only while it has something to undo. */
   function _anyFilterActive() {
+    // The button lives on the search row, so it is on screen in the printer views
+    // too — where only the search and the printer chips filter (the colour bars
+    // and the spool chips are not theirs).
+    if (_fbScope() === "prn") return !!state.search || state.printerFilters.length > 0;
     if (state.search || state.filters.length || _hueFilterOn()) return true;
-    // The button lives on the search row now, so it is on screen in the printer
-    // views too — where the filters it clears are the printer ones.
-    if (state.printerBrandFilter || state.printerStatusFilter || state.printerTagFilter) return true;
     return _isCatalogMode(state.viewMode) && !!state.catColor;
   }
   function _syncFilterReset() {
@@ -15590,6 +15625,12 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _catColorSet(v, { search = true } = {}) {
     state.catColor = v && v.hex ? { ...v, lab: hexToLab(v.hex) } : null;
     if (!state.catColor) _csr?.setValue({ hex: null, ral: "" });
+    // Trophies (backend trophyRules APP_REPORTED): a first colour search, a RAL, a photo point.
+    if (state.catColor) {
+      _appTrophy("colorSearchFirst");
+      if (state.catColor.ral) _appTrophy("colorSearchRal");
+      if (state.catColor.mode === "photo") _appTrophy("colorSearchPhoto");
+    }
     _catColorChipSync();
     if (search && _isCatalogMode(state.viewMode)) _onFilterChange();
   }
@@ -15634,6 +15675,8 @@ import { initScreenTools } from './ai/screen-tools.js';
       out.push({ it, de, declared });
     }
     out.sort((a, z) => Number(z.declared) - Number(a.declared) || a.de - z.de);
+    // A hit the eye cannot tell from the colour searched (ΔE under 1) earns a trophy.
+    if (out.some(o => o.de < 1)) _appTrophy("colorSearchExact");
     for (const o of out) _catColorDE.set(o.it, o);
     return out.map(o => o.it);
   }
@@ -15993,31 +16036,15 @@ import { initScreenTools } from './ai/screen-tools.js';
     t, esc, registry: _cselOpen,
     active: () => !!_fbScope(),
     fields: _fbFieldDefs,
-    conds: () => state.filters,
+    conds: () => _fbConds(),
     setConds: _fbSetConds,
     extraChips: _fbExtraChips,
+    onFieldTyped: () => _appTrophy("filterTyped"),
   });
-  $("brandFilter")?.addEventListener("change", e => {
-    const v = e.target.value;
-    e.target.classList.toggle("is-active", !!v);
-    // The printer views' selects (the other views filter through the chips).
-    state.printerBrandFilter = v; applyPrinterFilter(); _syncFilterReset();
-  });
-  $("materialFilter")?.addEventListener("change", e => {
-    const v = e.target.value;
-    e.target.classList.toggle("is-active", !!v);
-    // The printer views use this select as the State (online/offline) filter.
-    state.printerStatusFilter = v; applyPrinterFilter(); _syncFilterReset();
-  });
-  $("tagFilter")?.addEventListener("change", e => {
-    const v = e.target.value;
-    e.target.classList.toggle("is-active", !!v);
-    state.printerTagFilter = v; applyPrinterFilter(); _syncFilterReset();
-  });
-  // Replace the native OS dropdowns of the toolbar filters with app-styled popups.
-  // (The printer views' Brand / State / Tag, the grid sort and the Search
-  // views' sort; every other filter is a chip of the filter bar.)
-  ["brandFilter", "materialFilter", "tagFilter", "gridSort", "cvSort"].forEach(id => _enhanceSelect($(id)));
+  // Replace the native OS dropdowns of the toolbar's two sorts (the grid's and
+  // the Search views') with app-styled popups; every filter is a chip of the
+  // filter bar.
+  ["gridSort", "cvSort"].forEach(id => _enhanceSelect($(id)));
   // Same treatment for the Add-product panel's identity selects (Brand/Material
   // use their own bottom-sheets; these are the plain <select>s). The button
   // mirrors the .adp-select look; only the OS option list is replaced.
@@ -29934,15 +29961,6 @@ import { initScreenTools } from './ai/screen-tools.js';
     const _printerSub = state.viewMode === "printer-table" ? "table"
                       : state.viewMode === "printer-cam"   ? "cam"
                       : "grid";
-    // Keep the brand / tag selectors in sync with the current printer set
-    // (new brand or tag → fresh option) — grid + table only, cam hides them.
-    // ONLY while the printer view is the one on screen. These selects are SHARED
-    // with the materials views, and a connected printer pushing a status update
-    // re-renders this view from a brand callback whatever the user is currently
-    // looking at — which rewrote the Brand list with printer brands and turned
-    // Material into "State" while the user was standing in Storage, with no way
-    // to filter their own spools by brand any more.
-    if (_printerSub !== "cam" && _isPrinterMode(state.viewMode)) populatePrinterFilters();
     /* HAND BACK the mux consumers this board registered — before the rebuild
        destroys their elements, AND before we branch away to the table or the
        camera wall. Placed after the branch it only fired on a board redraw, so
@@ -30219,22 +30237,15 @@ import { initScreenTools } from './ai/screen-tools.js';
     ].filter(Boolean).join(" ").toLowerCase();
     return hay.includes(q);
   }
-  // Filter the printer view by the search box + the brand / tag selectors WITHOUT
+  // Filter the printer view by the search box + its filter chips WITHOUT
   // rebuilding it — a rebuild would re-fire every brand connect/ping on each
   // keystroke and reload logos. Toggles `.hidden` on each card/row and collapses
   // now-empty grid sections.
   function applyPrinterFilter() {
     const host = $("invPrinterView");
     if (!host) return;
-    const q      = (state.search || "").trim().toLowerCase();
-    const brand  = state.printerBrandFilter || "";
-    const status = state.printerStatusFilter || "";
-    const tag    = (state.printerTagFilter || "").toLowerCase();
-    const shown = p =>
-      _printerMatchesSearch(p, q)
-      && (!brand  || p.brand === brand)
-      && (!status || (status === "online") === _isPrinterOnline(p))
-      && (!tag    || (p.tags || []).some(x => x.toLowerCase() === tag));
+    const q = (state.search || "").trim().toLowerCase();
+    const shown = p => _printerMatchesSearch(p, q) && _fbPass(p, "prn", null, state.printerFilters);
     host.querySelectorAll("[data-printer-key]").forEach(el => {
       const p = state.printers.find(x => `${x.brand}:${x.id}` === el.dataset.printerKey);
       el.classList.toggle("hidden", !!p && !shown(p));
@@ -30243,56 +30254,6 @@ import { initScreenTools } from './ai/screen-tools.js';
     const board = _printerPlanContainer();
     if (board) _drawClusterHulls(board);
   }
-  // Repopulate the right-of-search selectors for the printer view: reuse the
-  // Brand select (printer brands present) + the Tag select (printer tags union),
-  // and hide the materials-only Material / Version selects (via body class in
-  // setViewMode). Preserves the current selection when it still exists; the Tag
-  // select hides itself when no printer carries a tag yet.
-  function populatePrinterFilters() {
-    const bsel = $("brandFilter");
-    if (bsel) {
-      const brands = Array.from(new Set((state.printers || []).map(p => p.brand))).filter(Boolean)
-        .sort((a, b) => (PRINTER_BRAND_META[a]?.label || a).localeCompare(PRINTER_BRAND_META[b]?.label || b, undefined, { sensitivity: "base" }));
-      const allLabel = t("filterAllBrands") || "All brands";
-      bsel.innerHTML = `<option value="" data-i18n="filterAllBrands">${esc(allLabel)}</option>`
-        + brands.map(b => `<option value="${esc(b)}">${esc(PRINTER_BRAND_META[b]?.label || b)}</option>`).join("");
-      if (state.printerBrandFilter && brands.includes(state.printerBrandFilter)) bsel.value = state.printerBrandFilter;
-      else { bsel.value = ""; state.printerBrandFilter = ""; }
-      bsel.classList.toggle("is-active", !!state.printerBrandFilter);
-      bsel.dataset.cselShort = "filterShortBrand";
-      bsel._cselRefresh?.();
-    }
-    // Repurpose the Material select as a State (online / offline) filter — the
-    // Version select stays hidden (both are materials-only concepts).
-    const ssel = $("materialFilter");
-    if (ssel) {
-      const opts = [
-        ["",        t("filterAllStates")   || "All states"],
-        ["online",  t("snapStatusOnline")  || "Online"],
-        ["offline", t("snapStatusOffline") || "Offline"],
-      ];
-      ssel.innerHTML = opts.map(([v, lbl]) => `<option value="${esc(v)}">${esc(lbl)}</option>`).join("");
-      ssel.value = state.printerStatusFilter || "";
-      ssel.classList.toggle("is-active", !!state.printerStatusFilter);
-      ssel.dataset.cselShort = "filterShortState";
-      ssel._cselRefresh?.();
-    }
-    const tsel = $("tagFilter");
-    if (tsel) {
-      const values = _allPrinterTags();
-      const allLabel = t("filterAllTags") || "All tags";
-      tsel.innerHTML = `<option value="" data-i18n="filterAllTags">${esc(allLabel)}</option>`
-        + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
-      const match = values.find(v => v.toLowerCase() === String(state.printerTagFilter || "").toLowerCase());
-      if (match) { tsel.value = match; state.printerTagFilter = match; }
-      else { tsel.value = ""; state.printerTagFilter = ""; }
-      tsel.classList.toggle("is-active", !!state.printerTagFilter);
-      tsel.classList.toggle("hidden", values.length === 0); // no printer tags → hide the select
-      tsel.dataset.cselShort = "filterShortTag";
-      tsel._cselRefresh?.();
-    }
-  }
-
   // ── Printer table sub-view ───────────────────────────────────────────────
   // Brands that ship a logo SVG (assets/svg/icons/logo_<brand>.svg) → the Brand
   // column shows the tinted logo; any other brand falls back to the text pill.
@@ -45015,10 +44976,16 @@ import { initScreenTools } from './ai/screen-tools.js';
     const r = ownSpoolId ? state.rows.find(x => x.spoolId === ownSpoolId) : null;
     return r ? _hasRealProductId(r.raw?.id_product ?? r.idProduct) || !!r.isPlus : _hasRealProductId(idProduct);
   }
-  // A trophy only the app sees (backend trophyRules APP_REPORTED), asked once.
+  // A trophy only the app sees (backend trophyRules APP_REPORTED), asked once per
+  // account and launch: the filters and the colour search call this on every change,
+  // before the album says it is earned. (A property, not a const: it may run before
+  // this line has.)
   function _appTrophy(id) {
     const uid = state.activeAccountId;
-    if (uid && !trophyEarned(id)) _tigerCoins(uid, "appTrophy", { id }).catch(() => {});
+    const asked = (_appTrophy.asked ||= new Set()), key = `${uid}:${id}`;
+    if (!uid || trophyEarned(id) || asked.has(key)) return;
+    asked.add(key);
+    _tigerCoins(uid, "appTrophy", { id }).catch(() => {});
   }
   // `qr_read`: a qr.tigertag.io link pasted or scanned into the search, every kind
   // (spool, product, no_product, newer), once per link over 5 minutes. `Reader`
