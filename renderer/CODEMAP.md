@@ -375,7 +375,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L42660-43831)
+## Keys + profile sync (L42660-43998)
 | L | What | Anchors |
 |---|---|---|
 | 15257-15301 | **`claimPublicKey(uid, oldKey)`** atomic transaction (10 retries) + regenerate + send friend request | `claimPublicKey`, `sendFriendRequest` |
