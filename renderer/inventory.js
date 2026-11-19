@@ -8611,13 +8611,20 @@ import { initScreenTools } from './ai/screen-tools.js';
         if (state.friendView) break;
         const { spoolId, data } = _rackMigrationQueue.shift();
         try {
+          /* `rack: null` is how the app writes "not stored". A doc that carries it
+             next to leftover flat fields is an UNRANKED spool whose old fields
+             were never cleared (a rack resized before this migration ran): it must
+             stay unranked. Rebuilding `rack` from `rack_id` would put it back in a
+             rack — at coordinates the rack may no longer have. Only the leftovers
+             go. */
+          const unstored = data.rack === null;
           const rack = {
             id: data.rack_id,
             level:    Number.isInteger(data.level)    ? data.level    : null,
             position: Number.isInteger(data.position) ? data.position : null
           };
           await _xanoQuiet(() => invRef.doc(spoolId).update({
-            rack,
+            ...(unstored ? {} : { rack }),
             rack_id:  FV.delete(),
             level:    FV.delete(),
             position: FV.delete()
@@ -37048,7 +37055,16 @@ import { initScreenTools } from './ai/screen-tools.js';
         // whatever stood there back to the unranked panel.
         const oobDepth = (newDepth != null && Number.isInteger(row.rackDepth)  && row.rackDepth  >= newDepth);
         if (oobLevel || oobPos || oobDepth) {
-          batch.update(invRef.doc(row.spoolId), { rack: null });
+          /* Clear the legacy flat fields too, like `deleteRack` does: a doc still
+             on the old schema keeps `rack_id`, `normalizeRow` falls back to it
+             when `rack` is null, and the spool stays tied to a rack it no longer
+             fits in — gone from the grid AND from the unranked panel. */
+          batch.update(invRef.doc(row.spoolId), {
+            rack:     null,
+            rack_id:  firebase.firestore.FieldValue.delete(),
+            level:    firebase.firestore.FieldValue.delete(),
+            position: firebase.firestore.FieldValue.delete(),
+          });
           freed++;
         }
       });
