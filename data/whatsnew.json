@@ -15729,5 +15729,39 @@
         }
       }
     ]
+  },
+  "2.59.2": {
+    "date": "2026-11-20",
+    "items": [
+      {
+        "icon": "printer",
+        "title": {
+          "en": "The Bambu A2L knows its own name",
+          "fr": "La Bambu A2L connaît enfin son nom",
+          "de": "Der Bambu A2L kennt jetzt seinen Namen",
+          "es": "La Bambu A2L ya sabe cómo se llama",
+          "it": "La Bambu A2L sa finalmente come si chiama",
+          "zh": "Bambu A2L 终于认得自己的名字了",
+          "pt": "A Bambu A2L finalmente sabe o próprio nome",
+          "pt-pt": "A Bambu A2L já sabe o próprio nome",
+          "pl": "Bambu A2L wreszcie zna swoją nazwę",
+          "ru": "Bambu A2L наконец знает своё имя",
+          "nl": "De Bambu A2L kent eindelijk zijn naam"
+        },
+        "body": {
+          "en": "Add an A2L by its IP address and Studio recognises the model from its serial number. No more picking it from the list by hand.",
+          "fr": "Ajoute une A2L par son adresse IP et Studio reconnaît le modèle grâce à son numéro de série. Plus besoin de le choisir à la main dans la liste.",
+          "de": "Füge einen A2L über seine IP-Adresse hinzu und Studio erkennt das Modell an der Seriennummer. Kein Auswählen per Hand mehr.",
+          "es": "Añade una A2L por su dirección IP y Studio reconoce el modelo por su número de serie. Se acabó elegirlo a mano en la lista.",
+          "it": "Aggiungi una A2L tramite il suo indirizzo IP e Studio riconosce il modello dal numero di serie. Niente più scelta a mano dall'elenco.",
+          "zh": "通过 IP 地址添加 A2L，Studio 会根据序列号识别型号，不用再从列表里手动选择。",
+          "pt": "Adicione uma A2L pelo endereço IP e o Studio reconhece o modelo pelo número de série. Nada de escolher na lista à mão.",
+          "pt-pt": "Adiciona uma A2L pelo endereço IP e o Studio reconhece o modelo pelo número de série. Acabou escolhê-lo à mão na lista.",
+          "pl": "Dodaj A2L po adresie IP, a Studio rozpozna model po numerze seryjnym. Koniec z ręcznym wybieraniem z listy.",
+          "ru": "Добавьте A2L по IP-адресу, и Studio узнает модель по серийному номеру. Больше не нужно выбирать её вручную из списка.",
+          "nl": "Voeg een A2L toe via zijn IP-adres en Studio herkent het model aan het serienummer. Nooit meer zelf uit de lijst kiezen."
+        }
+      }
+    ]
   }
 }

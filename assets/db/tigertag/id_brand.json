@@ -176,6 +176,14 @@
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=5048&v=1794706851"
   },
   {
+    "id": 6112,
+    "name": "NextShapes",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 6305,
     "name": "Markforged",
     "type_ids": [
@@ -1064,6 +1072,14 @@
     "logo_url": null
   },
   {
+    "id": 50600,
+    "name": "Bavaria Filaments",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 50604,
     "name": "Polymaker",
     "type_ids": [
@@ -1172,6 +1188,14 @@
       142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=54112&v=1794707130"
+  },
+  {
+    "id": 55195,
+    "name": "CR-3D",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
   },
   {
     "id": 55229,

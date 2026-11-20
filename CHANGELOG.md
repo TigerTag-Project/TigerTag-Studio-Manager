@@ -5,6 +5,26 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.59.2 — 2026-11-20
+
+### Fixed
+- **Catalogue auto-refresh no longer floods `product/get`** (#309). Since 2.59.0 the refresh ran on
+  every inventory snapshot and window focus (up to 40 calls a run), and a spool the API stayed behind
+  on (mirror photo ahead of `product/get`, a 503) was asked again every 30 min forever, from every
+  window and after every restart: about 450 000 calls a day, the API went down. Now the spools are
+  reconciled only after a sync that downloaded a changed mirror (`_catalogSignature`,
+  `tigertag.catalogSig`); every answered call stamps the spool with the mirror entry it was asked
+  for (`tigertag.catalogAsked.<uid>`, kept across restarts) and it is not asked again until that
+  entry moves; a 5xx / timeout / network failure stops the run and pauses every automatic ask
+  (`tigertag.catalogBackoff`, 30 min doubling up to 8 h, also honoured on opening a spool); at most
+  10 spools a run (`CATALOG_REFRESH_MAX`). The launch refresh of TigerTag+ spools without a photo
+  uses the same runner (sequential, capped, once a week per spool). `_catalogAskBatch`.
+- **Bambu Lab A2L added by IP** is recognised from its serial prefix `26A` (#244, PR #306); the
+  DevModel code `N9` still wins.
+
+### Changed
+- Bundled data: brand table refreshed (`db_update.py`).
+
 ## v2.59.1 — 2026-11-19
 
 ### Added

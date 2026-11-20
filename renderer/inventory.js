@@ -9194,10 +9194,13 @@ import { initScreenTools } from './ai/screen-tools.js';
         // On first live snapshot: silently refresh API data for every TigerTag+
         // spool that has no product image yet. Fire-and-forget — each write
         // triggers a new snapshot that re-renders the panel automatically.
+        // Through _catalogAskBatch (#309): sequential, at most CATALOG_REFRESH_MAX, paused
+        // after a server failure, and a spool whose product has no photo is asked
+        // once a week, not at every launch.
         if (isFirstSnap && !snapshot.metadata.fromCache && window.electronAPI?.refreshApiData) {
-          state.rows
-            .filter(r => r.isPlus && !r.isCloud && !raw[r.spoolId]?.url_img)
-            .forEach(r => _refreshApiData(r, { silent: true }));
+          const week = Math.floor(Date.now() / (7 * 864e5));
+          _catalogAskBatch(state.rows.filter(r => r.isPlus && !r.isCloud && !raw[r.spoolId]?.url_img),
+            () => `nophoto:${week}`, "spools without a photo");
         }
 
         // Census every physical chip already in this inventory into rfidList —
@@ -16723,7 +16726,9 @@ import { initScreenTools } from './ai/screen-tools.js';
 
   // `ifNewer`: only write when the live product is ahead of this spool — a later
   // `updated_at` than its last reconcile, or a photo with a higher version.
-  async function _refreshApiData(r, { silent = false, ifNewer = false } = {}) {
+  // `report` (optional object) gets `error` when the call failed — _catalogAskBatch
+  // tells a server failure (pause everything) from an answer (stamp the spool).
+  async function _refreshApiData(r, { silent = false, ifNewer = false, report = null } = {}) {
     const rawDoc = state.inventory[r.spoolId];
     if (!rawDoc) return;
     const btn = silent ? null : $("btnRefreshApi");
@@ -16829,6 +16834,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       return true;
     } catch (e) {
       console.error("[refreshApi]", e);
+      if (report) report.error = e?.message || String(e);
       if (!silent) _flashMessage(t("toolRefreshApiError"));
     } finally {
       if (btn) { btn.disabled = false; btn.querySelector(".toolbox-row-label").textContent = t("toolRefreshApi"); }
@@ -17000,6 +17006,17 @@ import { initScreenTools } from './ai/screen-tools.js';
      slot semantics, which would be wrong data under the contract.
   */
   const CATALOG_LS_KEY = "tigertag.catalog";
+  // The mirror's fingerprint at the last sync (_catalogSignature): a sync that
+  // brings the same list back does not reconcile the spools again (#309).
+  const CATALOG_SIG_KEY = "tigertag.catalogSig";
+  function _catalogSignature(items) {
+    let h = 0x811c9dc5;   // FNV-1a over every product's id, date and photo
+    for (const p of items) {
+      const str = `${p?.id}|${p?.updated_at ?? ""}|${p?.img_src ?? ""};`;
+      for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    }
+    return `${items.length}:${(h >>> 0).toString(36)}`;
+  }
   const CATALOG_CACHE_V = 3;   // see `_catalogLoadCache`
   // The catalogue mirror (id_catalog.json on GitHub) is rebuilt every 6 hours, and
   // a re-read costs a 304 when nothing moved (ETag), so the copy here is checked as
@@ -17221,63 +17238,95 @@ import { initScreenTools } from './ai/screen-tools.js';
     });
   }
 
-  // How many stale spools one sync will refresh. Each one is a `product/get`
-  // round-trip, so an inventory that has sat unopened for months could otherwise
-  // fire hundreds at once. The rest are picked up by the next sync — the stamp
-  // makes the work resumable, nothing is lost by stopping early.
-  const CATALOG_REFRESH_MAX = 40;
-  // The automatic refresh asks again for one spool no sooner than this (_catalogRefreshStale).
-  const CATALOG_RETRY_MS = 30 * 60_000;
-  const _catalogRefreshedAt = new Map();   // spoolId → ms of its last automatic refresh
+  // How many stale spools one run refreshes. Each one is a `product/get` round-trip
+  // on an API every Studio shares: the rest wait for the next mirror (the per-spool
+  // stamp makes the work resumable, nothing is lost by stopping early).
+  const CATALOG_REFRESH_MAX = 10;
+  /* 2.59.0–2.59.1 flooded product/get (~450 000 calls a day, the API went down —
+     issue #309): the refresh ran on every inventory snapshot and window focus, and
+     a spool still counted behind after its refresh (the mirror's photo ahead of the
+     API's, a 503) was asked again every 30 min, forever, from every window. Now:
+       • it runs only after a sync that downloaded a CHANGED mirror (_catalogSync);
+       • every answered call stamps the spool with the mirror entry it was asked
+         for (`tigertag.catalogAsked.<uid>`, kept across restarts): the spool is not
+         asked again until that entry moves, whatever the answer was;
+       • a 5xx, a timeout or a network failure stops the run and pauses every
+         automatic ask (`tigertag.catalogBackoff`, 30 min doubling up to 8 h). */
+  const CATALOG_BACKOFF_MS = 30 * 60_000, CATALOG_BACKOFF_MAX_STEP = 5;
+  const CATALOG_BACKOFF_KEY = "tigertag.catalogBackoff";
+  const _catalogAskedKey = uid => `tigertag.catalogAsked.${uid}`;
+  function _lsJson(key, fallback) { try { return JSON.parse(localStorage.getItem(key) || "null") ?? fallback; } catch (_) { return fallback; } }
+  function _lsPut(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (_) {} }
+  const _catalogBackoff = () => _lsJson(CATALOG_BACKOFF_KEY, { until: 0, n: 0 });
+  const _catalogPaused = () => _catalogBackoff().until > Date.now();
+  // The API did not answer (as opposed to answering "not found" or "no change").
+  const _catalogServerFailed = err => /HTTP 5\d\d|abort|timed? ?out|fetch failed|network|ECONN|ENOTFOUND|EAI_AGAIN/i.test(String(err || ""));
+  // What a spool was last asked against: the mirror entry's date + photo.
+  const _catalogMirrorKey = prod => `${prod?.updated_at ?? ""}|${prod?.img_src ?? ""}`;
   let _catalogRefreshing = false;
 
-  /**
-   * Bring every spool the catalogue has moved on from back in line.
-   *
-   * Runs after a catalogue sync, in the background, sequentially — a burst of
-   * parallel requests would be rude to the API and buys nothing here. Each row
-   * goes through the SAME `_refreshApiData` the manual button uses, so the
-   * consequence is decided in one place: the record is updated either way, and
-   * `needUpdateAt` is raised only when the change touched something the chip
-   * carries AND the spool has a chip. A TigerData+ therefore updates in complete
-   * silence, which is the whole point — it has no chip to re-burn.
-   */
-  async function _catalogRefreshStale() {
-    // Second lock on the WRITE path. `_catalogStaleRows` already refuses to scan a
-    // friend's inventory, so this can only fire if that ever regresses — cheap, and
-    // it is the write that would be unrecoverable.
-    if (_catalogRefreshing || state.friendView) return;
-    // This runs on every server snapshot of the inventory, and a refresh writes the
-    // spool (→ another snapshot). A spool still counted behind after its refresh
-    // (the API's photo lagging the mirror's, a 503) would be asked and written in a
-    // loop: each spool is refreshed here at most once per CATALOG_RETRY_MS.
-    const now = Date.now();
-    const stale = _catalogStaleRows().filter(r => now - (_catalogRefreshedAt.get(r.spoolId) || 0) > CATALOG_RETRY_MS);
-    if (!stale.length) return;
+  /* Ask the API for `rows`, one after the other, stamping each answered spool with
+     `keyOf(row)` so it is skipped while that key holds; a server failure stops the
+     run and starts the pause. → how many spools were written, -1 when it could not
+     run now (another run, a pause, a friend's view). */
+  async function _catalogAskBatch(rows, keyOf, label) {
+    const uid = state.activeAccountId;
+    if (!uid || _catalogRefreshing || state.friendView || _catalogPaused()) return -1;
+    const asked = _lsJson(_catalogAskedKey(uid), {});
+    const todo = rows.filter(r => asked[r.spoolId]?.k !== keyOf(r));
+    if (!todo.length) return 0;
     _catalogRefreshing = true;
-    const batch = stale.slice(0, CATALOG_REFRESH_MAX);
-    let done = 0;
+    const batch = todo.slice(0, CATALOG_REFRESH_MAX);
+    let done = 0, failed = null;
     try {
       for (const r of batch) {
-        _catalogRefreshedAt.set(r.spoolId, Date.now());
-        if (await _refreshApiData(r, { silent: true })) done++;
+        const rep = {};
+        const wrote = await _refreshApiData(r, { silent: true, report: rep });
+        if (rep.error && _catalogServerFailed(rep.error)) { failed = rep.error; break; }
+        asked[r.spoolId] = { k: keyOf(r), at: Date.now() };   // answered: not again until the key moves
+        if (wrote) done++;
       }
     } finally {
       _catalogRefreshing = false;
+      // Spools no longer in this inventory drop out of the stamps.
+      for (const id of Object.keys(asked)) if (!state.inventory[id]) delete asked[id];
+      _lsPut(_catalogAskedKey(uid), asked);
+      const bo = _catalogBackoff();
+      if (failed) {
+        const n = Math.min(bo.n + 1, CATALOG_BACKOFF_MAX_STEP);
+        _lsPut(CATALOG_BACKOFF_KEY, { until: Date.now() + CATALOG_BACKOFF_MS * 2 ** (n - 1), n });
+        console.warn(`[catalog] ${label}: the API failed (${failed}) — automatic asks paused ${30 * 2 ** (n - 1)} min`);
+      } else if (bo.n) _lsPut(CATALOG_BACKOFF_KEY, { until: 0, n: 0 });
     }
-    const left = stale.length - batch.length;
-    console.log(`[catalog] refreshed ${done}/${batch.length} stale spool(s)`
-      + (left ? ` — ${left} left for the next sync` : ""));
+    const left = todo.length - batch.length;
+    console.log(`[catalog] ${label}: refreshed ${done}/${batch.length} spool(s)` + (left ? ` — ${left} left for the next mirror` : ""));
+    return done;
+  }
+
+  /**
+   * Bring the spools the catalogue has moved on from back in line.
+   *
+   * Runs only after a sync that downloaded a changed mirror (_catalogSync), in the
+   * background, sequentially. Each row goes through the SAME `_refreshApiData` the
+   * manual button uses, so the consequence is decided in one place: the record is
+   * updated either way, and `needUpdateAt` is raised only when the change touched
+   * something the chip carries AND the spool has a chip. A TigerData+ therefore
+   * updates in complete silence — it has no chip to re-burn.
+   */
+  async function _catalogRefreshStale() {
+    if (state.friendView) return -1;   // second lock on the WRITE path (_catalogStaleRows refuses already)
+    const byId = new Map(_catalogIndex.map(e => [Number(e.it.id), e.it]));
+    return _catalogAskBatch(_catalogStaleRows(), r => _catalogMirrorKey(byId.get(Number(r.raw?.id_product))), "stale spools");
   }
 
   // The spools follow the catalogue without anyone opening it: at launch and when
   // the window comes back, the local copy is checked (a 304 while the mirror has
-  // not moved, nothing at all inside its 6 hours), then the spools it has moved on
-  // from are brought up to date through the API (_catalogRefreshStale).
+  // not moved, nothing at all inside its 6 hours). Only a sync that brings a CHANGED
+  // mirror goes on to the API for the spools it moved on from (_catalogSync → #309).
   function _catalogAutoSync() {
     if (state.friendView || !state.activeAccountId) return;
     _catalogLoadCacheIfNeeded();
-    _catalogSync().catch(() => {}).finally(() => _catalogRefreshStale());
+    _catalogSync().catch(() => {});
   }
   window.addEventListener("focus", () => _catalogAutoSync());
 
@@ -17296,7 +17345,13 @@ import { initScreenTools } from './ai/screen-tools.js';
         _catalogBuildIndex(res.items);
         _catalogSaveCache(res.items);
         if (_isCatalogMode(state.viewMode)) _catViewSearch();
-        _catalogRefreshStale();   // fire-and-forget: a sync must not wait on it
+        // The spools are reconciled only when the mirror itself moved since the last
+        // sync (a 304 brings the same list back): fire-and-forget, never awaited.
+        const sig = _catalogSignature(res.items);
+        // The fingerprint is kept only once a run happened: one held back (a pause,
+        // another run) is tried again at the next sync.
+        if (sig !== _lsJson(CATALOG_SIG_KEY, null))
+          _catalogRefreshStale().then(n => { if (n >= 0) _lsPut(CATALOG_SIG_KEY, sig); }).catch(() => {});
       } else if (!_catalogIndex.length) {
         // Only surface a failure when there is nothing cached to fall back on.
         _catViewSetStatus(t("catalogSyncError"));
@@ -21894,6 +21949,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const r = state.rows.find(x => x.spoolId === spoolId);
     const pid = Number(r?.raw?.id_product);
     if (!r || r.deleted || !_hasRealProductId(pid) || _catalogCheckedOnOpen.has(pid)) return;
+    if (_catalogPaused()) return;   // the API failed lately: no automatic ask (#309)
     _catalogCheckedOnOpen.add(pid);
     // The API answers a 503 or times out now and then: a second try 2 s later, and
     // if that fails too the next opening asks again. (null = it could not tell.)

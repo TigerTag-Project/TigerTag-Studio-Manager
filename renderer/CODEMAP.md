@@ -246,7 +246,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Spool detail panel (L18690-26180)
+## Spool detail panel (L18690-26420)
 | L | What | Anchors |
 |---|---|---|
 | 6585-6738 | Structural signature (patch vs rebuild), weight patch, saved check | `_detailStructuralSig`, `_patchDetailWeight` |
@@ -383,7 +383,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L42923-44281)
+## Custom avatar (L42923-44480)
 | L | What | Anchors |
 |---|---|---|
 | 15982-16156 | File pick, image decode (HEIC via the main process on macOS), alpha detection, error text, remove | `_readAvatarFile`, `removeCustomAvatar` |
