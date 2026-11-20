@@ -1559,7 +1559,7 @@ Pas encore fait : commandes de séchage par zone, AMS supplémentaires sur l'out
 | 10 | P2S | RTSP | `22E` | `N7` |
 | 11 | H2C | RTSP | — | `O1C` |
 | 12 | X2D | RTSP | — | — |
-| 13 | A2L | JPEG TCP | — | `N9` |
+| 13 | A2L | JPEG TCP | `26A` | `N9` |
 | 14 | H3C | RTSP | — | `N10` |
 
 ---

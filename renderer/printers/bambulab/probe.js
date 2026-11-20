@@ -57,9 +57,10 @@ const BBL_SERIAL_PREFIX_TO_ID = {
   '00M': '5', // X1C
   '03W': '6', // C13  → X1E
   '22E': '10',// N7   → P2S
-  // No prefix known for N9 (A2L) or N6 (X2D): a serial prefix can only be read
-  // off a real machine, and neither has been seen here yet. Both resolve from
-  // their DevModel code above, which is the path discovery and the cloud use.
+  '26A': '13',// N9   → A2L (read off a real A2L's serial, issue #244)
+  // No prefix known for N6 (X2D): a serial prefix can only be read off a real
+  // machine, and none has been seen here yet. It resolves from its DevModel code
+  // above, which is the path discovery and the cloud use.
 };
 
 /**
