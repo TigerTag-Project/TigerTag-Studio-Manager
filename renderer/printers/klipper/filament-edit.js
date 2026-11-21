@@ -11,6 +11,7 @@
  */
 import { ctx } from '../context.js';
 import { klipperGetConn, klipperWriteSlot } from './core.js';
+import { questBump } from '../../quests/index.js';
 
 // The Generic material list of the other editors, plus what Klipper users run.
 const MATERIALS = ["PLA", "PETG", "ABS", "ASA", "TPU", "PA", "PC", "PLA-CF", "PETG-CF", "ABS-CF", "ASA-CF", "PA-CF", "PVA", "HIPS"];
@@ -131,7 +132,10 @@ async function save() {
   btn.classList.add("loading"); btn.disabled = true; err.hidden = true;
   const res = await klipperWriteSlot(_edit.printer, _edit.key, { material: _edit.material, color: _edit.color });
   btn.classList.remove("loading"); btn.disabled = false;
-  if (res.ok) return closeKlipperFilamentEdit();
+  if (res.ok) {
+    questBump("slotAssign", 1, _edit.printer);   // "Edit a filament in a printer" counts here like on every other brand (#268)
+    return closeKlipperFilamentEdit();
+  }
   err.textContent = ctx.t("klipperErrCommand");
   err.hidden = false;
 }
