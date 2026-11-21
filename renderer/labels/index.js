@@ -185,24 +185,37 @@ export function buildLabel(info, link, { template = "classic", slots = [], dpi =
   };
 
   let g = "";
+  // The maker's logo (Manager `logo_url`, made one-colour by the caller) prints in
+  // place of the brand name wherever the layout prints the name.
+  const logo = info.logo?.uri && info.logo.aspect > 0 ? info.logo : null;
+  const logoSvg = (x, y, w, h) => `<image href="${logo.uri}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMinYMid meet"/>`;
   if (L.stack) {
     const val = { brand: info.brand, bar: barText, name: info.name };
-    L.stack.forEach(([y, size, weight, key, lines]) => { g += svgLines(val[key], 14, y, size, weight, room(14, y, size), size * 1.1, lines || 1); });
+    L.stack.forEach(([y, size, weight, key, lines]) => {
+      if (key === "brand" && logo) {
+        // The logo stands on the brand line: the line's height, never wider than its room.
+        const lw = Math.min(room(14, y, size), size * logo.aspect), lh = lw / logo.aspect;
+        g += logoSvg(14, y - size * 0.8 + (size - lh) / 2, lw, lh);
+      } else g += svgLines(val[key], 14, y, size, weight, room(14, y, size), size * 1.1, lines || 1);
+    });
   } else if (L.brand) {   // a layout without text lines (qrOnly) prints nothing here
     const [bx, by, bw, bh] = L.brand;
     const bfs = Math.round(bh * 0.8), bY = by + bh * 0.5 + bfs * 0.36;
     const beside = Math.min(bw, room(bx, bY, bfs));
-    // On a vertical label a brand too long to sit beside the pill drops below it
-    // (between the pill and the bar), full width, rather than being squeezed.
-    if (pw && tpl.h > tpl.w && textW(info.brand, bfs, 700) > beside) {
-      const top = 8 + ph + 4, bottom = L.bar[1] - 5;
-      g += svgText(info.brand, bx, bottom, Math.min(bfs, Math.round((bottom - top) * 1.3)), 700, Math.min(bw, LW - bx - 10));
-    } else if (info.logo?.uri && info.logo.aspect > 0) {
-      // The maker's logo (Manager `logo_url`, made one-colour by the caller) in
-      // place of the brand text: as tall as the brand box allows, never wider than
-      // the room beside the pill, kept in proportion, centred on the box's height.
-      const lw = Math.min(beside, bh * info.logo.aspect), lh = lw / info.logo.aspect;
-      g += `<image href="${info.logo.uri}" x="${bx}" y="${by + (bh - lh) / 2}" width="${lw}" height="${lh}" preserveAspectRatio="xMinYMid meet"/>`;
+    // On a vertical label the brand may also drop below the pill (between the pill
+    // and the bar), full width: the band a long name takes rather than being squeezed.
+    const vertical = pw && tpl.h > tpl.w;
+    const dropTop = 8 + ph + 4, dropBottom = L.bar[1] - 5, dropW = Math.min(bw, LW - bx - 10);
+    if (logo) {
+      // As tall as it can be: beside the pill (the brand box's height, never wider
+      // than the room there) or, on a vertical label, below it when that is taller.
+      const sideW = Math.min(beside, bh * logo.aspect), sideH = sideW / logo.aspect;
+      const dropH = vertical ? Math.min(dropBottom - dropTop, dropW / logo.aspect) : 0;
+      g += dropH > sideH
+        ? logoSvg(bx, dropTop + (dropBottom - dropTop - dropH) / 2, dropH * logo.aspect, dropH)
+        : logoSvg(bx, by + (bh - sideH) / 2, sideW, sideH);
+    } else if (vertical && textW(info.brand, bfs, 700) > beside) {
+      g += svgText(info.brand, bx, dropBottom, Math.min(bfs, Math.round((dropBottom - dropTop) * 1.3)), 700, dropW);
     } else g += svgText(info.brand, bx, bY, bfs, 700, beside);
     const [rx, ry, rw, rh, rfs, tdx, tdy] = L.bar;
     if (barText) g += `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="#000"/>` + svgText(barText, rx + tdx, ry + tdy, rfs, 700, rw - 2 * tdx, "#fff");
