@@ -251,6 +251,53 @@ import { initScreenTools } from './ai/screen-tools.js';
       return Number.isFinite(n) ? n : null;
     } catch (_) { return null; }
   }
+  // ── Logs read by difference (xpHistory, coinLog, the community history) ──
+  // The rows last read are kept in localStorage under `key`; an opening reads
+  // only the rows past the newest kept `field` (one read when nothing is new)
+  // instead of the whole log every time. `inclusive` re-reads the newest row too,
+  // for a log whose last row moves during the day. `count` (a users/{uid}
+  // subcollection) checks the copy against the server's document count (1 read
+  // per 1,000): a log the server rebuilt or pruned no longer adds up and is read
+  // in full again — as it is once a month anyway, and when more than `limit` rows
+  // are new. A copy read with a smaller `limit` than asked is read again too.
+  // `minGapMs`: a copy topped up less than that ago is returned unread (across launches).
+  // Rows come back newest first, as Firestore gave them (Timestamps revived).
+  async function _deltaLog(key, { query, limit, field = "at", inclusive = false, count = null, uid = null, force = false, minGapMs = 0 }) {
+    let kept = null;
+    try { kept = JSON.parse(localStorage.getItem(key) || "null"); } catch (_) {}
+    const usable = !force && Array.isArray(kept?.rows) && kept.rows.length
+      && Date.now() - (+kept.fullAt || 0) < 30 * 86400e3
+      && (kept.complete || (+kept.cover || 0) >= limit);
+    const ms = v => v?.toMillis ? v.toMillis() : v;
+    const order = (a, b) => { const x = ms(a[field]), y = ms(b[field]); return x === y ? 0 : x > y ? -1 : 1; };
+    const readFull = async () => {
+      const [snap, n] = await Promise.all([query.orderBy(field, "desc").limit(limit).get(), count ? _serverCount(uid, count) : null]);
+      const rows = snap.docs.map(d => ({ ...d.data(), _id: d.id }));
+      return { rows, n, fullAt: Date.now(), cover: limit, complete: rows.length < limit };
+    };
+    if (usable && minGapMs && Date.now() - (+kept.toppedAt || 0) < minGapMs) return _reviveTimestamps(kept.rows);
+    let copy;
+    if (!usable) copy = await readFull();
+    else {
+      const rows = _reviveTimestamps(kept.rows);
+      const newest = rows[0][field];
+      const [snap, n] = await Promise.all([
+        query.orderBy(field, "desc").where(field, inclusive ? ">=" : ">", newest).limit(limit).get(),
+        count && kept.n != null ? _serverCount(uid, count) : null]);
+      const byId = new Map(rows.map(r => [r._id, r]));
+      const added = snap.docs.filter(d => !byId.has(d.id)).length;
+      for (const d of snap.docs) byId.set(d.id, { ...d.data(), _id: d.id });
+      if (snap.size >= limit || (n != null && n !== kept.n + added)) copy = await readFull();
+      else {
+        const merged = [...byId.values()].sort(order);
+        copy = { rows: merged.slice(0, kept.cover), n: n ?? kept.n, fullAt: kept.fullAt, cover: kept.cover,
+                 complete: kept.complete && merged.length <= kept.cover };
+      }
+    }
+    copy.toppedAt = Date.now();
+    try { localStorage.setItem(key, JSON.stringify(copy)); } catch (_) {}
+    return copy.rows;
+  }
   // Listens to users/{uid}/<name>: in full, or — with a local copy (`base`,
   // id → data) synced at `syncedAt` — only to what changed since. `onSnap`
   // gets a snapshot-shaped object either way ({ metadata, size, docs, forEach,
@@ -937,7 +984,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       // The header's last figures { stats: { key: number }, coins: { balance, n } },
       // painted at launch before the data arrives (renderStats, _paintDealsBadge).
       header:     uid => `tigertag.header.${uid}`,
-      coinlog:    uid => `tigertag.coinlog.${uid}`,    // the TigerCoins history last read (100 newest)
+      coinlog:    uid => `tigertag.coinlog.${uid}`,    // the TigerCoins history kept and topped up by difference (_deltaLog, 300 newest)
       colorStyle: uid => `tigertag.colorStyle.${uid}`, // my avatar / theme style last read (userProfiles colorStyle), painted at launch
       colorMemo:  uid => `tigertag.colorMemo.${uid}`,  // the 3 style colours last picked, kept across modes (_setOwnStyle)
       // Delta sync (_listenSynced): when the inventory / products copies were last
@@ -5927,22 +5974,48 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (!_squadActive()) return null;   // no badge during the wait after leaving (the server publishes none)
     return SQUAD_TIERS.includes(state.squadTier) ? state.squadTier : (state.supporter ? "gold" : "bronze");
   }
-  let _ownProfileUnsub = null, _ownProfileUid = null, _ownXpUnsub = null;
+  // The server's copy of my users/{uid} and userProfiles/{uid}, as the two
+  // listeners below deliver them: syncUserDoc waits on these instead of reading
+  // both docs a second time at every launch. Offline, the latest (cached)
+  // snapshot after 8 s; the caller reads the doc itself when there is none.
+  const _ownSnap = { user: null, profile: null };   // kind → { uid, snap, server, waiters }
+  function _ownSnapEntry(kind, uid) {
+    if (_ownSnap[kind]?.uid !== uid) _ownSnap[kind] = { uid, snap: null, server: false, waiters: [] };
+    return _ownSnap[kind];
+  }
+  function _ownSnapPut(kind, uid, snap) {
+    const e = _ownSnapEntry(kind, uid);
+    e.snap = snap;
+    if (snap.metadata?.fromCache === false && !e.server) { e.server = true; e.waiters.splice(0).forEach(f => f(snap)); }
+  }
+  function _ownServerSnap(kind, uid, ms = 8000) {
+    const e = _ownSnapEntry(kind, uid);
+    if (e.server) return Promise.resolve(e.snap);
+    return new Promise(res => {
+      e.waiters.push(res);
+      setTimeout(() => { const i = e.waiters.indexOf(res); if (i >= 0) { e.waiters.splice(i, 1); res(e.snap); } }, ms);
+    });
+  }
+  let _ownProfileUnsub = null, _ownProfileUid = null, _ownXpUnsub = null, _ownXpUid = null;   // _ownXpUid: the account whose doc the listener has delivered
   function _subscribeOwnSquad(uid) {
     if (uid === _ownProfileUid) return;
     try { _ownProfileUnsub?.(); } catch (_) {}
     try { _ownXpUnsub?.(); } catch (_) {}
-    _ownProfileUnsub = null; _ownXpUnsub = null; _ownProfileUid = uid || null; state.squadTier = null;
+    _ownProfileUnsub = null; _ownXpUnsub = null; _ownXpUid = null; _ownProfileUid = uid || null; state.squadTier = null;
     // My style as last seen, painted at once (the profile snapshot updates it).
     state.ownColorStyle = uid ? Cache.read("colorStyle", uid) : null;
     if (!uid) return;
     // XP lives on the account doc and the server rewrites it after a scan, a
     // join or a leave — follow it live rather than guessing when to re-read.
-    _ownXpUnsub = fbDb(uid).collection("users").doc(uid).onSnapshot(ds => {
+    // Metadata changes too: the cache → server flip hands syncUserDoc its read (_ownServerSnap).
+    _ownXpUnsub = fbDb(uid).collection("users").doc(uid).onSnapshot({ includeMetadataChanges: true }, ds => {
+      _ownSnapPut("user", uid, ds);
       if (uid !== state.activeAccountId) return;
       const d = ds.data() || {};
       // The server's XP split feeds the Quests loot ladder (what the account owns).
       const bd = d.xpBreakdown || null;
+      state.xpUnlocked = d.xpUnlocked || null;   // the TigerSquad board reads it from here (no read of its own)
+      _ownXpUid = uid;
       if (JSON.stringify(bd) !== JSON.stringify(state.xpBreakdown || null)) {
         state.xpBreakdown = bd;
         if (state.viewMode === "questsJourney") renderInventory();
@@ -5955,6 +6028,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       _renderSquadXp();
     }, () => {});
     _ownProfileUnsub = fbDb(uid).collection("userProfiles").doc(uid).onSnapshot({ includeMetadataChanges: true }, ps => {
+      _ownSnapPut("profile", uid, ps);
       if (uid !== state.activeAccountId) return;
       const tier = ps.exists ? (ps.get("tigerSquad")?.tier || null) : null;
       const pubXp = ps.exists ? (ps.get("tigerSquad")?.xp ?? null) : null;
@@ -6567,14 +6641,16 @@ import { initScreenTools } from './ai/screen-tools.js';
       }
     }
   }
-  // The account's coinLog, newest first — the history window's rows. The 100
-  // newest are kept (Cache "coinlog") so the next opening shows them at once.
+  // The account's coinLog, newest first — the history window's rows. Kept on
+  // this computer (Cache "coinlog") and topped up with the new rows only
+  // (_deltaLog), so an opening shows the copy at once and costs one read when
+  // nothing moved. `at` comes back in ms.
+  const _coinRows = rows => (rows || []).map(r => ({ ...r, at: r.at?.toMillis?.() ?? (r.at?.seconds != null ? r.at.seconds * 1000 : +r.at || 0) }));
   async function _coinLog(uid) {
-    const rows = (await fbDb(uid).collection("users").doc(uid).collection("coinLog").orderBy("at", "desc").limit(300).get())
-      .docs.map(d => ({ ...d.data(), at: d.get("at")?.toMillis?.() || 0 }));
-    Cache.write("coinlog", uid, rows.slice(0, 100));
-    return rows;
+    return _coinRows(await _deltaLog(Cache._key.coinlog(uid), {
+      query: fbDb(uid).collection("users").doc(uid).collection("coinLog"), limit: 300, count: "coinLog", uid }));
   }
+  const _cachedCoinLog = uid => { const c = Cache.read("coinlog", uid); return Array.isArray(c?.rows) ? _coinRows(c.rows) : null; };
   // The header's TigerCoins (balance, envelopes): read the status and paint it.
   // At sign-in, and again when the account joins the TigerSquad.
   function _refreshTopCoins(uid) {
@@ -6590,7 +6666,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       // and the same loading animation while the log arrives.
       getCoins: () => _deals.coins,
       loadingHTML: () => _loadingHTML(),
-      coinHistory: () => _coinLog(uid), cachedHistory: () => Cache.read("coinlog", uid),
+      coinHistory: () => _coinLog(uid), cachedHistory: () => _cachedCoinLog(uid),
       friendName: fuid => (state.friends || []).find(f => f.uid === fuid)?.displayName || "",
     // The friend's avatar on an envelope row (history): the Tiger Squad views' sqb-avatar, as is.
     friendAvatar: fuid => { const f = (state.friends || []).find(x => x.uid === fuid); return f ? userAvatar(f, "sqb-avatar") : ""; },
@@ -6727,7 +6803,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     getCoins: () => _deals.coins,   // the latest balance (earned / spent / balance) for the history's summary
     sendCoins: () => _sendCoinsTo(null),   // the history's "Send" beside the balance
     // TigerCoins history (squad-deals.js openCoinsHistory): the account's coinLog, newest first.
-    coinHistory: () => _coinLog(uid), cachedHistory: () => Cache.read("coinlog", uid),
+    coinHistory: () => _coinLog(uid), cachedHistory: () => _cachedCoinLog(uid),
     friendName: fuid => (state.friends || []).find(f => f.uid === fuid)?.displayName || "",
     // The friend's avatar on an envelope row (history): the Tiger Squad views' sqb-avatar, as is.
     friendAvatar: fuid => { const f = (state.friends || []).find(x => x.uid === fuid); return f ? userAvatar(f, "sqb-avatar") : ""; },
@@ -6854,18 +6930,21 @@ import { initScreenTools } from './ai/screen-tools.js';
         first = false;
       }, e => { console.warn("[squad] community pulse:", e.code || e.message); _squadPulse.pulse = null; });
     }
-    // The history moves once a day: re-read when the day changed, else at most
-    // every 30 min (90 documents a time). The live totals
+    // The history moves once a day: topped up when the day changed, else at most
+    // every 30 min (the new days only). The live totals
     // come from the listener above; read once only while it has not answered.
     const day = new Date().toDateString();
     if (_squadPulse.day === day && Date.now() - _squadPulse.at < 30 * 60e3) return;
     _squadPulse.at = Date.now(); _squadPulse.day = day;
     try {
+      // The history is kept on this computer and topped up by difference: the
+      // newest day (still moving) and the days after it, at most every 30 min
+      // across launches (_deltaLog).
       const [doc, hist] = await Promise.all([_squadPulse.pulse === undefined ? ref.get() : null,
-        ref.collection("history").orderBy("day", "desc").limit(90).get()]);
+        _deltaLog("tigertag.squadPulseHistory", { query: ref.collection("history"), field: "day", inclusive: true, limit: 90, minGapMs: 30 * 60e3 })]);
       const d = doc?.data();
       if (doc) _squadPulse.pulse = d ? { ...d, updatedAt: d.updatedAt?.toMillis?.() || null } : null;
-      _squadPulse.history = hist.docs.map(x => x.data()).reverse();
+      _squadPulse.history = hist.slice().reverse();
     } catch (e) { console.warn("[squad] community pulse:", e.code || e.message); _squadPulse.at = 0; if (_squadPulse.pulse === undefined) _squadPulse.pulse = null; }
   }
   try { localStorage.removeItem("tigertag.squadRanks"); } catch (_) {}   // the old local baseline (the server keeps it now)
@@ -7141,12 +7220,15 @@ import { initScreenTools } from './ai/screen-tools.js';
     try { board = await _loadSquadBoard(uid, viewer); } catch (e) { console.warn("[squad] board:", e.code || e.message); if (loading) board = _SQUAD_BOARD_EMPTY; }
     // My XP: the server's split (users/{uid}.xpBreakdown / xpUnlocked) + the
     // latest gains and losses (users/{uid}/xpHistory, server-written).
+    // The account doc is followed live (_subscribeOwnSquad): read only while it
+    // has not answered yet. The history is the XP log kept on this computer,
+    // topped up with its new rows (_loadXpLog).
     try {
-      const me = fbDb(uid).collection("users").doc(uid);
-      const [doc, hist] = await Promise.all([me.get(), me.collection("xpHistory").orderBy("at", "desc").limit(20).get()]);
-      const d = doc.data() || {};
+      const live = state.xpBreakdown !== undefined && _ownXpUid === uid;
+      const [doc, xl] = await Promise.all([live ? null : fbDb(uid).collection("users").doc(uid).get(), _loadXpLog(uid)]);
+      const d = doc ? doc.data() || {} : { xpBreakdown: state.xpBreakdown, xpUnlocked: state.xpUnlocked, xpPoints: state.xpPoints };
       mine = { breakdown: d.xpBreakdown || {}, unlocked: d.xpUnlocked || {}, total: d.xpPoints || 0,
-               history: hist.docs.map(h => h.data()) };
+               history: xl.log.slice(0, 20) };
     } catch (_) { mine = { breakdown: {}, unlocked: {}, total: state.xpPoints || 0, history: [] }; }
     loading = false;
     if (loader) { loader.remove(); card.hidden = false; }
@@ -31115,13 +31197,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     }
   }
 
-  /* ── Printer drag & drop reordering ────────────────────────────────────
-     Uses the native HTML5 DnD API on each card. On drop we persist the
-     new order to Firestore by writing a fresh `sortIndex` (0, 1, 2, …)
-     to every card's doc — a Firestore batch keeps the rewrite atomic
-     even across the 5 brand subcollections. Each printer's brand is
-     known from its `brand` property, which we set when ingesting the
-     snapshot, so the path resolution is local.                            */
+  // A card just dragged on the printer plan: its click must not open the side card.
   let _printerJustDragged = false;
 
   /* ── The camera wall is a PLAN ────────────────────────────────────────────
@@ -32913,29 +32989,6 @@ import { initScreenTools } from './ai/screen-tools.js';
   }
 
 
-
-  async function persistPrinterSortIndices(orderedPrinters) {
-    const uid = state.activeAccountId;
-    if (!uid) return;
-    try {
-      const db = fbDb(uid);
-      const batch = db.batch();
-      const ts = firebase.firestore.FieldValue.serverTimestamp();
-      orderedPrinters.forEach((p, idx) => {
-        const ref = db.collection("users").doc(uid)
-                      .collection("printers").doc(p.brand)
-                      .collection("devices").doc(p.id);
-        // serverTimestamp ensures `updatedAt` is monotonic across the
-        // 5 brand subcollections even when several clients write at once.
-        batch.update(ref, { sortIndex: idx, updatedAt: ts });
-      });
-      await batch.commit();
-    } catch (e) {
-      // The next snapshot will re-establish the persisted order; we just
-      // log so the user sees something went wrong without breaking the UI.
-      console.warn("[printers] persist sortIndex failed:", e?.code, e?.message);
-    }
-  }
 
   async function persistCamSize(printer, size) {
     const uid = state.activeAccountId;
@@ -43642,15 +43695,26 @@ import { initScreenTools } from './ai/screen-tools.js';
   // ── XP history — the side card (breakdown ring + last transactions) and the
   // full page (view mode "xpHistory"), both drawn by quests/xp-history.js from
   // the server's log users/{uid}/xpHistory ({ key, delta, total, n, at }).
-  const _xpLog = { uid: null, at: 0, log: [], total: 0, full: false };
-  async function _loadXpLog(uid, full = false) {
-    // Reused for a minute — or for 10 while the live total (users/{uid}.xpPoints)
-    // still matches the log's: no gain or loss since, nothing new to read.
+  const _xpLog = { uid: null, at: 0, log: [], total: 0 };
+  const _xpLogRebuiltChecked = new Set();   // uids whose copy was re-read in full this session after its total disagreed
+  // The log, newest first: kept on this computer (tigertag.xpLog.<uid>) and topped
+  // up with the new rows only (_deltaLog). The total is the live one
+  // (users/{uid}.xpPoints, followed by _subscribeOwnSquad) — no read of the doc.
+  async function _loadXpLog(uid) {
+    // Reused for a minute — or for 10 while the live total still matches the log's.
     const age = Date.now() - _xpLog.at;
-    if (_xpLog.uid === uid && (_xpLog.full || !full) && (age < 60e3 || (age < 10 * 60e3 && _xpLog.total === state.xpPoints))) return _xpLog;
-    const me = fbDb(uid).collection("users").doc(uid);
-    const [doc, hist] = await Promise.all([me.get(), me.collection("xpHistory").orderBy("at", "desc").limit(full ? 2000 : 300).get()]);
-    Object.assign(_xpLog, { uid, at: Date.now(), full, total: doc.data()?.xpPoints || 0, log: hist.docs.map(h => h.data()) });
+    if (_xpLog.uid === uid && (age < 60e3 || (age < 10 * 60e3 && _xpLog.log[0]?.total === state.xpPoints))) return _xpLog;
+    const query = fbDb(uid).collection("users").doc(uid).collection("xpHistory");
+    const opts = { query, limit: 2000, count: "xpHistory", uid };
+    let log = await _deltaLog(`tigertag.xpLog.${uid}`, opts);
+    // Every gain or loss is logged with the running total in the same server
+    // transaction: a newest total that differs from the account's means the server
+    // rebuilt the log under the copy — read it in full again (once a session).
+    if (typeof state.xpPoints === "number" && log[0] && log[0].total !== state.xpPoints && !_xpLogRebuiltChecked.has(uid)) {
+      _xpLogRebuiltChecked.add(uid);
+      log = await _deltaLog(`tigertag.xpLog.${uid}`, { ...opts, force: true });
+    }
+    Object.assign(_xpLog, { uid, at: Date.now(), total: state.xpPoints ?? log[0]?.total ?? 0, log });
     return _xpLog;
   }
   function _xphCtx() {
@@ -43725,7 +43789,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const uid = state.activeAccountId; if (!uid) return;
     if (_xpLog.uid === uid) _paintXpHistView(); else host.innerHTML = _loadingHTML();   // same loader as a friend's stock
     // The leagues load with the page: their displays show beside mine.
-    try { await Promise.all([_loadXpLog(uid, true), _loadLeagues(uid)]); } catch (_) {}
+    try { await Promise.all([_loadXpLog(uid), _loadLeagues(uid)]); } catch (_) {}
     if (state.viewMode === "xpHistory" && uid === state.activeAccountId) _paintXpHistView();
   }
   let _hourglassTaps = [];   // when the banner's hourglass was turned (ms), the last 30 s
@@ -44582,6 +44646,14 @@ import { initScreenTools } from './ai/screen-tools.js';
   let _studioStateRecordedUid = null;
   let _studioStateTimer = null;
 
+  // What the launch telemetry last wrote from this computer, per account
+  // (tigertag.telemetryMemo.<uid>: part → { sig, at }, + the milestone stamps
+  // known written). A part is written again only when its values changed or its
+  // last write is a day old: the same figures at every launch cost writes and
+  // function runs (500,000 users) and tell nothing new.
+  const _telMemo = uid => { try { return JSON.parse(localStorage.getItem(`tigertag.telemetryMemo.${uid}`) || "{}") || {}; } catch (_) { return {}; } };
+  const _telMemoSave = (uid, m) => { try { localStorage.setItem(`tigertag.telemetryMemo.${uid}`, JSON.stringify(m)); } catch (_) {} };
+  const _telDue = (memo, part, sig) => memo[part]?.sig !== sig || Date.now() - (+memo[part]?.at || 0) > 86400e3;
   function scheduleStudioStateRecord() {
     const uid = state.activeAccountId;
     if (!uid) return;
@@ -44656,8 +44728,11 @@ import { initScreenTools } from './ai/screen-tools.js';
       // Phase 2 — onboarding funnel: stamp each milestone once (the first
       // session where the user reaches it), plus firstSeen. Read the doc to
       // know which stamps already exist; never overwrite an existing one.
-      let existing = {};
-      try { existing = (await ref.get()).data() || {}; } catch (_) {}
+      // The doc as read at sign-in (hydratePodSignal) — no second read; a stamp
+      // written by an earlier session of this computer counts as there too.
+      const memo = _telMemo(uid);
+      const existing = { ...((await _telStudioRead.get(uid)) || (await ref.get().then(d => d.data() || {}, () => ({})))), ...(memo.stamps || {}) };
+      const counts = JSON.stringify(payload);
       if (!existing.firstSeen)                                 payload.firstSeen    = FV.serverTimestamp();
       if (payload.spoolsCount  > 0 && !existing.firstSpoolAt)   payload.firstSpoolAt   = FV.serverTimestamp();
       if (payload.racksCount   > 0 && !existing.firstRackAt)    payload.firstRackAt    = FV.serverTimestamp();
@@ -44669,7 +44744,14 @@ import { initScreenTools } from './ai/screen-tools.js';
       if (payload.scalesCount  > 0 && !existing.firstScaleAt)   payload.firstScaleAt = FV.serverTimestamp();
       if ((state.nfcReaderCount > 0 || _telRfidMax > 0) && !existing.firstRfidReaderAt) payload.firstRfidReaderAt = FV.serverTimestamp();
 
-      await ref.set(payload, { merge: true });
+      // Written only when a count or a stamp changed, or once a day.
+      const stamps = Object.keys(payload).filter(k => /^first/.test(k));
+      if (stamps.length || _telDue(memo, "state", counts)) {
+        await ref.set(payload, { merge: true });
+        for (const k of stamps) existing[k] = true;
+        _telMemoSave(uid, { ...memo, stamps: Object.fromEntries(Object.keys(existing).filter(k => /^first/.test(k)).map(k => [k, true])),
+          state: { sig: counts, at: Date.now() } });
+      }
       _questGauges();
 
       // Stock is a GENERAL account fact (the inventory is ecosystem-wide, not
@@ -44677,7 +44759,9 @@ import { initScreenTools } from './ai/screen-tools.js';
       // doc as a `stock` object — the entry TigerSystem / TigerHub read to roll up
       // account value without touching Studio telemetry or every spool. (The copy
       // in telemetry/studio above stays for Studio's own use.)
-      db.collection("users").doc(uid).set({
+      // Only when it moved, or once a day (every write of users/{uid} runs its triggers).
+      const stockSig = JSON.stringify([payload.stockValueHt, payload.stockWeightG, payload.stockCurrency, payload.spoolsCount]);
+      if (_telDue(_telMemo(uid), "stock", stockSig)) db.collection("users").doc(uid).set({
         stock: {
           valueHt:  payload.stockValueHt,
           weightG:  payload.stockWeightG,
@@ -44685,7 +44769,7 @@ import { initScreenTools } from './ai/screen-tools.js';
           spools:   payload.spoolsCount,
           at:       FV.serverTimestamp(),
         },
-      }, { merge: true }).catch(() => {});
+      }, { merge: true }).then(() => _telMemoSave(uid, { ..._telMemo(uid), stock: { sig: stockSig, at: Date.now() } })).catch(() => {});
     } catch (e) {
       _studioStateRecordedUid = null;  // allow a retry on the next trigger
       console.warn("[telemetry] studio state write failed:", e.code || e.message);
@@ -44698,10 +44782,14 @@ import { initScreenTools } from './ai/screen-tools.js';
   // reader count on a successful read, kept at lifetime max. hydratePodSignal seeds
   // both at login so the toggle reflects reality AND _telRfidMax starts at the
   // PERSISTED max (else a fresh session could write a lower count over a stored 2).
+  // telemetry/studio as read at sign-in, per account — recordStudioState reads
+  // its milestone stamps from here instead of reading the doc again.
+  const _telStudioRead = new Map();   // uid → Promise<data | null>
   async function hydratePodSignal(uid) {
     try {
-      const cur = (await fbDb(uid).collection("users").doc(uid)
-        .collection("telemetry").doc("studio").get()).data() || {};
+      const read = fbDb(uid).collection("users").doc(uid).collection("telemetry").doc("studio").get().then(d => d.data() || {});
+      _telStudioRead.set(uid, read.catch(() => null));
+      const cur = await read;
       if (uid !== state.activeAccountId) return;
       state.hasPod = !!cur.hasPod;
       // THIS account's stored max — not the session's: a count recorded on another
@@ -45662,17 +45750,13 @@ import { initScreenTools } from './ai/screen-tools.js';
     // at promise-resolution time and can point to the wrong account.
     const db = fbDb(uid);
     try {
-      // Force-server read on first sync to avoid showing the "Set display
-      // name" prompt based on a stale empty cache (the user could have set
-      // the name on another device but the local cache hasn't synced yet).
-      // Falls back to cache automatically if offline.
-      let snap;
-      try {
-        snap = await db.collection("users").doc(uid).get({ source: "server" });
-      } catch (_) {
-        // Offline / blocked → fall back to default (cache OR server)
-        snap = await db.collection("users").doc(uid).get();
-      }
+      // The SERVER's copy, so the "Set display name" prompt never opens on a
+      // stale empty cache (the name may have been set on another device). It is
+      // the live listener's first server snapshot (_subscribeOwnSquad follows the
+      // doc anyway): no second read. Offline: its cached snapshot, else a get().
+      _subscribeOwnSquad(uid);
+      let snap = await _ownServerSnap("user", uid);
+      if (!snap) snap = await db.collection("users").doc(uid).get();
       if (!snap.exists) return;
       // Guard: by the time the Firestore round-trip completes, the active account
       // may have changed. Only apply UI side-effects for the current active account.
@@ -45910,7 +45994,8 @@ import { initScreenTools } from './ai/screen-tools.js';
       // avatar showing; we'll pick up the real value on the next
       // successful read.
       try {
-        const profSnap = await db.collection("userProfiles").doc(uid).get();
+        // The profile listener's snapshot (_subscribeOwnSquad) — not a second read.
+        const profSnap = (await _ownServerSnap("profile", uid)) || await db.collection("userProfiles").doc(uid).get();
         const photoURL = profSnap.exists ? (profSnap.data().photoURL || null) : null;
         // Cache on the Account object in localStorage.
         const accsForPhoto = getAccounts();
@@ -45964,7 +46049,11 @@ import { initScreenTools } from './ai/screen-tools.js';
 
       // 1. users/{uid} — last-known client state (overwritten each session).
       //    Used for deployment targeting: "push to all darwin arm64 on < 1.8".
-      db.collection("users").doc(uid).set({
+      //    Written only when one of these changed or once a day (_telDue): every
+      //    write of users/{uid} runs its server triggers. studioLastSeen is
+      //    therefore precise to the day.
+      const telMemo = _telMemo(uid);
+      const clientState = {
         studioVersion:   info.appVersion       || null,
         studioElectron:  info.electron         || null,
         studioPlatform:  info.platform         || null,
@@ -45975,21 +46064,28 @@ import { initScreenTools } from './ai/screen-tools.js';
         studioLocale:    navigator.language    || null,
         studioCountry:   country,
         studioTimezone:  timezone,
-        studioLastSeen:  FV.serverTimestamp(),
-      }, { merge: true }).catch(e => console.warn("[telemetry] user doc write failed:", e.code));
+      };
+      const clientSig = JSON.stringify(clientState);
+      if (_telDue(telMemo, "user", clientSig)) db.collection("users").doc(uid).set({ ...clientState, studioLastSeen: FV.serverTimestamp() }, { merge: true })
+        .then(() => _telMemoSave(uid, { ..._telMemo(uid), user: { sig: clientSig, at: Date.now() } }))
+        .catch(e => console.warn("[telemetry] user doc write failed:", e.code));
 
       // 2. users/{uid}/telemetry/studio — aggregated lifetime metrics.
       //    Never overwritten — only grows. Standard Firebase pattern:
       //    increment() for counters, arrayUnion() for sets, serverTimestamp() for events.
+      //    At most once a day, or when the version / platform is new: so
+      //    sessionsCount counts the days Studio was used (one a day at most).
       const agg = {
         sessionsCount: FV.increment(1),
         versionsUsed:  FV.arrayUnion(info.appVersion || "?"),
         platformsUsed: FV.arrayUnion(info.platform   || "?"),
         lastSeen:      FV.serverTimestamp(),
       };
-      db.collection("users").doc(uid)
+      const aggSig = JSON.stringify([info.appVersion || "?", info.platform || "?"]);
+      if (_telDue(telMemo, "agg", aggSig)) db.collection("users").doc(uid)
         .collection("telemetry").doc("studio")
         .set(agg, { merge: true })
+        .then(() => _telMemoSave(uid, { ..._telMemo(uid), agg: { sig: aggSig, at: Date.now() } }))
         .catch(e => console.warn("[telemetry] studio aggregate write failed:", e.code));
 
       // 3. Current-state snapshot + onboarding milestones — deferred until the

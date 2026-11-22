@@ -203,7 +203,8 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.agentChanges.<id>` | this computer's copy of the changes AI assistants made on that account (600 newest, 30 days), with the values before each one — what `undo_change` puts back; merged with the shared journal Firestore `users/{uid}/agentChanges`, which online assistants write too (`docs/MCP.md` §5) |
 | `tigertag.colorStyle.<id>` | that account's avatar / theme colour style last read from its public profile (`userProfiles` `colorStyle`), painted at launch before the profile arrives (`_styleFor`, `renderer/inventory.js`) |
 | `tigertag.colorMemo.<id>` | the three colour-style colours last picked on this device `[c1, c2, c3]`, so switching to a mode with fewer colours and back restores them (`_setOwnStyle`, `renderer/inventory.js`) |
-| `tigertag.coinlog.<id>` | the TigerCoins history last read for that account (100 newest rows), shown at once when the history opens, then refreshed |
+| `tigertag.coinlog.<id>` / `tigertag.xpLog.<id>` / `tigertag.squadPulseHistory` | that account's TigerCoins history (300 newest), XP history (2,000 newest) and the community history (90 days) `{rows, n, fullAt, toppedAt, cover, complete}`: shown at once, then topped up with the new rows only (`_deltaLog`) |
+| `tigertag.telemetryMemo.<id>` | what the launch telemetry last wrote for that account (part → `{sig, at}`, + the milestone stamps): a part is written again only when it changed or once a day (`_telDue`) |
 | `tigertag.header.<id>` | the header's and view bar's last figures for that account `{stats: {key: number}, coins: {balance, n}, bar: {daily, level, squad, lists, order, invite}}`, painted at launch before the data arrives, then updated where they differ |
 
 ## Account object shape

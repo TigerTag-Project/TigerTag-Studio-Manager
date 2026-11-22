@@ -128,7 +128,7 @@ users/
                                 declared, else IP; most frequent over 365 days), written by the nightly rollup when it
                                 changes. Server-written, shown nowhere; first in the brand market's marketCountry
     studioTimezone  string    — IANA timezone (e.g. "Europe/Paris"), from Intl.DateTimeFormat
-    studioLastSeen  timestamp — server timestamp of last login (deployment targeting / churn)
+    studioLastSeen  timestamp — server timestamp of last login, refreshed at most once a day unless the client state changed (deployment targeting / churn)
 
     ── Studio's OWN settings ─────────────────────────────────────────────────
     They live here, on the user doc, and NOT in `prefs/app`: that document is the
@@ -159,7 +159,7 @@ users/
                               telemetry `hasOnly()` whitelist in firestore.rules
                               (add a field there + redeploy before the client writes it).
         ── Lifetime accumulators ──
-        sessionsCount  number   — total sessions (FieldValue.increment)
+        sessionsCount  number   — days Studio was used — one increment a day at most, or on a new version / platform (FieldValue.increment)
         versionsUsed   string[] — all app versions ever used (arrayUnion)
         platformsUsed  string[] — all platforms ever used (arrayUnion)
         td1sUsed       boolean  — true once a TD1s sensor was connected (rules: only `true` accepted)
