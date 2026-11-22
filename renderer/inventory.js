@@ -15296,6 +15296,8 @@ import { initScreenTools } from './ai/screen-tools.js';
   // apply it on boot too (setViewMode, which normally does, isn't called on the
   // initial render), else it's missing at startup when launching into grid.
   document.body.classList.toggle("sel-btn-view", state.viewMode === "grid" || state.viewMode === "printer");
+  // …and the colour search button (Search and inventory views), missing at startup otherwise.
+  document.body.classList.toggle("color-search", !!_colorSearchScope(state.viewMode));
   _syncSearchPlaceholder();
   // Grid-only sort control — reveal it on boot if we start straight in grid view
   // (setViewMode, which normally toggles it, isn't called on the initial render).
@@ -28811,6 +28813,26 @@ import { initScreenTools } from './ai/screen-tools.js';
       return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0);
     });
   }
+  function _isRealRack(r) { return r.name != null || Number(r.level) > 0 || Number(r.position) > 0; }
+  /* The ghosts already on an account (#302) are removed, from the server's word
+     only (never from a cached snapshot), on the account's own racks only, and
+     only documents that hold nothing but `plan` / `lastUpdate` — what the bug
+     wrote — and that no spool points at. Once per document per session. */
+  const _ghostRacksSwept = new Set();
+  function _sweepGhostRacks(uid, docs) {
+    if (state.friendView || uid !== state.activeAccountId) return;
+    const ghosts = docs.filter(d => {
+      const data = d.data();
+      return !_isRealRack(data) && Object.keys(data).every(k => k === "plan" || k === "lastUpdate")
+        && !_ghostRacksSwept.has(d.id) && !state.rows.some(r => r.rackId === d.id);
+    });
+    if (!ghosts.length) return;
+    const batch = fbDb(uid).batch();
+    for (const d of ghosts) { _ghostRacksSwept.add(d.id); batch.delete(d.ref); }
+    batch.commit()
+      .then(() => console.log(`[racks] removed ${ghosts.length} empty ghost rack document(s) (#302)`))
+      .catch(e => console.warn("[racks] ghost cleanup failed:", e.code || e.message));
+  }
   function subscribeRacks(uid) {
     unsubscribeRacks();
     state.racksLoading = true;   // spinner until the first snapshot lands (own view)
@@ -28825,7 +28847,7 @@ import { initScreenTools } from './ai/screen-tools.js';
         // keeps the friend's (one-shot) racks visible without the owner's
         // racks bleeding back in. Kept alive, it feeds the own-data stash.
         if (state.friendView) {
-          if (_ownStash?.uid === uid) _ownStash.racks = _sortRacks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+          if (_ownStash?.uid === uid) _ownStash.racks = _sortRacks(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(_isRealRack));
           return;
         }
         state.racksLoading = false;   // first (or any) snapshot arrived → drop the spinner
@@ -28834,7 +28856,10 @@ import { initScreenTools } from './ai/screen-tools.js';
            exist. Anything DESTRUCTIVE keyed on "this rack does not exist" has
            to wait for the server's word — see the orphan sweep. */
         if (!snap.metadata.fromCache) _racksFromServer = true;
-        const racks = _sortRacks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        // A rack document with no name and no grid is not a rack: what a write
+        // after a delete left behind (#302, see updateRack). Not shown, not counted.
+        const racks = _sortRacks(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(_isRealRack));
+        if (!snap.metadata.fromCache) _sweepGhostRacks(uid, snap.docs);
         state.racks = racks;
         // Racks for the active account are now loaded — lift the readiness
         // barrier and run a pass: any spool scanned before the racks arrived
@@ -37214,10 +37239,16 @@ import { initScreenTools } from './ai/screen-tools.js';
     const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
     const rackRef = fbDb().collection("users").doc(user.uid).collection("racks").doc(rackId);
     const batch = fbDb().batch();
-    batch.set(rackRef, {
+    /* update(), never set(merge): an update of a rack that no longer exists
+       fails instead of bringing it back. With set(merge), a write landing after
+       a delete — the plan giving a place to a rack the launch's cached snapshot
+       still listed, though it was deleted since — recreated the document with
+       only `plan` and `lastUpdate`: "undefined · 0/NaN" racks that came back
+       every day however often they were removed (#302). */
+    batch.update(rackRef, {
       ...fields,
       lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    });
 
     // If dimensions shrink, every spool whose slot is out of the new bounds
     // is orphaned and must return to the unranked sidebar — same batch so
@@ -39031,6 +39062,12 @@ import { initScreenTools } from './ai/screen-tools.js';
     Array.from(container.children).forEach(el => {
       const id = el.dataset.rackId;
       const r = id ? state.racks.find(x => x.id === id) : null;
+      /* A card whose rack is gone from the list (deleted a moment ago, here or
+         on another device, before the board was rebuilt) is not placed, and
+         above all not ADOPTED: giving it a place wrote to the deleted rack and
+         brought it back as an empty "undefined · 0/NaN" document (#302 — four
+         at once, x 0 / 14 / 28 / 42: zero-width cards of a view not on screen). */
+      if (id && !r) { el.style.display = "none"; return; }
       const pos = r ? rackPlanPos(r) : null;
       el.style.position = "absolute";
       if (!pos) { orphans.push(el); return; }
@@ -39117,7 +39154,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const r = state.racks.find(v => v.id === rackId);
     if (r) r.plan = { x, y, z };                      // optimistic: no render wait
     try { await updateRack(rackId, { plan: { x, y, z } }); }
-    catch (e) { reportError("rack.plan.move", e); }
+    catch (e) { if (e?.code !== "not-found") reportError("rack.plan.move", e); }   // a rack deleted meanwhile: nothing to place (#302)
   }
 
   /* Entering the plan for the first time freezes whatever the masonry had
@@ -39134,8 +39171,9 @@ import { initScreenTools } from './ai/screen-tools.js';
       const x = Math.max(0, Math.round(parseFloat(el.style.left || "0")));
       const y = Math.max(0, Math.round(parseFloat(el.style.top  || "0")));
       const r = state.racks.find(v => v.id === id);
+      if (!r) return;   // a card left over from a deleted rack: never written back (#302)
       const z = seedZ++;
-      if (r) r.plan = { x, y, z };
+      r.plan = { x, y, z };
       writes.push(updateRack(id, { plan: { x, y, z } }));
     });
     try { await Promise.all(writes); } catch (e) { reportError("rack.plan.seed", e); }
@@ -42011,7 +42049,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       // Racks read alongside the stock (one-shot, read-only view). Denied →
       // an empty rack list, the Storage tab just shows "no racks yet".
       const racksP = readFriendCollectionWithRetry(ownerUid, friendUid, "racks")
-        .then(rs => _sortRacks(rs.docs.map(d => ({ id: d.id, ...d.data() }))))
+        .then(rs => _sortRacks(rs.docs.map(d => ({ id: d.id, ...d.data() })).filter(_isRealRack)))
         .catch(re => { console.warn("[FriendView] racks read failed:", re.code, re.message); return []; });
       const snap = await readFriendCollectionWithRetry(ownerUid, friendUid, "inventory");
       console.log(`[FriendView] received ${snap.docs.length} docs`);
