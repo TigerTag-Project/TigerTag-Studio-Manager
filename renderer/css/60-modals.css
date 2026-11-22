@@ -2327,6 +2327,10 @@
   body.is-friend-view #topCoins.top-coins,
   body.is-friend-view #rfidReadersBar,
   body.is-friend-view .top-status-icons .scale-health { display: none; }
+  /* ...and the card that held them goes with them: left on its own it was an empty
+     dark box at the right end of the header. It stays only while one of the icons
+     that still show there (network problem, update ready) is up. */
+  body.is-friend-view .sb-stat.top-devices:not(:has(#health:not(.hidden), #updateStatusIcon:not(.hidden))) { display: none; }
   header.top h1 { margin: 0; font-size: 24px; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
   header.top h1 .dot { width: 12px; height: 12px; border-radius: 4px; background: linear-gradient(135deg, var(--primary), var(--primary-hi)); display: inline-block; }
   header.top .subtitle { color: var(--muted); font-size: 13px; margin-top: 2px; }
