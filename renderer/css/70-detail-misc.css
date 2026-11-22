@@ -5111,14 +5111,29 @@ button.csr-swatch { cursor: pointer; transition: transform .12s, box-shadow .12s
 button.csr-swatch:hover { transform: scale(1.1); }
 button.csr-swatch:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .csr-swatch.is-empty { background: repeating-conic-gradient(var(--surface-3) 0 25%, var(--surface) 0 50%) 50% / 10px 10px; }
+/* The inline picker (color-pop.js mountColorArea): the popover's area and hue strip, full width. */
+.csr-picker { display: flex; flex-direction: column; gap: 12px; }
+.csr-picker .color-pop-sv { height: 170px; border-radius: 12px; }
 .csr-hex-row { display: flex; align-items: center; gap: 10px; }
 .csr-swatch--pick { width: 36px; }
+/* The chosen colour fades to the next one, in step with the picker's glide. */
+.csr-swatch--pick, .csr-swatch--big { transition: background-color .28s ease-out; }
+@media (prefers-reduced-motion: reduce) { .csr-swatch--pick, .csr-swatch--big { transition: none; } }
 .csr-hex-input { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
 /* 14 quick picks in two even rows of 7, spread across the card. */
 .csr-presets { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px 8px; justify-items: center; }
 .csr-preset { width: 30px; }
 .csr-preset.is-on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
 .csr-ral-list { display: flex; flex-direction: column; gap: 2px; max-height: 300px; overflow-y: auto; }
+/* RAL mode: the ΔE ceiling and the multicolour switch sit right under the chosen
+   colour, and the code list below takes the rest of the card's height (it
+   scrolls, not the card) — a 300 px list left half a tall screen empty. */
+.csr-root[data-mode="ral"] .csr-pane[data-csr-pane="ral"] { order: 1; flex: 1; min-height: 220px; }
+.csr-root[data-mode="ral"] .csr-ral-list { flex: 1; min-height: 0; max-height: none; }
+/* The list's scrollbar: the sidebar stats' thin one (00-base.css .sb-stats-wrap), not the white OS track. */
+.csr-ral-list::-webkit-scrollbar { width: 6px; }
+.csr-ral-list::-webkit-scrollbar-track { background: transparent; }
+.csr-ral-list::-webkit-scrollbar-thumb { background: var(--ink-15); border-radius: 3px; }
 .csr-ral-row { display: flex; align-items: center; justify-content: flex-start; gap: 10px; height: auto; min-height: 36px; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 .csr-ral-row:hover { background: var(--surface-hover); }
 .csr-ral-row.is-on { background: var(--primary-soft); }
@@ -5129,7 +5144,7 @@ button.csr-swatch:focus-visible { outline: 2px solid var(--primary); outline-off
   font-size: 13px; font-weight: 600; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
 .csr-drop:hover { border-color: var(--primary); }
 .csr-drop[hidden] { display: none; }
-.csr-drop .icon { width: 36px; height: 36px; background: var(--primary); }
+.csr-drop > .icon { width: 36px; height: 36px; background: var(--primary); }
 .csr-photo { position: relative; line-height: 0; }
 .csr-photo[hidden] { display: none; }
 .csr-canvas { display: block; width: 100%; height: auto; border-radius: 10px; cursor: crosshair; touch-action: none; }
@@ -5150,7 +5165,15 @@ button.csr-swatch:focus-visible { outline: 2px solid var(--primary); outline-off
 .csr-current.is-empty .csr-current-hex { font-weight: 500; color: var(--muted); }
 .csr-current-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .csr-current-sub:empty { display: none; }
-.csr-max-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.csr-max-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.csr-max-title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+/* The settings block: the chosen-colour card's look (.csr-current), ΔE + multicolour inside. */
+.csr-settings { display: flex; flex-direction: column; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.csr-settings .csr-max { gap: 8px; }
+.csr-title-info { margin-left: 2px; }
+/* The photo drop zone's ⓘ, in its top right corner. */
+.csr-drop { position: relative; }
+.csr-drop-info { position: absolute; top: 10px; right: 10px; }
 .csr-range { width: 100%; accent-color: var(--primary); }
 .csr-band { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .csr-band[data-band="same"], .csr-band[data-band="veryClose"] { color: var(--success-text); }

@@ -15759,7 +15759,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (!_csr || _csrLang !== state.lang) {
       _csrLang = state.lang;
       _csr = mountColorSearch(root, {
-        t, esc, openColorPop,
+        t, esc,
         swatchBg: hex => colorBg({ colorList: [hex] }),
         value: state.catColor || {},
         onChange: v => _catColorSet(v),
@@ -15767,9 +15767,9 @@ import { initScreenTools } from './ai/screen-tools.js';
     } else {
       _csr.setValue(state.catColor || { hex: null, ral: "" });
     }
-    // What it searches: the catalogue, or the spools of the inventory.
-    const sub = panel.querySelector(".pba-sub");
-    if (sub) { sub.dataset.i18n = _colorSearchScope() === "inv" ? "colorSearchSubInv" : "colorSearchSub"; sub.textContent = t(sub.dataset.i18n); }
+    // What it searches — the catalogue, or the spools of the inventory — in the title's ⓘ.
+    const info = panel.querySelector(".csr-title-info");
+    if (info) { const tip = t(_colorSearchScope() === "inv" ? "colorSearchSubInv" : "colorSearchSub"); info.dataset.tip = tip; info.setAttribute("aria-label", tip); }
     panel.classList.add("open");
     _csrWatchOthers(true);
     _syncPanels();

@@ -15,7 +15,7 @@
  * Studio adds what the site does not have: a ΔE ceiling (the slider), since the
  * catalogue view is a filtered list rather than a ranking page.
  *
- *   mountColorSearch(root, { t, esc, swatchBg, openColorPop, value, onChange })
+ *   mountColorSearch(root, { t, esc, swatchBg, value, onChange })
  *     → { setValue(value) }
  *   value = { mode: "hex" | "ral" | "photo", hex: "#rrggbb" | null, ral: "RAL 9005" | "", max, multi }
  *
@@ -23,6 +23,8 @@
  * opened by the search bar's colour button in the Search views.
  */
 import { RAL_CLASSIC } from './ral-classic.js';
+import { infoTipHtml } from './quests/ui-kit.js';
+import { mountColorArea } from './color-pop.js';
 
 export const DE_DEFAULT = 10;   // keeps everything the site does not call "Different"
 export const DE_MIN = 1, DE_MAX = 30;
@@ -144,8 +146,8 @@ function ralSuggest(q, words = new Map()) {
 
 /* ── The side card's body ────────────────────────────────────────────────── */
 
-export function mountColorSearch(root, { t, esc, swatchBg, openColorPop, value, onChange }) {
-  let v = { mode: "hex", hex: null, ral: "", max: DE_DEFAULT, multi: false, ...value };
+export function mountColorSearch(root, { t, esc, swatchBg, value, onChange }) {
+  let v = { mode: "hex", hex: null, ral: "", max: DE_DEFAULT, multi: true, ...value };   // multicolour counted by default
   const emit = () => onChange({ ...v });
 
   root.innerHTML = `
@@ -165,8 +167,11 @@ export function mountColorSearch(root, { t, esc, swatchBg, openColorPop, value, 
       </div>
     </div>
     <div class="csr-pane" data-csr-pane="hex">
+      <!-- The picker, shown at once (a swatch that opened a popover went unnoticed):
+           saturation / brightness area + hue strip (color-pop.js mountColorArea). -->
+      <div class="csr-picker" role="group" aria-label="${esc(t("colorSearchPick"))}"></div>
       <div class="csr-hex-row">
-        <button type="button" class="csr-swatch csr-swatch--pick" aria-label="${esc(t("colorSearchPick"))}"></button>
+        <span class="csr-swatch csr-swatch--pick" aria-hidden="true"></span>
         <input class="pba-input csr-hex-input" type="text" maxlength="7" spellcheck="false" placeholder="#1E88E5"
                aria-label="${esc(t("colorSearchHex"))}" />
       </div>
@@ -182,6 +187,7 @@ export function mountColorSearch(root, { t, esc, swatchBg, openColorPop, value, 
 
     <div class="csr-pane" data-csr-pane="photo" hidden>
       <label class="csr-drop">
+        ${infoTipHtml(esc, t("colorSearchPhotoHint"), { cls: "csr-drop-info" })}
         <span class="icon icon-image" aria-hidden="true"></span>
         <span class="csr-drop-text">${esc(t("colorSearchPhotoDrop"))}</span>
         <input type="file" accept="image/*" class="csr-file" hidden />
@@ -196,29 +202,33 @@ export function mountColorSearch(root, { t, esc, swatchBg, openColorPop, value, 
           <input type="file" accept="image/*" class="csr-file" hidden />
         </label>
         <button type="button" class="csr-photo-btn csr-photo-clear">${esc(t("colorSearchPhotoClear"))}</button>
+        ${infoTipHtml(esc, t("colorSearchPhotoHint"))}
       </div>
-      <div class="pba-field-hint">${esc(t("colorSearchPhotoHint"))}</div>
     </div>
 
 
-    <div class="pba-field csr-max">
-      <div class="csr-max-head">
-        <span class="pba-field-label csr-max-label"></span>
-        <span class="csr-band"></span>
+    <!-- The search's settings, one block: how close (ΔE, explained in its ⓘ) and
+         whether multicolour spools count. -->
+    <div class="csr-settings">
+      <div class="pba-field csr-max">
+        <div class="csr-max-head">
+          <span class="csr-max-title"><span class="pba-field-label csr-max-label"></span>${infoTipHtml(esc, t("colorSearchHelp"))}</span>
+          <span class="csr-band"></span>
+        </div>
+        <input type="range" class="csr-range" min="${DE_MIN}" max="${DE_MAX}" step="1" aria-label="${esc(t("colorSearchMaxAria"))}" />
       </div>
-      <input type="range" class="csr-range" min="${DE_MIN}" max="${DE_MAX}" step="1" aria-label="${esc(t("colorSearchMaxAria"))}" />
-      <div class="pba-field-hint">${esc(t("colorSearchHelp"))}</div>
-    </div>
-
-    <label class="csr-multi">
-      <span class="eac-toggle">
-        <input type="checkbox" class="csr-multi-input" />
-        <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
-      </span>
-      <span>${esc(t("colorSearchMulti"))}</span>
-    </label>`;
+      <label class="csr-multi">
+        <span class="eac-toggle">
+          <input type="checkbox" class="csr-multi-input" />
+          <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
+        </span>
+        <span>${esc(t("colorSearchMulti"))}</span>
+      </label>
+    </div>`;
 
   const $ = s => root.querySelector(s);
+  // An ⓘ inside the photo drop zone (a <label>) explains; it must not open the file picker.
+  root.addEventListener("click", e => { if (e.target.closest(".ui-info")) e.preventDefault(); });
   const hexInput = $(".csr-hex-input"), ralInput = $(".csr-ral-input"), range = $(".csr-range");
   const canvas = $(".csr-canvas"), dot = $(".csr-dot");
   let hasPhoto = false;
@@ -231,6 +241,7 @@ export function mountColorSearch(root, { t, esc, swatchBg, openColorPop, value, 
       b.setAttribute("aria-selected", on ? "true" : "false");
     });
     root.querySelectorAll("[data-csr-pane]").forEach(p => { p.hidden = p.dataset.csrPane !== v.mode; });
+    root.dataset.mode = v.mode;   // CSS: in RAL mode the ΔE settings come first and the list fills the card
     // In HEX mode the field and its swatch already show the colour: said once.
     $(".csr-current").hidden = v.mode === "hex";
     const pick = $(".csr-swatch--pick"), big = $(".csr-swatch--big");
@@ -239,6 +250,7 @@ export function mountColorSearch(root, { t, esc, swatchBg, openColorPop, value, 
       el.style.background = v.hex ? swatchBg(v.hex) : "";
     });
     if (document.activeElement !== hexInput) hexInput.value = v.hex ? v.hex.toUpperCase() : "";
+    if (!fromArea && v.hex) area?.set(v.hex, { animate: true });   // a preset, the field, RAL or photo: the picker glides there
     const ral = v.ral ? ralColor(v.ral) : null;
     $(".csr-current").classList.toggle("is-empty", !v.hex);
     $(".csr-current-hex").textContent = v.hex ? (ral ? ral.code : v.hex.toUpperCase()) : t("colorSearchNone");
@@ -262,6 +274,8 @@ export function mountColorSearch(root, { t, esc, swatchBg, openColorPop, value, 
           <span class="csr-swatch" style="background:${swatchBg(r.hex)}"></span>
           <span class="csr-ral-code">${esc(r.code)}</span><span class="csr-ral-name">${esc(r.name)}</span></button>`).join("")
       : `<div class="pba-field-hint">${esc(t("colorSearchRalNone"))}</div>`;
+    // The chosen code stays in sight: the list scrolls to it (only as far as needed).
+    if (v.mode === "ral") $(".csr-ral-list .is-on")?.scrollIntoView({ block: "nearest" });
   };
   // A colour from the picker, a preset, the HEX field or a photo: no longer a RAL's.
   const setHex = hex => { v = { ...v, hex, ral: "" }; paint(); emit(); };
@@ -281,8 +295,11 @@ export function mountColorSearch(root, { t, esc, swatchBg, openColorPop, value, 
     if (h && (raw.length === 6 || raw.length === 3)) setHex(h);
   });
   hexInput.addEventListener("blur", () => paint());
-  $(".csr-swatch--pick").addEventListener("click", e => {
-    openColorPop(e.currentTarget, v.hex || PRESETS[4], { label: t("colorSearchPick"), onInput: h => { const n = normHex(h); if (n) setHex(n); } });
+  // The inline picker: a move picks the colour (the field and presets follow); a
+  // colour set elsewhere (field, preset, RAL, photo) moves the picker (paint).
+  let fromArea = false;
+  const area = mountColorArea($(".csr-picker"), v.hex || PRESETS[4], {
+    onInput: h => { const n = normHex(h); if (!n) return; fromArea = true; setHex(n); fromArea = false; },
   });
   root.querySelectorAll(".csr-preset").forEach(b => { b.style.background = swatchBg(b.dataset.hex); });
   $(".csr-presets").addEventListener("click", e => {
@@ -365,6 +382,6 @@ export function mountColorSearch(root, { t, esc, swatchBg, openColorPop, value, 
 
   paint();
   return {
-    setValue(next) { v = { mode: "hex", hex: null, ral: "", max: DE_DEFAULT, multi: false, ...v, ...next }; paint(); },
+    setValue(next) { v = { mode: "hex", hex: null, ral: "", max: DE_DEFAULT, multi: true, ...v, ...next }; paint(); },
   };
 }
