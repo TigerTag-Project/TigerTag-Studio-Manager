@@ -1010,13 +1010,14 @@
   .inv-search-scan:hover { background: var(--border); }
   .inv-search-scan:hover .icon { background: var(--text); }
   .inv-search-scan:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
-  /* The colour search button (renderer/color-search.js), left of the QR one — Search
-     views only, where the field makes room for it. Accent while a colour filters. */
-  /* Right to left: magnifier, QR, Filter, colour (Search views only). */
+  /* The colour search button (renderer/color-search.js), left of the Filter one —
+     Search and inventory views (body.color-search), where the field makes room for
+     it. Accent while a colour filters. Right to left: magnifier, QR, Filter, colour. */
   .inv-search-filter { right: 62px; }
   .inv-search-color { right: 90px; display: none; }
-  body.catalog-filters .inv-search-color { display: inline-flex; }
-  body.catalog-filters .inv-search { padding-right: 120px; }
+  body.color-search .inv-search-color { display: inline-flex; }
+  body.color-search .inv-search { padding-right: 120px; }
+  body.is-friend-view.color-search .inv-search-color { display: none; }   /* a friend's stock: not searched by colour */
   .inv-search-filter[hidden] { display: none; }
   .inv-search-color.is-on .icon, .inv-search-color.is-on:hover .icon { background: var(--primary); }
   /* The QR side card (#qrScanPanel): the search bar's scan button opens it at the

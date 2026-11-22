@@ -515,6 +515,7 @@
   "catEmptyFilteredCta": "Clear the filters",
   "colorSearchBtn": "Find by colour",
   "colorSearchSub": "Pick a colour, type a HEX or RAL code, or take it from a photo: every filament and resin of the catalogue is ranked by how close it looks.",
+  "colorSearchSubInv": "Pick a colour, type a HEX or RAL code, or take it from a photo: only the spools of your inventory that look close stay, closest first.",
   "colorSearchHex": "HEX code",
   "colorSearchRal": "RAL Classic",
   "colorSearchPhoto": "Photo",

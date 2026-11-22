@@ -128,7 +128,7 @@
 | `chipAutoUpdated` | Toast when a chip flagged "to update" is rewritten automatically as it lands on the TigerPOD |
 | `chipAutoUpdating` | The spool card's update banner while that automatic rewrite runs ("Update in progress…"), its fill running by itself |
 | `catEmptyFilteredTitle` / `catEmptyFilteredCta` | Catalogue empty state when the search finds products but the filter chips leave none, and its "Clear the filters" button (keeps the search) |
-| `colorSearchBtn` / `colorSearchSub` | Colour search (Search views): the search bar's colour button, chip and card title / its subtitle (renderer/color-search.js) |
+| `colorSearchBtn` / `colorSearchSub` / `colorSearchSubInv` | Colour search (Search and inventory views): the search bar's colour button, chip and card title / its subtitle in the Search views / in the inventory views (renderer/color-search.js) |
 | `colorSearchHex` / `colorSearchRal` / `colorSearchPhoto` | Colour search mode tabs (HEX code · RAL Classic · Photo) |
 | `colorSearchPick` / `colorSearchNone` | The colour picker swatch's label / the current colour before one is picked |
 | `colorSearchRalSearch` / `colorSearchRalNone` | RAL field placeholder / no RAL matches the words typed |

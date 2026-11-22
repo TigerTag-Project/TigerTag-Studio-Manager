@@ -10784,7 +10784,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       } catch (_) {}
     });
     populateBrandFilter();      // refresh dropdown options on every render
-    const rows = allDisplayRows();
+    const rows = _invColorRank(allDisplayRows());
     renderFriendBanner();
     _refreshGroupPanelIfOpen(); // keep an open group panel's weights live
     _checkLowStockNotifs();     // raise / clear below-min-stock alerts
@@ -11092,9 +11092,10 @@ import { initScreenTools } from './ai/screen-tools.js';
   function applyInventoryFilter() {
     const q = (state.search || "").trim().toLowerCase();
     const hueOn = _hueFilterOn();
-    const noFilter = !q && !state.filters.length && !hueOn;
+    const colorOn = _invColorOn();
+    const noFilter = !q && !state.filters.length && !hueOn && !colorOn;
     const rowsById = new Map(state.rows.map(r => [r.spoolId, r]));
-    const rowMatches = r => (!q || _rowMatchesSearch(r, q)) && _fbPass(r, "inv") && (!hueOn || _rowMatchesHue(r));
+    const rowMatches = r => (!q || _rowMatchesSearch(r, q)) && _fbPass(r, "inv") && (!hueOn || _rowMatchesHue(r)) && _rowMatchesColor(r);
     let visible = 0;
 
     // ── Table rows are group-aware ──────────────────────────────────────────
@@ -14450,7 +14451,9 @@ import { initScreenTools } from './ai/screen-tools.js';
     // Search views browse the OFFICIAL catalogue, not the user's stock, so every
     // stock-derived selector beside the search bar is meaningless there.
     document.body.classList.toggle("catalog-filters", _isCatalogMode(mode));
-    if (!_isCatalogMode(mode)) closeColorSearch();   // the colour search is the catalogue's
+    // The colour search: the catalogue's products, or the spools of the inventory views.
+    document.body.classList.toggle("color-search", !!_colorSearchScope(mode));
+    if (!_colorSearchScope(mode)) closeColorSearch();
     // Cam view: the search bar + Scan/Add buttons are useless there, so hide
     // them (via #card-inv.is-cam-view) and surface the cam-wall "Detach" button
     // in the actions slot instead.
@@ -15443,7 +15446,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   // bars / colour search and the OTHER chips leave (so a count is what you get).
   function _fbBase(scope) {
     const q = (state.search || "").trim().toLowerCase();
-    if (scope === "inv") return state.rows.filter(r => !r.deleted && (!q || _rowMatchesSearch(r, q)) && _rowMatchesHue(r));
+    if (scope === "inv") return state.rows.filter(r => !r.deleted && (!q || _rowMatchesSearch(r, q)) && _rowMatchesHue(r) && _rowMatchesColor(r));
     if (scope === "prod") {
       const src = _isListsMode(state.viewMode) ? _listItems(_selectedList()) : _favesForFilters();
       return src.filter(p => _prodTextPass(p, q));
@@ -15484,7 +15487,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _fbExtraChips() {
     const out = [];
     const c = state.catColor;
-    if (c && _fbScope() === "cat") out.push({
+    if (c && _colorSearchScope()) out.push({
       key: "color", text: `${c.ral || c.hex.toUpperCase()} · ΔE ≤ ${c.max}`, swatch: colorBg({ colorList: [c.hex] }),
       onEdit: () => openColorSearch(), onRemove: () => _catColorSet(null),
     });
@@ -15580,7 +15583,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     // and the spool chips are not theirs).
     if (_fbScope() === "prn") return !!state.search || state.printerFilters.length > 0;
     if (state.search || state.filters.length || _hueFilterOn()) return true;
-    return _isCatalogMode(state.viewMode) && !!state.catColor;
+    return !!_colorSearchScope() && !!state.catColor;
   }
   function _syncFilterReset() {
     $("rvHueReset")?.classList.toggle("is-armed", _anyFilterActive());
@@ -15700,14 +15703,50 @@ import { initScreenTools } from './ai/screen-tools.js';
   }
 
   /* ── Colour search (#colorSearchPanel, renderer/color-search.js) ─────────────
-     The Search views' colour finder, the same matching as tigersystem.io's: a HEX,
-     a RAL Classic code or a point of a photo, ranked by CIEDE2000 and kept within
-     a ΔE ceiling. `state.catColor` = { mode, hex, ral, max, multi, lab } | null;
-     _catViewSearch runs it after the other filters (_catColorApply). The card
-     stands alone at the right edge and gives way to any other side card. */
+     The colour finder of the Search views and of the inventory views (grid,
+     table, storage), the same matching as tigersystem.io's: a HEX, a RAL Classic
+     code or a point of a photo, ranked by CIEDE2000 and kept within a ΔE ceiling.
+     `state.catColor` = { mode, hex, ral, max, multi, lab } | null; the catalogue
+     runs it after the other filters (_catColorApply), the inventory keeps the
+     spools within the ceiling (_rowMatchesColor) and ranks the closest first in
+     the grid and the table (_invColorRank). The card stands alone at the right
+     edge and gives way to any other side card. */
+  // Where the colour search works: "cat" (Search views), "inv" (inventory grid,
+  // table, storage — not a friend's), else null.
+  function _colorSearchScope(mode = state.viewMode) {
+    if (_isCatalogMode(mode)) return "cat";
+    return (mode === "grid" || mode === "table" || mode === "rack") && !state.friendView ? "inv" : null;
+  }
+  function _invColorOn() { return !!state.catColor && _colorSearchScope() === "inv"; }
+  // A spool's distance to the colour searched (the closest of its colours), or
+  // null when it is out: past the ceiling, or multicolour while that is off.
+  function _invColorDE(r) {
+    const cache = _invColorDE.cache || (_invColorDE.cache = new WeakMap());   // row → { key, de }
+    const c = state.catColor;
+    const key = `${c.hex}|${c.multi ? 1 : 0}`;
+    let m = cache.get(r);
+    if (!m || m.key !== key) {
+      const labs = _rowColors(r).map(_csNormHex).filter(Boolean).map(hexToLab);
+      let de = Infinity;
+      if (labs.length && (c.multi || labs.length === 1)) for (const l of labs) { const d = deltaE2000(c.lab, l); if (d < de) de = d; }
+      m = { key, de };
+      cache.set(r, m);
+    }
+    return m.de <= c.max ? m.de : null;
+  }
+  function _rowMatchesColor(r) {
+    return !_invColorOn() || _invColorDE(r) != null;
+  }
+  // The inventory's rows, closest to the colour searched first while one is on.
+  function _invColorRank(rows) {
+    if (!_invColorOn()) return rows;
+    const d = r => _invColorDE(r) ?? Infinity;
+    return rows.map((r, i) => [r, d(r), i]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).map(x => x[0]);
+  }
   let _csr = null, _csrLang = "";
   $("searchColor")?.addEventListener("click", () => {
     if ($("colorSearchPanel")?.classList.contains("open")) { closeColorSearch(); return; }
+    if (!_colorSearchScope()) return;
     openColorSearch();
   });
   $("colorSearchPanelClose")?.addEventListener("click", () => closeColorSearch());
@@ -15728,6 +15767,9 @@ import { initScreenTools } from './ai/screen-tools.js';
     } else {
       _csr.setValue(state.catColor || { hex: null, ral: "" });
     }
+    // What it searches: the catalogue, or the spools of the inventory.
+    const sub = panel.querySelector(".pba-sub");
+    if (sub) { sub.dataset.i18n = _colorSearchScope() === "inv" ? "colorSearchSubInv" : "colorSearchSub"; sub.textContent = t(sub.dataset.i18n); }
     panel.classList.add("open");
     _csrWatchOthers(true);
     _syncPanels();
@@ -15762,7 +15804,10 @@ import { initScreenTools } from './ai/screen-tools.js';
       if (state.catColor.mode === "photo") _appTrophy("colorSearchPhoto");
     }
     _catColorChipSync();
-    if (search && _isCatalogMode(state.viewMode)) _onFilterChange();
+    if (!search) return;
+    if (_isCatalogMode(state.viewMode)) _onFilterChange();
+    // Inventory grid / table: rebuilt in place, closest spools first (_invColorRank).
+    else if (_colorSearchScope() === "inv") { _syncFilterReset(); populateQuickFilters(); if (state.viewMode === "rack") applyRackSearchDim(); else renderInventory(); }
   }
   // The active colour is one of the filter bar's chips (_fbExtraChips): a click
   // reopens the colour card, its cross removes it.
@@ -38622,7 +38667,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     // up one spool's slot WITHOUT writing anything in the search bar.
     const locate = state.locateUid ? String(state.locateUid).toLowerCase() : "";
     const hueOn = _hueFilterOn();
-    const noFilter = !q && !state.filters.length && !locate && !hueOn;
+    const noFilter = !q && !state.filters.length && !locate && !hueOn && !_invColorOn();
     document.querySelectorAll("#invRackView .rp-slot--filled").forEach(el => {
       if (noFilter) {
         el.classList.remove("rp-dim");
@@ -38635,7 +38680,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       const matchLocate = !locate
         || String(r.uid).toLowerCase() === locate || String(r.spoolId).toLowerCase() === locate;
       const matches = (!q || _rowMatchesSearch(r, q)) && _fbPass(r, "inv") && matchLocate
-        && (!hueOn || _rowMatchesHue(r));
+        && (!hueOn || _rowMatchesHue(r)) && _rowMatchesColor(r);
       el.classList.toggle("rp-dim", !matches);
       // Positive match indicator on the slot CONTAINER (border + glow) —
       // makes depleted spools (whose .rp-fill is invisible at 0%) still

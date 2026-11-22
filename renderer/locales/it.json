@@ -515,6 +515,7 @@
   "catEmptyFilteredCta": "Togli i filtri",
   "colorSearchBtn": "Cerca per colore",
   "colorSearchSub": "Scegli un colore, digita un codice HEX o RAL, o prendilo da una foto: tutti i filamenti e le resine del catalogo vengono ordinati per somiglianza.",
+  "colorSearchSubInv": "Scegli un colore, scrivi un codice HEX o RAL, o prendilo da una foto: restano solo le bobine del tuo inventario che gli somigliano, le più vicine per prime.",
   "colorSearchHex": "Codice HEX",
   "colorSearchRal": "RAL Classic",
   "colorSearchPhoto": "Foto",

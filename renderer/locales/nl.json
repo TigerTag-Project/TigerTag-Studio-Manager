@@ -515,6 +515,7 @@
   "catEmptyFilteredCta": "Filters wissen",
   "colorSearchBtn": "Zoek op kleur",
   "colorSearchSub": "Kies een kleur, typ een HEX- of RAL-code of haal hem uit een foto: alle filamenten en harsen uit de catalogus worden gerangschikt op gelijkenis.",
+  "colorSearchSubInv": "Kies een kleur, typ een HEX- of RAL-code of neem hem uit een foto: alleen de spoelen uit je voorraad die erop lijken blijven, de meest gelijkende eerst.",
   "colorSearchHex": "HEX-code",
   "colorSearchRal": "RAL Classic",
   "colorSearchPhoto": "Foto",

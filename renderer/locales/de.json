@@ -515,6 +515,7 @@
   "catEmptyFilteredCta": "Filter entfernen",
   "colorSearchBtn": "Nach Farbe suchen",
   "colorSearchSub": "Wähle eine Farbe, gib einen HEX- oder RAL-Code ein oder nimm sie aus einem Foto: Alle Filamente und Harze des Katalogs werden nach ihrer Ähnlichkeit sortiert.",
+  "colorSearchSubInv": "Wähle eine Farbe, gib einen HEX- oder RAL-Code ein oder nimm sie aus einem Foto: Nur die Spulen deines Inventars, die ähnlich aussehen, bleiben – die ähnlichsten zuerst.",
   "colorSearchHex": "HEX-Code",
   "colorSearchRal": "RAL Classic",
   "colorSearchPhoto": "Foto",

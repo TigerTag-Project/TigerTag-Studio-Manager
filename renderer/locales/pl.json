@@ -525,6 +525,7 @@
   "catEmptyFilteredCta": "Wyczyść filtry",
   "colorSearchBtn": "Szukaj po kolorze",
   "colorSearchSub": "Wybierz kolor, wpisz kod HEX lub RAL albo pobierz go ze zdjęcia: wszystkie filamenty i żywice z katalogu są uszeregowane według podobieństwa.",
+  "colorSearchSubInv": "Wybierz kolor, wpisz kod HEX lub RAL albo pobierz go ze zdjęcia: zostają tylko szpule z Twojego magazynu, które wyglądają podobnie, najbliższe najpierw.",
   "colorSearchHex": "Kod HEX",
   "colorSearchRal": "RAL Classic",
   "colorSearchPhoto": "Zdjęcie",

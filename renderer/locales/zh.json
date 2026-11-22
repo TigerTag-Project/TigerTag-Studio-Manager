@@ -510,6 +510,7 @@
   "catEmptyFilteredCta": "清除筛选",
   "colorSearchBtn": "按颜色查找",
   "colorSearchSub": "选择颜色、输入 HEX 或 RAL 色号，或从照片中取色：目录中的所有耗材和树脂按相似度排序。",
+  "colorSearchSubInv": "选择一种颜色、输入 HEX 或 RAL 代码，或从照片中取色：只保留库存中颜色相近的耗材，最接近的排在前面。",
   "colorSearchHex": "HEX 色值",
   "colorSearchRal": "RAL Classic 色卡",
   "colorSearchPhoto": "照片",

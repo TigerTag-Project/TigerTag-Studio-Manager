@@ -525,6 +525,7 @@
   "catEmptyFilteredCta": "Сбросить фильтры",
   "colorSearchBtn": "Найти по цвету",
   "colorSearchSub": "Выбери цвет, введи код HEX или RAL или возьми его с фото: все филаменты и смолы каталога упорядочены по сходству.",
+  "colorSearchSubInv": "Выбери цвет, введи код HEX или RAL или возьми его с фото: останутся только катушки из твоего инвентаря, похожие на него, — самые близкие первыми.",
   "colorSearchHex": "Код HEX",
   "colorSearchRal": "RAL Classic",
   "colorSearchPhoto": "Фото",
