@@ -5075,6 +5075,51 @@ import { initScreenTools } from './ai/screen-tools.js';
   // black on white. Until it is in, or when the brand has
   // none or it cannot be read, the label prints the brand as text.
   const _brandLogos = new Map();   // id_brand → { uri, aspect } | null | "loading"
+  // A logo in one colour, black on clear (RGBA `d`, changed in place); returns the
+  // box holding its ink, null when nothing is left. Dark and coloured pixels print
+  // black. Near-white ones are paper, a hole in the black (white letters on a
+  // coloured block, a sticker's white rim, an opaque white background) — unless the
+  // logo is drawn for a dark background: when the white shapes standing on the
+  // clear background are 30 % or more of the logo (OVV3D, American Filament, IC3D's
+  // "3D PRINTING"), they are its letters and print black too. Same rule in Tiger
+  // NFC Connect (lib/services/brand_logo.dart).
+  function _monoLabelLogo(d, w, h) {
+    const n = w * h;
+    const kind = new Uint8Array(n);   // 0 clear, 1 ink, 2 near-white
+    let inkCount = 0;
+    for (let p = 0; p < n; p++) {
+      const i = p * 4;
+      kind[p] = d[i + 3] < 128 ? 0 : 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2] > 220 ? 2 : 1;
+      if (kind[p] === 1) inkCount++;
+    }
+    const seen = new Uint8Array(n), stack = [], onClear = [];
+    let lightOnClear = 0;
+    for (let s = 0; s < n; s++) {
+      if (kind[s] !== 2 || seen[s]) continue;
+      const area = []; let touchesClear = false;
+      seen[s] = 1; stack.push(s);
+      while (stack.length) {
+        const p = stack.pop(); area.push(p);
+        const x = p % w, y = (p - x) / w;
+        for (const q of [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, y > 0 ? p - w : -1, y < h - 1 ? p + w : -1]) {
+          if (q < 0) continue;
+          if (kind[q] === 0) touchesClear = true;
+          else if (kind[q] === 2 && !seen[q]) { seen[q] = 1; stack.push(q); }
+        }
+      }
+      if (touchesClear) { onClear.push(area); lightOnClear += area.length; }
+    }
+    if (lightOnClear >= (inkCount + lightOnClear) * 0.3) for (const area of onClear) for (const p of area) kind[p] = 1;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let p = 0; p < n; p++) {
+      const i = p * 4;
+      d[i] = d[i + 1] = d[i + 2] = 0;
+      if (kind[p] !== 1) { d[i + 3] = 0; continue; }
+      const x = p % w, y = (p - x) / w;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    return x1 < 0 ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  }
   function _brandLogoFor(r) {
     const id = Number(r?.raw?.id_brand ?? r?.idBrand);
     if (!id) return null;
@@ -5097,15 +5142,15 @@ import { initScreenTools } from './ai/screen-tools.js';
       const g = c.getContext("2d");
       g.drawImage(bmp, 0, 0);
       const px = g.getImageData(0, 0, c.width, c.height);
-      // Every inked pixel black; a near-white one (white letters on a coloured block)
-      // becomes paper, so it still reads as a hole in the black.
-      const d = px.data;
-      for (let i = 0; i < d.length; i += 4) {
-        if (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2] > 220) d[i + 3] = 0;
-        d[i] = d[i + 1] = d[i + 2] = 0;
-      }
+      const box = _monoLabelLogo(px.data, c.width, c.height);
+      if (!box) throw new Error("no ink");
       g.putImageData(px, 0, 0);
-      _brandLogos.set(id, { uri: c.toDataURL("image/png"), aspect: bmp.width / bmp.height });
+      // Cropped to its ink: a logo drawn small in a wide transparent square would
+      // otherwise print small on the label.
+      const out = document.createElement("canvas");
+      out.width = box.w; out.height = box.h;
+      out.getContext("2d").drawImage(c, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+      _brandLogos.set(id, { uri: out.toDataURL("image/png"), aspect: box.w / box.h });
       redrawLabelCard();
     })().catch(e => { _brandLogos.set(id, null); console.warn("[labels] brand logo unavailable:", id, e?.message || e); });
     return null;
@@ -18693,6 +18738,19 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (host && !host.querySelector(".inv-loading")) host.innerHTML = _loadingHTML(extraCls);
   }
 
+  // Signature guard for the Favorites / To-order view: renderInventory runs on
+  // every live update (scales, printers, snapshots — up to once a second), and
+  // rebuilding the cards each time made the view flicker and reload its pictures.
+  // Writes `html` only when it differs from what the view already shows; true =
+  // nothing changed (the listeners and the scroll fade wired last time still hold).
+  function _pvSameAsShown(host, mode, html) {
+    const sig = mode + "\n" + html;
+    if (host._pvSig === sig && host.firstElementChild && host.firstElementChild === host._pvFirst) return true;
+    host.innerHTML = html;
+    host._pvSig = sig;
+    host._pvFirst = host.firstElementChild;
+    return false;
+  }
   function renderProductsView() {
     const host = $("invProductsView");
     if (!host) return;
@@ -18723,7 +18781,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       const savedRows = withInfo
         .filter(x => x.p.savedForLater)
         .sort((a, b) => _rank(a) - _rank(b) || _productName(a.p).localeCompare(_productName(b.p)));
-      host.innerHTML = _renderOrderTab(cartRows, savedRows, info, ro);
+      if (_pvSameAsShown(host, "order|" + ro, _renderOrderTab(cartRows, savedRows, info, ro))) return;
       // "Stop tracking" is press-and-hold (1 s) — reset min to 0 → drops the line.
       if (!ro) host.querySelectorAll("[data-reorder-remove]").forEach(btn => {
         const h = btn.closest(".pv-order-line")?.dataset.hash;
@@ -18734,9 +18792,9 @@ import { initScreenTools } from './ai/screen-tools.js';
     // Favorites (liked ❤ / favorite ★) — grid or table.
     const faves = products.filter(p => p.liked || p.favorite)
       .sort((a, b) => _productName(a).localeCompare(_productName(b)));
-    host.innerHTML = state.viewMode === "favesTable"
+    if (_pvSameAsShown(host, state.viewMode + "|" + ro, state.viewMode === "favesTable"
       ? _renderFavesTable(faves, stockMap, info, ro)
-      : _renderFavesGrid(faves, ro);
+      : _renderFavesGrid(faves, ro))) return;
     // Favorites — the grid and the table fill this scroller edge to edge, so the
     // fade covers exactly what is hidden. The To-order view does NOT: it is a
     // card plus a 300 px STICKY side panel, and masking the scroller would fade
