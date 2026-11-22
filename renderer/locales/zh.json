@@ -3370,5 +3370,27 @@
   "aiEvShotHidden": {
     "other": "已模糊 {{n}} 处"
   },
-  "friendNoName": "新成员"
+  "friendNoName": "新成员",
+  "catBrandsTitle": "你的品牌",
+  "catBrandsBtn": {
+    "one": "{{n}} 个品牌",
+    "other": "{{n}} 个品牌"
+  },
+  "catBrandsTip": "目录只显示你选择的品牌：浏览更轻快，加载的图片更少。随时可以添加或移除。",
+  "catBrandsSearch": "搜索品牌",
+  "catBrandsAll": "全选",
+  "catBrandsNone": "全不选",
+  "catBrandsDone": "查看目录",
+  "catBrandsCount": {
+    "one": "已选 {{n}} 个品牌",
+    "other": "已选 {{n}} 个品牌"
+  },
+  "catBrandsAskTitle": "你用哪些品牌打印？",
+  "catBrandsAskSub": "选一次，目录就只显示这些品牌。之后可以随时添加或移除。",
+  "catBrandsAskCta": "选择我的品牌",
+  "catBrandsElsewhereCta": "编辑我的品牌",
+  "catBrandsElsewhere": {
+    "one": "{{n}} 个结果，在你未关注的品牌中",
+    "other": "{{n}} 个结果，在你未关注的品牌中"
+  }
 }

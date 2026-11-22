@@ -985,23 +985,13 @@
      (the app's global input look would draw a second box inside the pill). */
   .inv-search #searchInv,
   .inv-search #searchInv:focus { outline: none; border: 0; background: transparent; box-shadow: none; }
-  /* DIRECT child only — the magnifier. As a descendant rule it also caught every
-     icon nested in a button inside the field, absolutely positioning them at the
-     field's right edge: the inline "+" landed 4 px off centre inside its own
-     circle, and the clear button's cross had the same treatment. An icon inside
-     a button belongs to that button, not to the field. */
-  .inv-search > .icon {
-    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    background: var(--muted);
-    pointer-events: none;
-  }
-  /* Clear button — REPLACES the magnifier while the input has a value (the
-     renderer toggles the `hidden` attr): one glyph, always in the same spot, so
-     nothing shifts as you type and the field keeps a single padding. */
-  .inv-search:has(.inv-search-clear:not([hidden])) .icon-search { display: none; }
-  /* The camera scan button, left of the magnifier / clear button (renderer/qr-scan.js). */
+  /* No magnifier at the right end (founder, 2026-11-22): the pill reads as a search
+     field without it. Right to left: QR, Filter, colour (Search and inventory
+     views), then the clear button while there is text — its own slot, so nothing
+     shifts as you type. */
+  /* The camera scan button, at the right end (renderer/qr-scan.js). */
   .inv-search-scan {
-    position: absolute; right: 34px; top: 50%; transform: translateY(-50%);
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
     width: 26px; height: 26px; padding: 0; border: none; border-radius: 50%;
     background: transparent; display: inline-flex; align-items: center; justify-content: center;
     cursor: pointer; transition: background .12s;
@@ -1012,9 +1002,9 @@
   .inv-search-scan:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
   /* The colour search button (renderer/color-search.js), left of the Filter one —
      Search and inventory views (body.color-search), where the field makes room for
-     it. Accent while a colour filters. Right to left: magnifier, QR, Filter, colour. */
-  .inv-search-filter { right: 62px; }
-  .inv-search-color { right: 90px; display: none; }
+     it. Accent while a colour filters. */
+  .inv-search-filter { right: 34px; }
+  .inv-search-color { right: 62px; display: none; }
   body.color-search .inv-search-color { display: inline-flex; }
   body.color-search .inv-search { padding-right: 120px; }
   body.is-friend-view.color-search .inv-search-color { display: none; }   /* a friend's stock: not searched by colour */
@@ -1066,8 +1056,9 @@
   .qr-scan-win .qrs-msg { min-height: 1.4em; margin: 10px 0 0; text-align: center; font-size: 12.5px; color: var(--muted); }
   .inv-search-clear {
     position: absolute;
-    /* Centred where the magnifier sat, so the swap reads as one glyph changing */
-    right: 8px;
+    /* Left of the buttons (QR, Filter, and the colour one where it shows). The
+       storage sidebar's search reuses it with its own offset (30-racks.css). */
+    right: 64px;
     top: 50%;
     transform: translateY(-50%);
     width: 22px;
@@ -1089,6 +1080,8 @@
   }
   .inv-search-clear:active { transform: translateY(-50%) scale(.92); }
   .inv-search-clear[hidden] { display: none; }
+  body.color-search:not(.is-friend-view) .inv-search > .inv-search-clear { right: 92px; }
+  .inv-search:has(.inv-search-filter[hidden]) > .inv-search-clear { right: 36px; }
   .inv-search-clear .icon { position: static; transform: none; background: currentColor; }
 
   /* Row dedicated to the view selector — sits directly below the search
@@ -1340,6 +1333,16 @@
     background-color: var(--surface);
     border-color: var(--primary);
   }
+  /* The catalogue's brands button (#cvBrandsBtn): the sort select's pill, no chevron. */
+  .cv-brands-btn {
+    flex-shrink: 0; height: 40px; padding: 0 16px; display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
+    transition: border-color .15s, background-color .15s;
+  }
+  .cv-brands-btn .icon { background: var(--muted); }
+  .cv-brands-btn:hover { background: var(--surface); border-color: var(--primary); }
+  .cv-brands-btn.is-on { border-color: var(--primary); }
   .inv-brand-filter:focus { outline: none; border-color: var(--primary); }
   /* Visual hint when a brand filter is active */
   .inv-brand-filter:not([data-empty="true"]):valid:not(:focus) {
@@ -5125,6 +5128,33 @@ button.csr-swatch:focus-visible { outline: 2px solid var(--primary); outline-off
 .csr-preset { width: 30px; }
 .csr-preset.is-on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
 .csr-ral-list { display: flex; flex-direction: column; gap: 2px; max-height: 300px; overflow-y: auto; }
+/* ── The catalogue's brands (#catBrandsPanel) ─────────────────────────────────
+   The colour card's frame; a list of makers, each a toggle row (the RAL rows'
+   look) with its product count; the list fills the card's height. */
+#catBrandsPanel { width: 380px; max-width: 95vw; z-index: 101; display: flex; flex-direction: column; }
+.cbp-root { gap: 12px; }
+.cbp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.cbp-bulk { display: inline-flex; gap: 4px; }
+.cbp-link { border: 0; background: transparent; color: var(--primary); font: inherit; font-size: 12px; font-weight: 600; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+.cbp-link:hover { background: var(--primary-soft); }
+.cbp-list { flex: 1; min-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.cbp-list::-webkit-scrollbar { width: 6px; }
+.cbp-list::-webkit-scrollbar-track { background: transparent; }
+.cbp-list::-webkit-scrollbar-thumb { background: var(--ink-15); border-radius: 3px; }
+.cbp-row { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 6px 10px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background .12s; }
+.cbp-row:hover { background: var(--surface-hover); }
+.cbp-row.is-on { background: var(--primary-soft); }
+.cbp-check { width: 18px; aspect-ratio: 1; flex-shrink: 0; border-radius: 5px; border: 1.5px solid var(--border-strong);
+  display: inline-flex; align-items: center; justify-content: center; transition: background .12s, border-color .12s; }
+.cbp-check .icon { width: 12px; height: 12px; background: var(--on-accent); opacity: 0; transition: opacity .12s; }
+.cbp-row.is-on .cbp-check { background: var(--primary); border-color: var(--primary); }
+.cbp-row.is-on .cbp-check .icon { opacity: 1; }
+.cbp-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cbp-n { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.cbp-done { height: 40px; border: 0; border-radius: 10px; background: var(--primary); color: var(--on-accent); font: inherit; font-weight: 700; cursor: pointer; transition: background .15s; }
+.cbp-done:hover { background: var(--primary-hover); }
+.cbp-done:disabled { opacity: .45; cursor: default; }
 /* RAL mode: the ΔE ceiling and the multicolour switch sit right under the chosen
    colour, and the code list below takes the rest of the card's height (it
    scrolls, not the card) — a 300 px list left half a tall screen empty. */

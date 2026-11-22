@@ -3775,6 +3775,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (e.key === "Escape" && $("chipChoicePanel")?.classList.contains("open")) closeChipChoice();
     if (e.key === "Escape" && $("qrScanPanel")?.dataset.mode === "find") closeQrScanPanel();
     if (e.key === "Escape" && $("colorSearchPanel")?.classList.contains("open")) closeColorSearch();
+    if (e.key === "Escape" && $("catBrandsPanel")?.classList.contains("open")) closeCatBrands();
   });
   // Delegated on the container: the rows are re-rendered on every open.
   $("matSourceList")?.addEventListener("click", e => {
@@ -9569,6 +9570,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     requestAnimationFrame(signalFirstPaint);
 
     subscribeInventory(uid);
+    _catBrandsLoad(uid);     // the catalogue's brands as last picked here; prefs/app follows (syncLangFromFirestore)
     syncLangFromFirestore(uid);
     syncUserDoc(uid);
     questsSignIn(uid);
@@ -13623,6 +13625,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _closeAllSideCards() {
     if ($("qrScanPanel")?.dataset.mode === "find") closeQrScanPanel();   // the search bar's QR card
     closeColorSearch();                                                   // the search bar's colour card
+    closeCatBrands();                                                     // the catalogue's brands card
     closeDetail();        // also clears state.selected + any queued scan-open
     _closeGroupPanel();
     closeProductCard();   // light product "business card"
@@ -15208,6 +15211,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   // Delegated on the stable container — cards/rows are rebuilt on every query.
   $("catalogViewBody")?.addEventListener("click", e => {
     if (e.target.closest?.("[data-cv-create]")) { openAddProductPanel(); return; }
+    if (e.target.closest?.("[data-cv-brands]")) { openCatBrands(); return; }
     if (e.target.closest?.("[data-cv-clear-filters]")) {
       state.filters = [];
       _catColorSet(null, { search: false });
@@ -15453,7 +15457,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       const src = _isListsMode(state.viewMode) ? _listItems(_selectedList()) : _favesForFilters();
       return src.filter(p => _prodTextPass(p, q));
     }
-    if (scope === "cat") return _catColorApply(_catalogFilter($("searchInv")?.value, "", ""));
+    if (scope === "cat") return _catColorApply(_catalogFilter($("searchInv")?.value, "", "").filter(_catBrandShown));
     if (scope === "prn") return (state.printers || []).filter(p => _printerMatchesSearch(p, q));
     return [];
   }
@@ -15867,6 +15871,151 @@ import { initScreenTools } from './ai/screen-tools.js';
     const band = m.declared ? "declared" : deltaBand(m.de);
     const label = m.declared ? t("colorSearchDeclared", { code: state.catColor?.ral || "" }) : t(`colorSearchBand_${band}`);
     return `<span class="${cls} cv-de" data-band="${band}" aria-label="${esc(label)}">${m.declared ? esc(state.catColor?.ral || "") : `ΔE ${m.de.toFixed(1)}`}</span>`;
+  }
+
+  /* ── The catalogue's brands (#catBrandsPanel) ────────────────────────────────
+     The Search views show only the makers the user picked: a lighter view, and
+     fewer product photos asked of the server (each one runs the /img function).
+     `state.catBrands` = the picked brand keys (_catBrandKey: the reference-table
+     id, "n:<name>" for a maker the table does not know), or null while none were
+     ever picked — the view then asks for them first. Kept in prefs/app.catalogBrands
+     (read with the language at launch, no read of its own; shared with the mobile
+     app) and on this computer (tigertag.catalogBrands.<uid>) to paint at once. */
+  function _catBrandsLsKey(uid) { return `tigertag.catalogBrands.${uid}`; }
+  function _catBrandsSetNow() {
+    if (!state.catBrands) return null;
+    if (_catBrandsSetNow.src !== state.catBrands) { _catBrandsSetNow.set = new Set(state.catBrands); _catBrandsSetNow.src = state.catBrands; }
+    return _catBrandsSetNow.set;
+  }
+  function _catBrandShown(it) { const s = _catBrandsSetNow(); return !s || s.has(_catBrandKey(it)); }
+  function _catBrandsLoad(uid) {
+    let v = null;
+    try { v = JSON.parse(localStorage.getItem(_catBrandsLsKey(uid)) || "null"); } catch (_) {}
+    state.catBrands = Array.isArray(v) && v.length ? v.map(String) : null;
+    _cvBrandsBtnSync();
+  }
+  // The account's choice as prefs/app holds it (set on another computer, the phone).
+  // An empty list = everything unticked: back to the first state, the view asks again.
+  function _catBrandsFromPrefs(uid, v) {
+    if (!Array.isArray(v) || uid !== state.activeAccountId) return;
+    const next = v.length ? v.map(String) : null;
+    if (JSON.stringify(next) === JSON.stringify(state.catBrands)) return;
+    state.catBrands = next;
+    try { localStorage.setItem(_catBrandsLsKey(uid), JSON.stringify(next || [])); } catch (_) {}
+    _cvBrandsBtnSync();
+    if (_isCatalogMode(state.viewMode)) _catViewSearch();
+  }
+  // An empty list unticks everything: the catalogue is back to its first state.
+  function _catBrandsSave(list) {
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    state.catBrands = list.length ? list : null;
+    try { localStorage.setItem(_catBrandsLsKey(uid), JSON.stringify(list)); } catch (_) {}
+    fbDb(uid).collection("users").doc(uid).collection("prefs").doc("app").set({ catalogBrands: list }, { merge: true })
+      .catch(e => console.warn("[catalog] brands not saved:", e.code || e.message));
+    _cvBrandsBtnSync();
+    if (_isCatalogMode(state.viewMode)) _catViewSearch();
+  }
+  // Every maker in the catalogue — key, name, product count — once per index.
+  function _catAllBrands() {
+    if (_catAllBrands.idx === _catalogIndex) return _catAllBrands.list;
+    const m = new Map();
+    for (const { it } of _catalogIndex) {
+      const k = _catBrandKey(it);
+      if (!k) continue;
+      const e = m.get(k) || { key: k, name: String(it.brand || (k.startsWith("n:") ? k.slice(2) : brandName(+k)) || k), n: 0 };
+      e.n++;
+      m.set(k, e);
+    }
+    const coll = new Intl.Collator();
+    _catAllBrands.list = [...m.values()].sort((a, b) => coll.compare(a.name, b.name));
+    _catAllBrands.idx = _catalogIndex;
+    return _catAllBrands.list;
+  }
+  function _cvBrandsBtnSync() {
+    const txt = $("cvBrandsBtnText");
+    if (!txt) return;
+    txt.textContent = state.catBrands ? t("catBrandsBtn", { n: state.catBrands.length }) : t("thBrand");
+    $("cvBrandsBtn")?.classList.toggle("is-on", !!state.catBrands);
+  }
+  // The side card edits a draft; it is saved once, when the card closes.
+  let _cbpDraft = null, _cbpAsked = false;
+  $("cvBrandsBtn")?.addEventListener("click", () => ($("catBrandsPanel")?.classList.contains("open") ? closeCatBrands() : openCatBrands()));
+  $("catBrandsPanelClose")?.addEventListener("click", () => closeCatBrands());
+  $("catBrandsCloseTab")?.addEventListener("click", () => closeCatBrands());
+  $("catBrandsDone")?.addEventListener("click", () => closeCatBrands());
+  $("catBrandsSearch")?.addEventListener("input", () => _cbpPaint());
+  $("catBrandsAll")?.addEventListener("click", () => { _cbpDraft = new Set(_catAllBrands().map(b => b.key)); _cbpPaint(); });
+  $("catBrandsNone")?.addEventListener("click", () => { _cbpDraft = new Set(); _cbpPaint(); });
+  $("catBrandsList")?.addEventListener("click", e => {
+    const b = e.target.closest?.(".cbp-row");
+    if (!b || !_cbpDraft) return;
+    const k = b.dataset.key, on = !_cbpDraft.has(k);
+    if (on) _cbpDraft.add(k); else _cbpDraft.delete(k);
+    b.classList.toggle("is-on", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+    _cbpPaintHead();
+  });
+  function openCatBrands() {
+    const panel = $("catBrandsPanel");
+    if (!panel) return;
+    if (!_catalogIndex.length) _catalogLoadCache();
+    _closeAllSideCards();
+    _cbpAsked = true;
+    _cbpDraft = new Set(state.catBrands || []);
+    const info = panel.querySelector(".cbp-title-info");
+    if (info) { const tip = t("catBrandsTip"); info.dataset.tip = tip; info.setAttribute("aria-label", tip); }
+    $("catBrandsSearch").value = "";
+    _cbpPaint();
+    panel.classList.add("open");
+    _syncPanels();
+  }
+  function closeCatBrands() {
+    const panel = $("catBrandsPanel");
+    if (!panel?.classList.contains("open")) return;
+    panel.classList.remove("open");
+    _syncPanels();
+    // Saved once, and only when it changed. Everything unticked is a choice too:
+    // the catalogue goes back to asking for brands.
+    if (!_cbpDraft) return;
+    const coll = new Intl.Collator();
+    const next = [..._cbpDraft].sort(coll.compare);
+    _cbpDraft = null;
+    const cur = state.catBrands ? [...state.catBrands].sort(coll.compare) : [];
+    if (JSON.stringify(next) !== JSON.stringify(cur)) _catBrandsSave(next);
+  }
+  function _cbpPaintHead() {
+    $("catBrandsCount").textContent = t("catBrandsCount", { n: _cbpDraft.size });
+  }
+  function _cbpPaint() {
+    const q = ($("catBrandsSearch")?.value || "").trim().toLowerCase();
+    const rows = _catAllBrands().filter(b => !q || b.name.toLowerCase().includes(q));
+    const lang = state.lang || "en";
+    $("catBrandsList").innerHTML = rows.map(b => {
+      const on = _cbpDraft.has(b.key);
+      return `<button type="button" class="cbp-row${on ? " is-on" : ""}" role="option" aria-selected="${on}" data-key="${esc(b.key)}">
+        <span class="cbp-check"><span class="icon icon-check-bold" aria-hidden="true"></span></span>
+        <span class="cbp-name">${esc(b.name)}</span><span class="cbp-n">${b.n.toLocaleString(lang)}</span></button>`;
+    }).join("");
+    _cbpPaintHead();
+  }
+  // No brand picked yet: the view asks for them (and opens the card, once).
+  function _catViewAskBrands() {
+    _catViewHits = [];
+    _catViewRenderedSig = "";
+    const body = $("catalogViewBody");
+    if (body) {
+      body.className = "cv-body";
+      body.innerHTML = `
+        <div class="cv-empty">
+          <span class="icon icon-tag" aria-hidden="true"></span>
+          <div class="cv-empty-title">${esc(t("catBrandsAskTitle"))}</div>
+          <div class="cv-empty-sub">${esc(t("catBrandsAskSub"))}</div>
+          <button type="button" class="cv-empty-cta" data-cv-brands="1"><span class="icon icon-tag icon-14" aria-hidden="true"></span>${esc(t("catBrandsAskCta"))}</button>
+        </div>`;
+    }
+    _catViewSyncStatus();
+    if (!_cbpAsked && _catalogIndex.length) openCatBrands();
   }
   /* ── Add with TigerTag (#tagAddPanel, the new-chip card's pane) ───────────────
      The only way a scanned chip enters the inventory (founder, 2026-11-13). A
@@ -18027,7 +18176,7 @@ import { initScreenTools } from './ai/screen-tools.js';
      within one brand — the control stays disabled until a brand is picked).
      All of it runs over the local cache: changing a filter never hits the API.
   */
-  const CAT_SORTS = { brand: "brand", name: "_name", material: "material" };
+  const CAT_SORTS = { brand: "brand", series: "_series", name: "_name", material: "material" };
   // The whole catalogue sorted ONCE per (index, sort key) into an item → rank
   // map; a search then orders its hits by integer rank. Sorting 18 000 items
   // with localeCompare on every keystroke was most of the typing lag. Title is
@@ -18036,10 +18185,12 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _catSortRank(sortKey) {
     const field = CAT_SORTS[sortKey] || CAT_SORTS.brand;
     if (_catSortCache.idx === _catalogIndex && _catSortCache.key === field) return _catSortCache.rank;
-    const coll = new Intl.Collator();
+    const coll = new Intl.Collator(undefined, { numeric: true });
     const items = _catalogIndex.map(e => e.it);
-    items.sort((a, b) => coll.compare(String(a[field] || ""), String(b[field] || ""))
-                      || coll.compare(String(a.title || ""), String(b.title || "")));
+    const by = f => (a, b) => coll.compare(String(a[f] || ""), String(b[f] || ""));
+    // "Series": brand, then series, then the colour's name — a series' colours side by side.
+    const cmp = field === "_series" ? [by("brand"), by("_series"), by("_name")] : [by(field)];
+    items.sort((a, b) => { for (const c of cmp) { const d = c(a, b); if (d) return d; } return coll.compare(String(a.title || ""), String(b.title || "")); });
     const rank = new Map();
     items.forEach((it, i) => rank.set(it, i));
     _catSortCache = { idx: _catalogIndex, key: field, rank };
@@ -18052,7 +18203,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _catViewFillFacets() {
     const sortEl = $("cvSort");
     if (sortEl && !sortEl.options.length) {
-      sortEl.innerHTML = [["brand", "thBrand"], ["name", "thName"], ["material", "thMaterial"]]
+      sortEl.innerHTML = [["brand", "thBrand"], ["series", "thSeries"], ["name", "thName"], ["material", "thMaterial"]]
         .map(([v, k]) => `<option value="${v}">${esc(t("sortBy") + ": " + t(k))}</option>`).join("");
       sortEl._cselRefresh?.();
     }
@@ -18063,7 +18214,10 @@ import { initScreenTools } from './ai/screen-tools.js';
     // The Material chip lists families: once the table is read, search again.
     if (!_matFamiliesP) _loadMaterialFamilies().then(() => _catViewSearch());
     _catViewFillFacets();
-    _catViewHits = _catalogFilter($("searchInv")?.value, "", "").filter(it => _fbPass(it, "cat"));
+    _cvBrandsBtnSync();
+    // No brand picked yet: ask for them before showing any product.
+    if (!state.catBrands) { _catViewAskBrands(); return; }
+    _catViewHits = _catalogFilter($("searchInv")?.value, "", "").filter(it => _catBrandShown(it) && _fbPass(it, "cat"));
     const rank = _catSortRank($("cvSort")?.value || "brand");
     _catViewHits.sort((a, b) => rank.get(a) - rank.get(b));
     // A colour search keeps the products within its ΔE and puts the closest first.
@@ -18103,8 +18257,16 @@ import { initScreenTools } from './ai/screen-tools.js';
         // The search finds products but the selectors above leave none: say so and
         // offer to clear them, rather than "make it yourself" (#217).
         const filtered = (state.filters.length || state.catColor)
-          && _catalogFilter($("searchInv")?.value, "", "").length > 0;
-        body.innerHTML = filtered ? `
+          && _catalogFilter($("searchInv")?.value, "", "").filter(_catBrandShown).length > 0;
+        // …or the search finds products, but only in brands not picked: say how many.
+        const elsewhere = !filtered && String($("searchInv")?.value || "").trim()
+          ? _catalogFilter($("searchInv")?.value, "", "").filter(it => !_catBrandShown(it)).length : 0;
+        body.innerHTML = elsewhere ? `
+          <div class="cv-empty">
+            <span class="icon icon-tag" aria-hidden="true"></span>
+            <div class="cv-empty-title">${esc(t("catBrandsElsewhere", { n: elsewhere }))}</div>
+            <button type="button" class="cv-empty-cta" data-cv-brands="1"><span class="icon icon-tag icon-14" aria-hidden="true"></span>${esc(t("catBrandsElsewhereCta"))}</button>
+          </div>` : filtered ? `
           <div class="cv-empty">
             <span class="icon icon-filter" aria-hidden="true"></span>
             <div class="cv-empty-title">${esc(t("catEmptyFilteredTitle"))}</div>
@@ -18402,6 +18564,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const el = $("catalogViewStatus");
     if (!el) return;
     if (!_catalogIndex.length) { el.textContent = t("catalogSyncing"); return; }
+    if (!state.catBrands) { el.textContent = ""; return; }   // the brands are being asked for
     el.textContent = _catalogSyncing
       ? t("catalogSyncing")
       : t("catalogHits", { n: _catViewHits.length });   // one figure: what the filters match
@@ -20701,7 +20864,9 @@ import { initScreenTools } from './ai/screen-tools.js';
     // The search bar's colour card, alone at the right edge too.
     const csp = $("colorSearchPanel"), csOpen = !!csp?.classList.contains("open");
     _setTab($("colorSearchCloseTab"), csOpen, csOpen ? csp.offsetWidth : 0, csp);
-    if (ccOpen) ["catalogPickCloseTab", "chipLinkCloseTab", "addProductCloseTab", "qrScanCloseTab", "colorSearchCloseTab"].forEach(id => { if ($(id)) $(id).hidden = true; });
+    const cbp = $("catBrandsPanel"), cbOpen = !!cbp?.classList.contains("open");
+    _setTab($("catBrandsCloseTab"), cbOpen, cbOpen ? cbp.offsetWidth : 0, cbp);
+    if (ccOpen) ["catalogPickCloseTab", "chipLinkCloseTab", "addProductCloseTab", "qrScanCloseTab", "colorSearchCloseTab", "catBrandsCloseTab"].forEach(id => { if ($(id)) $(id).hidden = true; });
     _setTab($("productCardCloseTab"), pcOpen, pcRight + (pcW || upPcW), pcp);
     _setTab($("reorderCloseTab"), roOpen, roRight + roW, rop);
     _setTab($("detailCloseTab"),     dOpen, matRight + detailW, dp);
@@ -46231,6 +46396,8 @@ import { initScreenTools } from './ai/screen-tools.js';
       if (!doc.exists) return;
       const data = doc.data();
       // Language — apply if remote differs (more recent on another device).
+      // The brands the catalogue shows (picked on another computer or the phone).
+      _catBrandsFromPrefs(uid, data.catalogBrands);
       const cloudLang = data.lang;
       if (cloudLang && state.i18n[cloudLang] && cloudLang !== state.lang) {
         state.lang = cloudLang;

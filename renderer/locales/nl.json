@@ -3382,5 +3382,27 @@
     "one": "{{n}} zone vervaagd",
     "other": "{{n}} zones vervaagd"
   },
-  "friendNoName": "Nieuw lid"
+  "friendNoName": "Nieuw lid",
+  "catBrandsTitle": "Jouw merken",
+  "catBrandsBtn": {
+    "one": "{{n}} merk",
+    "other": "{{n}} merken"
+  },
+  "catBrandsTip": "De catalogus toont alleen de merken die je kiest: lichter om door te bladeren, minder foto's om te laden. Voeg er toe of haal er weg wanneer je wilt.",
+  "catBrandsSearch": "Zoek een merk",
+  "catBrandsAll": "Alle",
+  "catBrandsNone": "Geen",
+  "catBrandsDone": "Toon de catalogus",
+  "catBrandsCount": {
+    "one": "{{n}} merk gekozen",
+    "other": "{{n}} merken gekozen"
+  },
+  "catBrandsAskTitle": "Met welke merken print je?",
+  "catBrandsAskSub": "Kies ze één keer en de catalogus toont alleen die van hen. Later kun je er toevoegen of weghalen.",
+  "catBrandsAskCta": "Kies mijn merken",
+  "catBrandsElsewhereCta": "Mijn merken bewerken",
+  "catBrandsElsewhere": {
+    "one": "{{n}} resultaat, bij een merk dat je niet volgt",
+    "other": "{{n}} resultaten, bij merken die je niet volgt"
+  }
 }

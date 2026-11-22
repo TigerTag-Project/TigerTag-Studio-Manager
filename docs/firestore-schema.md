@@ -470,6 +470,7 @@ users/
       app/
         lang      string   — language code, synced across devices
         groupInv  boolean  — Studio inventory "group identical spools" toggle (Studio-only, synced across devices)
+        catalogBrands string[] — the brands the catalogue shows (reference `id_brand` as a string, or "n:<name>" for a maker the table does not know); absent or `[]` = none picked (Studio asks first; `[]` is written when the user unticks everything, so other devices follow). Read with the language at launch; localStorage `tigertag.catalogBrands.<uid>` paints it at once
         autoManage    boolean — Storage "Auto-organize" toggle (drives both auto-place + auto-free; per-account, synced across devices; localStorage `tigertag.autoManage.enabled` is the fast read cache). Migrated from the legacy split fields below (unified = either-was-on).
         autoStorage   boolean — LEGACY (pre-merge) "Auto storage" toggle — read only for one-time migration into `autoManage`
         autoUnstorage boolean — LEGACY (pre-merge) "Auto unstorage" toggle — read only for one-time migration into `autoManage`

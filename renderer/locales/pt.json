@@ -3382,5 +3382,27 @@
     "one": "{{n}} área borrada",
     "other": "{{n}} áreas borradas"
   },
-  "friendNoName": "Novo membro"
+  "friendNoName": "Novo membro",
+  "catBrandsTitle": "Suas marcas",
+  "catBrandsBtn": {
+    "one": "{{n}} marca",
+    "other": "{{n}} marcas"
+  },
+  "catBrandsTip": "O catálogo mostra só as marcas que você escolhe: mais leve de navegar, menos fotos para carregar. Adicione ou tire quando quiser.",
+  "catBrandsSearch": "Buscar uma marca",
+  "catBrandsAll": "Todas",
+  "catBrandsNone": "Nenhuma",
+  "catBrandsDone": "Ver o catálogo",
+  "catBrandsCount": {
+    "one": "{{n}} marca escolhida",
+    "other": "{{n}} marcas escolhidas"
+  },
+  "catBrandsAskTitle": "Com quais marcas você imprime?",
+  "catBrandsAskSub": "Escolha uma vez e o catálogo mostra só as delas. Dá para adicionar ou tirar depois.",
+  "catBrandsAskCta": "Escolher minhas marcas",
+  "catBrandsElsewhereCta": "Editar minhas marcas",
+  "catBrandsElsewhere": {
+    "one": "{{n}} resultado, numa marca que você não segue",
+    "other": "{{n}} resultados, em marcas que você não segue"
+  }
 }

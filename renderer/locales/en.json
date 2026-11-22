@@ -3382,5 +3382,27 @@
     "one": "{{n}} zone blurred",
     "other": "{{n}} zones blurred"
   },
-  "friendNoName": "New member"
+  "friendNoName": "New member",
+  "catBrandsTitle": "Your brands",
+  "catBrandsBtn": {
+    "one": "{{n}} brand",
+    "other": "{{n}} brands"
+  },
+  "catBrandsTip": "The catalogue only shows the brands you pick: lighter to browse, fewer photos to load. Add or drop some whenever you like.",
+  "catBrandsSearch": "Search a brand",
+  "catBrandsAll": "All",
+  "catBrandsNone": "None",
+  "catBrandsDone": "Show the catalogue",
+  "catBrandsCount": {
+    "one": "{{n}} brand picked",
+    "other": "{{n}} brands picked"
+  },
+  "catBrandsAskTitle": "Which brands do you print with?",
+  "catBrandsAskSub": "Pick them once and the catalogue shows only theirs. You can add or drop some later.",
+  "catBrandsAskCta": "Pick my brands",
+  "catBrandsElsewhereCta": "Edit my brands",
+  "catBrandsElsewhere": {
+    "one": "{{n}} match, in a brand you don't follow",
+    "other": "{{n}} matches, in brands you don't follow"
+  }
 }

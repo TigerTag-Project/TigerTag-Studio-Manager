@@ -3382,5 +3382,27 @@
     "one": "{{n}} Bereich verwischt",
     "other": "{{n}} Bereiche verwischt"
   },
-  "friendNoName": "Neues Mitglied"
+  "friendNoName": "Neues Mitglied",
+  "catBrandsTitle": "Deine Marken",
+  "catBrandsBtn": {
+    "one": "{{n}} Marke",
+    "other": "{{n}} Marken"
+  },
+  "catBrandsTip": "Der Katalog zeigt nur die Marken, die du wählst: leichter zu durchstöbern, weniger Fotos zu laden. Füge jederzeit welche hinzu oder entferne sie.",
+  "catBrandsSearch": "Marke suchen",
+  "catBrandsAll": "Alle",
+  "catBrandsNone": "Keine",
+  "catBrandsDone": "Katalog anzeigen",
+  "catBrandsCount": {
+    "one": "{{n}} Marke gewählt",
+    "other": "{{n}} Marken gewählt"
+  },
+  "catBrandsAskTitle": "Mit welchen Marken druckst du?",
+  "catBrandsAskSub": "Wähle sie einmal aus, dann zeigt der Katalog nur ihre. Du kannst später welche hinzufügen oder entfernen.",
+  "catBrandsAskCta": "Meine Marken wählen",
+  "catBrandsElsewhereCta": "Meine Marken bearbeiten",
+  "catBrandsElsewhere": {
+    "one": "{{n}} Treffer, bei einer Marke, der du nicht folgst",
+    "other": "{{n}} Treffer, bei Marken, denen du nicht folgst"
+  }
 }

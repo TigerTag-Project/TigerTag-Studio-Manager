@@ -129,6 +129,7 @@
 | `chipAutoUpdating` | The spool card's update banner while that automatic rewrite runs ("Update in progress…"), its fill running by itself |
 | `catEmptyFilteredTitle` / `catEmptyFilteredCta` | Catalogue empty state when the search finds products but the filter chips leave none, and its "Clear the filters" button (keeps the search) |
 | `colorSearchBtn` / `colorSearchSub` / `colorSearchSubInv` | Colour search (Search and inventory views): the search bar's colour button, chip and card title / its subtitle in the Search views / in the inventory views (renderer/color-search.js) |
+| `catBrandsTitle` / `catBrandsTip` / `catBrandsBtn` / `catBrandsSearch` / `catBrandsAll` / `catBrandsNone` / `catBrandsCount` / `catBrandsDone` / `catBrandsAskTitle` / `catBrandsAskSub` / `catBrandsAskCta` / `catBrandsElsewhere` / `catBrandsElsewhereCta` | The catalogue's brands (Search views, `#catBrandsPanel`): card title and ⓘ, toolbar button (plural), search, All / None, picked count (plural), Done; the first-time ask (title, line, button); a search that only matches unfollowed brands (plural) and its button |
 | `colorSearchHex` / `colorSearchRal` / `colorSearchPhoto` | Colour search mode tabs (HEX code · RAL Classic · Photo) |
 | `colorSearchPick` / `colorSearchNone` | The colour picker swatch's label / the current colour before one is picked |
 | `colorSearchRalSearch` / `colorSearchRalNone` | RAL field placeholder / no RAL matches the words typed |

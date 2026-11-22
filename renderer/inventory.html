@@ -399,8 +399,8 @@
                the printer ones. -->
           <div class="fb-bar" id="fbBar"></div>
           <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" data-i18n-placeholder="searchPlaceholder" />
-          <!-- Clear button — takes the magnifier's place while the field has
-               text (the loupe is hidden in CSS), so only one glyph is ever shown. -->
+          <!-- Clear button, shown while the field has text, left of the buttons
+               (no magnifier: the pill reads as a search field on its own). -->
           <button type="button" id="searchInvClear" class="inv-search-clear" hidden
                   aria-label="Clear search" data-i18n-aria="clearSearch">
             <span class="icon icon-close icon-13" aria-hidden="true"></span>
@@ -418,10 +418,11 @@
           <button type="button" id="fbAddBtn" class="inv-search-scan inv-search-filter" aria-label="Filter" data-i18n-aria="fbAdd" aria-haspopup="true">
             <span class="icon icon-filter icon-14" aria-hidden="true"></span>
           </button>
-          <span class="icon icon-search icon-13"></span>
         </div>
         <!-- Search views: the sort (their filters are chips of the filter bar). -->
         <div class="cv-filter-group" id="cvFilters">
+          <!-- The brands the catalogue shows (#catBrandsPanel); says how many are on. -->
+          <button type="button" class="cv-brands-btn" id="cvBrandsBtn"><span class="icon icon-tag icon-14" aria-hidden="true"></span><span id="cvBrandsBtnText"></span></button>
           <select id="cvSort" class="inv-brand-filter"></select>
         </div>
         <!-- Grid-only sort control, pushed to the far right (table view sorts
@@ -3113,6 +3114,30 @@
     <button class="panel-close" id="colorSearchPanelClose" aria-label="Close" data-i18n-aria="tutoClose">✕</button>
   </div>
   <div class="pba-body csr-root" id="colorSearchRoot"></div>
+</aside>
+
+<!-- The catalogue's brands (Search views): which makers the catalogue shows,
+     kept in prefs/app.catalogBrands (catalogue block of inventory.js, _catBrands*). -->
+<button class="pp-close-tab" id="catBrandsCloseTab" aria-label="Close" hidden>»</button>
+<aside class="detail-panel pba-panel cer-panel" id="catBrandsPanel">
+  <div class="pba-header">
+    <div class="pba-header-text">
+      <div class="pba-title qrs-title"><span class="icon icon-tag" aria-hidden="true"></span><span data-i18n="catBrandsTitle">Your brands</span><span class="tool-info ui-info cbp-title-info" data-tip="" aria-label=""><span class="icon icon-info icon-14" aria-hidden="true"></span></span></div>
+    </div>
+    <button class="panel-close" id="catBrandsPanelClose" aria-label="Close" data-i18n-aria="tutoClose">✕</button>
+  </div>
+  <div class="pba-body cbp-root">
+    <input class="pba-input cbp-search" id="catBrandsSearch" type="text" spellcheck="false" placeholder="Search a brand" data-i18n-placeholder="catBrandsSearch" />
+    <div class="cbp-head">
+      <span class="cbp-count" id="catBrandsCount"></span>
+      <span class="cbp-bulk">
+        <button type="button" class="cbp-link" id="catBrandsAll" data-i18n="catBrandsAll">All</button>
+        <button type="button" class="cbp-link" id="catBrandsNone" data-i18n="catBrandsNone">None</button>
+      </span>
+    </div>
+    <div class="cbp-list" id="catBrandsList" role="listbox" aria-multiselectable="true"></div>
+    <button type="button" class="cbp-done" id="catBrandsDone" data-i18n="catBrandsDone">Show the catalogue</button>
+  </div>
 </aside>
 
 <button class="pp-close-tab" id="chipLinkCloseTab" aria-label="Close" hidden>»</button>
