@@ -401,7 +401,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Electron RFID integration (L45122-46431)
+## Electron RFID integration (L45122-46434)
 | L | What | Anchors |
 |---|---|---|
 | 30624-30711 | Reader indicator (topbar), reader connect/disconnect, card present/removed badge | `renderRfidReaderBadges` |
