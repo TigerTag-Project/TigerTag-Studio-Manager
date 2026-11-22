@@ -1463,9 +1463,9 @@
   .rp-board { flex: 1; min-height: 0; display: flex; gap: 14px; align-items: stretch; overflow: hidden; }
   /* Racks area scrolls on its own (header stays put, panel stays full-height). */
   /* Both axes scroll: with racks placed by hand the plan is as likely to run
-     off to the right as off the bottom. The bars stay hidden — panning with the
-     wheel button is the way you move around a board. */
-  .rp-racks-scroll { flex: 1; min-width: 0; overflow: auto; scrollbar-width: none; overscroll-behavior: contain; }
+     off to the right as off the bottom. The wheel scrolls it, holding the wheel
+     button pans it, and thin bars (below) show where you are. */
+  .rp-racks-scroll { flex: 1; min-width: 0; overflow: auto; overscroll-behavior: contain; }
   /* The empty board reads as draggable, because it is. Cards set their own
      cursors on top of this. */
   .rp-racks-scroll { cursor: grab; }
@@ -1474,7 +1474,10 @@
   /* Nothing inside reacts while panning, or a rack would think it is being
      dragged and the pan would leave a mess behind it. */
   .rp-racks-scroll.is-panning * { pointer-events: none; }
-  .rp-racks-scroll::-webkit-scrollbar { display: none; }
+  /* The wheel scrolls the board (Ctrl / ⌘ + wheel zooms, #323): thin bars show where you are. */
+  .rp-racks-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .rp-racks-scroll::-webkit-scrollbar-track, .rp-racks-scroll::-webkit-scrollbar-corner { background: transparent; }
+  .rp-racks-scroll::-webkit-scrollbar-thumb { background: var(--ink-15); border-radius: 3px; }
   .rp-racks-scroll > .rp-racks-col { min-width: 0; }
   /* Permanently-docked unranked-spools panel — ALWAYS visible (even empty) so it
      reads as the clear "drop here to un-rack" zone. Full board height; its list

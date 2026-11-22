@@ -51,10 +51,12 @@
   /* The board's own scroller — the cards never move, this does. */
   .printers-scroll {
     flex: 1; min-height: 0; overflow: auto;
-    scrollbar-width: none;
     position: relative;
   }
-  .printers-scroll::-webkit-scrollbar { display: none; }
+  /* The wheel scrolls the board (Ctrl / ⌘ + wheel zooms, #323): thin bars show where you are. */
+  .printers-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .printers-scroll::-webkit-scrollbar-track, .printers-scroll::-webkit-scrollbar-corner { background: transparent; }
+  .printers-scroll::-webkit-scrollbar-thumb { background: var(--ink-15); border-radius: 3px; }
   .printers-scroll.is-panning { cursor: grabbing; user-select: none; }
   /* Same row as Storage's: the arrange toggle first — it is an action you take
      while placing machines — then the zoom. */

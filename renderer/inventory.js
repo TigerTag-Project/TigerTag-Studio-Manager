@@ -31233,10 +31233,13 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (!scroller._camZoomWired) {
       scroller._camZoomWired = true;
       scroller.addEventListener("wheel", e => {
+        /* The bare wheel scrolls (#323); Ctrl / ⌘ + wheel zooms, and so does a
+           trackpad pinch, which arrives as a wheel with ctrlKey set. */
+        if (!_planWheelZooms(e)) { _planWheelSideways(scroller, e); return; }
+        e.preventDefault();
         /* A wheel held down still turns a little under the thumb, and those stray
            notches were landing on the zoom while the user was only panning. */
         if (_planPanning) return;
-        e.preventDefault();
         stepZoom(e.deltaY < 0 ? +1 : -1, { x: e.clientX, y: e.clientY });
       }, { passive: false });
     }
@@ -33024,10 +33027,12 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (sc && !sc._zoomWired) {
       sc._zoomWired = true;
       sc.addEventListener("wheel", e => {
+        // The bare wheel scrolls (#323); Ctrl / ⌘ + wheel (or a pinch) zooms.
+        if (!_planWheelZooms(e)) { _planWheelSideways(sc, e); return; }
+        e.preventDefault();
         // A wheel held down still turns a little under the thumb; those stray
         // notches were landing on the zoom while the user was only panning.
         if (_planPanning) return;
-        e.preventDefault();
         stepPrinterZoom(e.deltaY < 0 ? +1 : -1, { x: e.clientX, y: e.clientY });
       }, { passive: false });
     }
@@ -38944,6 +38949,37 @@ import { initScreenTools } from './ai/screen-tools.js';
      stray notches was landing on the zoom — the view crept in or out on its own
      for as long as the button was held. */
   let _planPanning = false;
+  /* The plans (storage, printers, camera wall) zoom on the wheel only with
+     Ctrl / ⌘ held — or on a trackpad pinch, which Chromium sends as a wheel
+     event with ctrlKey. The bare wheel scrolls the view (#323). */
+  function _planWheelZooms(e) { return e.ctrlKey || e.metaKey; }
+  /* A plan wide but not tall (racks laid out in a row) has nothing to scroll
+     down, so a bare wheel did nothing: there it moves the plan sideways, the
+     way a horizontal timeline scrolls. True when it took the event. */
+  function _planWheelSideways(sc, e) {
+    if (!sc || e.deltaX || e.shiftKey || !e.deltaY) return false;
+    if (sc.scrollHeight > sc.clientHeight + 1) return false;      // can scroll down: left native
+    if (sc.scrollWidth <= sc.clientWidth + 1) return false;       // nothing sideways either
+    e.preventDefault();
+    sc.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? sc.clientWidth : 1);
+    return true;
+  }
+  /* Ctrl / ⌘ + and Ctrl / ⌘ − zoom the plan on screen instead of the whole
+     window: the keys press that plan's own + / − buttons, so the step, the
+     bounds and the saved level are the buttons'. Off the plans, and while
+     typing, the keys keep their usual meaning. */
+  document.addEventListener("keydown", e => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const dir = (e.key === "+" || e.key === "=") ? "In" : (e.key === "-" || e.key === "_") ? "Out" : null;
+    if (!dir) return;
+    if (e.target?.closest?.("input, textarea, select, [contenteditable='true']")) return;
+    const btn = ["rvPlanZoom", "pvZoom", "cwZoom"]
+      .map(id => document.getElementById(id + dir))
+      .find(b => b && b.getClientRects().length > 0);   // the plan on screen
+    if (!btn) return;
+    e.preventDefault();
+    btn.click();
+  }, true);
 
   /* Where a rack sits on the plan, in PIXELS from the top-left of the board.
 
@@ -40700,14 +40736,12 @@ import { initScreenTools } from './ai/screen-tools.js';
     $("rvPlanZoomIn")?.addEventListener("click", () => _stepPlanZoom(1));
     $("rvPlanZoomVal")?.addEventListener("change", e => _applyPlanZoom(parseFloat(e.target.value)));
     $("rvPlanZoomVal")?.addEventListener("keydown", e => { if (e.key === "Enter") e.target.blur(); });
-    // Wheel zoom, held under ⌘ / Ctrl. A bare wheel keeps scrolling the plan —
-    // it is often taller than the window even zoomed out, and a view that
-    // cannot be scrolled any more is a worse trade than one keystroke.
-    /* The wheel zooms, it does not scroll — the board convention, and the one
-       that makes sense now that holding the wheel button pans. Bound to the
-       storage area alone so the "not stored" list beside it keeps scrolling
-       normally; binding it to the whole view took that away. */
+    /* Wheel zoom, held under Ctrl / ⌘ (a trackpad pinch counts). A bare wheel
+       scrolls the plan (#323, asked in #301 and #315): a wheel that zoomed on
+       every notch left no way to simply move down the room. Bound to the storage
+       area alone so the "not stored" list beside it keeps its own scrolling. */
     list.querySelector(".rp-racks-scroll")?.addEventListener("wheel", e => {
+      if (!_planWheelZooms(e)) { _planWheelSideways(e.currentTarget, e); return; }
       e.preventDefault();
       if (_planPanning) return;      // the wheel is being held down, not turned on purpose
       _stepPlanZoom(e.deltaY > 0 ? -1 : 1, { x: e.clientX, y: e.clientY });
