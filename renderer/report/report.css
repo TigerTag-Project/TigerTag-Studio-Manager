@@ -739,6 +739,21 @@
 .rep-all-filter .rep-chip { height: 28px; padding: 0 12px; border-radius: 14px; border: 1px solid var(--border); background: none; color: var(--muted);
   font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .rep-all-filter .rep-chip.is-on { color: #fff; background: #2563eb; border-color: #2563eb; }
+/* Search + filters (both request lists): the chips open a small menu under themselves. */
+.rep-fsearch { margin-bottom: 8px; }
+.rep-ftools { flex-wrap: wrap; margin-bottom: 10px; }
+.rep-fwrap { position: relative; display: inline-flex; }
+.rep-all-filter .rep-chip--menu, .rep-all-filter .rep-chip--reset { display: inline-flex; align-items: center; gap: 6px; }
+.rep-all-filter .rep-chip--reset { width: 28px; padding: 0; justify-content: center; }   /* the reset button is only an icon */
+.rep-chip--reset .icon { background: var(--primary); }   /* the app's accent, as on the main search bar */
+.rep-chip-chev { background: currentColor; transform: rotate(90deg); }
+.rep-fmenu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 5; min-width: 190px; max-width: 280px; padding: 5px;
+  display: flex; flex-direction: column; gap: 1px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); box-shadow: var(--shadow); }
+.rep-fopt { display: flex; align-items: center; justify-content: flex-start; width: 100%; text-align: left; padding: 7px 10px; border: 0; border-radius: 7px; background: none; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+.rep-fopt:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.rep-fopt.is-on { background: color-mix(in srgb, #2563eb 20%, transparent); font-weight: 700; }
+/* The repository a request landed in: a small tag in the sub-line, in the sub-line's own colour. */
+.rep-repo { display: inline-flex; align-items: center; height: 18px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--border); color: inherit; font-size: 11px; vertical-align: 1px; }
 .rep-team-acts { gap: 8px; }
 .rep-team-done.rep-team-done { color: var(--success-text); }
 /* The title and sub-line of a pill never shrink away (overflow: hidden makes their min-height 0). */

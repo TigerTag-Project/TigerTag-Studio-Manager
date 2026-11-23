@@ -95,6 +95,18 @@ const targetable = kind => kind && kind !== "catalog" && kind !== "brand";
 // A product's artwork, tinted (resolved against report.css, where var() is used);
 // `icon` is relative to assets/svg/icons/.
 const targetIco = x => `<span class="rep-target-ico" style="--ico:url('../../assets/svg/icons/${x.icon}')"></span>`;
+// Where a request landed: a product of TARGETS, from the backend's own `target` when it
+// sends one, else from the repository in the issue's link. A repository we do not know is
+// shown under its own name (and can only be found by the search).
+const REPO_TARGET = { "tigertag-studio-manager": "studio", "tiger-touch": "tigertouch", "tigerpod": "tigerpod", "tiger-scale-v3": "tigerscale", "tigerspool-rfid": "tigerspool", "tigertag_rfid_connect": "mobile" };
+function repoOf(r) {
+  const own = TARGETS.find(x => x.id === r?.target);
+  if (own) return { id: own.id, label: own.label };
+  const m = /^https:\/\/github\.com\/[^/]+\/([^/]+)\/issues\//.exec(r?.url || "");
+  if (!m) return null;
+  const known = TARGETS.find(x => x.id === REPO_TARGET[m[1].toLowerCase()]);
+  return known ? { id: known.id, label: known.label } : { id: `repo:${m[1]}`, label: m[1] };
+}
 const MAX_IMAGES = 5;          // images + PDFs + JSON files together
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
 const MAX_JSON_BYTES = 2 * 1024 * 1024;
@@ -111,7 +123,12 @@ let _closeAsk = null;    // report id whose close is awaiting confirmation
 let _lastScreen = null;  // last screen painted — a change slides the new one in
 // The conversation open in "My requests" / "All requests": { id, team, data, loading, error, text, images, sending, err }.
 let _thread = null;
-let _all = { list: null, loading: false, error: false, open: true };   // "All requests" (TigerMasters)
+let _all = { list: null, loading: false, error: false };   // "All requests" (TigerMasters)
+// Search + filters of the two request lists (status "open" = open and in progress; "" = any).
+const _fltAll  = { q: "", status: "open", repo: "", kind: "" };   // every member's requests: the open ones, as before
+const _fltMine = { q: "", status: "",     repo: "", kind: "" };   // the user's own: all of them, as before
+let _menu = null;   // the filter menu open: "status" | "repo" | "kind"
+const _flt = () => (_view === "all" ? _fltAll : _fltMine);
 // A requests tab opened again within this keeps the list it shows (no server call).
 const TAB_FRESH_MS = 20e3;
 let _resolveAsk = null;  // "done" | "declined" awaiting its confirmation in the open conversation
@@ -321,6 +338,9 @@ function _ensureCard() {
   _overlay.addEventListener("click", onClick);
   _overlay.addEventListener("input", onInput);
   _overlay.addEventListener("change", onInput);
+  // A click anywhere but the menu (or its chip) closes the open filter menu: the menu alone is
+  // removed, so a click on the search field keeps its focus.
+  document.addEventListener("click", e => { if (_menu && !e.target.closest('.rep-fmenu, [data-rep="fchip"]')) closeMenu(); });
   _overlay.addEventListener("dragover", e => { e.preventDefault(); });
   _overlay.addEventListener("drop", e => { e.preventDefault(); e.stopPropagation(); reportDragState(false); reportDropFiles(e.dataTransfer?.files); });
   // The drop overlay (shown while files are dragged over the window).
@@ -457,7 +477,7 @@ async function openThread(id, { team = false, reply = "", onSent = null } = {}) 
   // `reply` / `onSent`: an answer prepared by an AI assistant (reply_ticket), in the reply box.
   _thread = { id, team, data: null, loading: true, error: false, body: String(reply || ""), images: [], pdfs: [], jsons: [], printerPick: false, sending: false, err: "",
     onSent: typeof onSent === "function" ? onSent : null };
-  _view = team ? "all" : "mine"; _closeAsk = null; _resolveAsk = null;
+  _view = team ? "all" : "mine"; _closeAsk = null; _resolveAsk = null; _menu = null;
   if (!team) _markSeen((_mine.list || []).find(r => r.id === id));
   render();
   try { const j = await authedPost(MINE_ENDPOINT, { action: "thread", reportId: id, ...(team && ctx.isTeam?.() ? { as: "team" } : {}) }); if (_thread?.id === id) _thread.data = j.thread; }
@@ -496,27 +516,80 @@ async function resolveThread(outcome) {
 function allHTML() {
   if (_all.loading && !_all.list) return `<div class="rep-mine-empty">${esc(t("reportMineLoading"))}</div>`;
   if (_all.error && !_all.list) return `<div class="rep-mine-empty">${esc(t("reportMineError"))}</div>`;
-  const list = (_all.list || []).filter(r => !_all.open || CLOSABLE.has(r.status));
-  const chipsHtml = `<div class="rep-all-filter">
-    <button type="button" class="rep-chip${_all.open ? " is-on" : ""}" data-rep="allFilter" data-open="1">${esc(t("reportAllOpen"))}</button>
-    <button type="button" class="rep-chip${_all.open ? "" : " is-on"}" data-rep="allFilter" data-open="0">${esc(t("reportAllEverything"))}</button></div>`;
   const hint = ctx.isTeam?.() ? "" : `<div class="rep-hint">${esc(t("reportAllHint"))}</div>`;
-  const chips = chipsHtml + msgReportsHTML();
-  if (!list.length) return `${chips}<div class="rep-mine-empty">${esc(t("reportAllEmpty"))}</div>${hint}`;
-  return `${chips}<div class="rep-mine">${list.map(r => {
+  return `${filtersHTML(_all.list || [])}${msgReportsHTML()}<div id="repRows">${allRowsHTML()}</div>${hint}`;
+}
+function allRowsHTML() {
+  const list = (_all.list || []).filter(r => matchFilters(r, _fltAll));
+  if (!list.length) return emptyHTML(_fltAll, "reportAllEmpty");
+  return `<div class="rep-mine">${list.map(r => {
     const k = kindOf(r.kind) || KINDS[0], sdef = STATUS[r.status] || STATUS.open;
-    const sub = [r.number ? `#${r.number}` : null, r.createdAt ? ctx.timeAgo(r.createdAt) : null,
-                 r.replies ? t("reportMineComments", { n: r.replies }) : null, r.mine ? t("reportAllYours") : null].filter(Boolean).join(" · ");
+    const sub = subHTML(r, [r.replies ? t("reportMineComments", { n: r.replies }) : null, r.mine ? t("reportAllYours") : null]);
     return `
       <div class="rep-mine-row${CLOSABLE.has(r.status) ? "" : " is-final"}" style="--kc:${k.c}">
         <span class="rep-kind-ico"><span class="icon icon-${k.icon} icon-14"></span></span>
         <button type="button" class="rep-mine-main" data-rep="allThread" data-id="${esc(r.id)}"${r.number ? "" : " disabled"} aria-label="${esc(t("reportMineOpenThread"))}">
           <div class="rep-mine-title">${esc(r.title || r.brand?.name || "—")}</div>
-          <div class="rep-mine-sub">${esc(sub)}</div>
+          <div class="rep-mine-sub">${sub}</div>
         </button>
         <span class="rep-status" style="--sc:${sdef.c}">${esc(t(sdef.key))}</span>
       </div>`;
-  }).join("")}</div>${hint}`;
+  }).join("")}</div>`;
+}
+// ── Search + filters, shared by "My requests" and "All requests" ─────────────
+function matchFilters(r, f) {
+  if (f.status === "open" ? !CLOSABLE.has(r.status) : f.status && r.status !== f.status) return false;
+  if (f.kind && r.kind !== f.kind) return false;
+  const repo = repoOf(r);
+  if (f.repo && repo?.id !== f.repo) return false;
+  const q = f.q.trim().toLowerCase();
+  return !q || [r.title, r.brand?.name, r.number ? `#${r.number}` : "", repo?.label].some(s => String(s || "").toLowerCase().includes(q));
+}
+// Nothing searched or filtered beyond the list's own default status.
+const fltIsDefault = f => !f.q.trim() && !f.repo && !f.kind && f.status === (f === _fltAll ? "open" : "");
+// Something is filtering the list (a chip lit, or text): the reset button is there to undo it.
+const fltActive = f => !!(f.q.trim() || f.repo || f.kind || f.status);
+// What an empty list says: the list's own message while its filters are the default ones, else "no match".
+const emptyHTML = (f, ownKey) => `<div class="rep-mine-empty">${esc(t(fltIsDefault(f) ? ownKey : "reportFltNoMatch"))}</div>`;
+// "#53 · 2 h ago · [repository] · …": the repository is a small tag, the other parts plain text.
+function subHTML(r, extra) {
+  const repo = repoOf(r);
+  return [r.number ? esc(`#${r.number}`) : "", r.createdAt ? esc(ctx.timeAgo(r.createdAt)) : "",
+          repo ? `<span class="rep-repo">${esc(repo.label)}</span>` : "", ...extra.filter(Boolean).map(esc)].filter(Boolean).join(" · ");
+}
+// The kinds a repository takes: Studio has them all; every other product only the ones a
+// request can be sent for there (no catalogue fix, no new brand: see KINDS above and `targetable`).
+const kindsFor = repo => KINDS.filter(k => !repo || repo === "studio" || targetable(k.id));
+function filtersHTML(list) {
+  const f = _flt();
+  const repos = new Map();
+  for (const r of list) { const p = repoOf(r); if (p) repos.set(p.id, p); }
+  const rank = id => { const i = TARGETS.findIndex(x => x.id === id); return i < 0 ? 99 : i; };
+  const repoOpts = [...repos.values()].sort((a, b) => rank(a.id) - rank(b.id) || a.label.localeCompare(b.label)).map(p => [p.id, p.label]);
+  const groups = {
+    status: [[["", t("reportAllEverything")], ["open", t("reportAllOpen")], ["done", t(STATUS.done.key)], ["declined", t(STATUS.declined.key)], ["cancelled", t(STATUS.cancelled.key)]], t("reportAllEverything")],
+    repo:   [[["", t("reportFltRepoAll")], ...repoOpts], t("reportFltRepo")],
+    kind:   [[["", t("reportFltKindAll")], ...kindsFor(f.repo).map(k => [k.id, t(k.label)])], t("reportFltKind")],
+  };
+  const chip = key => {
+    const [opts, name] = groups[key];
+    const cur = opts.find(o => o[0] === f[key]);
+    const on = f[key] !== "";
+    return `<span class="rep-fwrap">
+      <button type="button" class="rep-chip rep-chip--menu${on ? " is-on" : ""}" data-rep="fchip" data-f="${key}" aria-haspopup="listbox" aria-expanded="${_menu === key}">${esc(cur && (on || key === "status") ? cur[1] : name)}<span class="icon icon-chevron-r icon-12 rep-chip-chev"></span></button>
+      ${_menu === key ? `<div class="rep-fmenu" role="listbox">${opts.map(([v, label]) => `<button type="button" class="rep-fopt${f[key] === v ? " is-on" : ""}" role="option" aria-selected="${f[key] === v}" data-rep="fopt" data-f="${key}" data-v="${esc(v)}">${esc(label)}</button>`).join("")}</div>` : ""}
+    </span>`;
+  };
+  return `
+    <div class="rep-prod-search rep-fsearch"><span class="icon icon-search icon-14"></span>
+      <input id="repQ" class="rep-input" type="text" value="${esc(f.q)}" placeholder="${esc(t("reportSearchPh"))}" aria-label="${esc(t("reportSearchPh"))}" autocomplete="off"></div>
+    <div class="rep-all-filter rep-ftools">${chip("status")}${chip("repo")}${chip("kind")}${fltActive(f) ? `
+      <button type="button" class="rep-chip rep-chip--reset" data-rep="fReset" aria-label="${esc(t("reportFltReset"))}"><span class="icon icon-refresh icon-14"></span></button>` : ""}</div>`;
+}
+// Typing repaints the rows only, so the field keeps its focus.
+function repaintRows() {
+  const box = _overlay?.querySelector("#repRows");
+  if (box) box.innerHTML = _view === "all" ? allRowsHTML() : mineRowsHTML();
 }
 /* TigerCoins messages reported by their recipient (team only, backend myReports
    "messageReports"): the open ones first, each with the text, who sent it to whom,
@@ -603,7 +676,7 @@ function threadHTML() {
     <div class="rep-thread-head" style="--kc:${k.c}">
       <span class="rep-kind-ico"><span class="icon icon-${k.icon} icon-14"></span></span>
       <div class="rep-mine-main"><div class="rep-thread-title" id="repHead">${esc(d?.title || r.title || r.brand?.name || "—")}</div>
-        <div class="rep-mine-sub">${esc([(d?.number || r.number) ? `#${d?.number || r.number}` : "", (d?.createdAt || r.createdAt) ? ctx.timeAgo(d?.createdAt || r.createdAt) : ""].filter(Boolean).join(" · "))}</div></div>
+        <div class="rep-mine-sub">${subHTML({ number: d?.number || r.number, createdAt: d?.createdAt || r.createdAt, url, target: d?.target || r.target }, [])}</div></div>
       <span class="rep-status" style="--sc:${sdef.c}">${esc(t(sdef.key))}</span>
       ${url ? `<button type="button" class="rep-mine-btn" data-rep="link" data-url="${esc(url)}" aria-label="${esc(t("reportOpenIssue"))}"><span class="icon icon-github icon-14"></span></button>` : ""}
     </div>`;
@@ -778,6 +851,7 @@ function onInput(e) {
   else if (el.id === "repBrandName") st.brandName = el.value;
   else if (el.id === "repBrandSite") st.brandSite = el.value;
   else if (el.id === "repProdQ") { st.pq = el.value; searchProducts(); }
+  else if (el.id === "repQ") { _flt().q = el.value; repaintRows(); }
   if (["repTitle", "repBody", "repBrandName", "repBrandSite"].includes(el.id)) syncSend();
 }
 const _validSite = u => { try { const x = new URL(/^https?:\/\//i.test(u) ? u : `https://${u}`); return /\./.test(x.hostname); } catch { return false; } };
@@ -864,6 +938,11 @@ function showMissing() {
   }
 }
 
+function closeMenu() {
+  _menu = null;
+  _overlay?.querySelectorAll(".rep-fmenu").forEach(m => m.remove());
+  _overlay?.querySelectorAll('[data-rep="fchip"]').forEach(c => c.setAttribute("aria-expanded", "false"));
+}
 function onClick(e) {
   const a = e.target.closest("[data-rep]");
   if (!a) return;
@@ -898,10 +977,16 @@ function onClick(e) {
   else if (act === "coffee") ctx.openCoffee?.(a);
   else if (act === "squad") ctx.openSquad?.();
   else if (act === "squadWall") (ctx.openSquadBoard ? ctx.openSquadBoard("countries") : ctx.openExternal(a.dataset.url));
-  else if (act === "view") { _view = a.dataset.view; _closeAsk = null; _thread = null; render(); if (_view === "mine") syncReports({ maxAge: TAB_FRESH_MS }); else if (_view === "all") syncAll({ maxAge: TAB_FRESH_MS }); }
+  else if (act === "view") { _view = a.dataset.view; _closeAsk = null; _thread = null; _menu = null; render(); if (_view === "mine") syncReports({ maxAge: TAB_FRESH_MS }); else if (_view === "all") syncAll({ maxAge: TAB_FRESH_MS }); }
   else if (act === "mineThread") openThread(a.dataset.id);
   else if (act === "allThread") openThread(a.dataset.id, { team: true });
-  else if (act === "allFilter") { _all.open = a.dataset.open === "1"; render(); }
+  else if (act === "fchip") { _menu = _menu === a.dataset.f ? null : a.dataset.f; render(); }
+  else if (act === "fReset") { Object.assign(_flt(), { q: "", status: "", repo: "", kind: "" }); _menu = null; render(); }   // every filter off, "Everything" shown
+  else if (act === "fopt") {
+    const f = _flt(); f[a.dataset.f] = a.dataset.v;
+    if (!kindsFor(f.repo).some(k => k.id === f.kind)) f.kind = "";   // the kind chosen does not exist in this repository
+    _menu = null; render();
+  }
   else if (act === "msgRep") resolveMsgReport(a.dataset.id, a.dataset.outcome);
   else if (act === "resolve") { _resolveAsk = a.dataset.outcome; render(); setTimeout(() => { if (_resolveAsk === a.dataset.outcome) { _resolveAsk = null; render(); } }, 4000); }
   else if (act === "resolveYes") resolveThread(a.dataset.outcome);
@@ -1018,14 +1103,18 @@ function squadGateHTML() {
 function mineHTML() {
   if (_mine.loading && !_mine.list) return `<div class="rep-mine-empty">${esc(t("reportMineLoading"))}</div>`;
   if (_mine.error && !_mine.list) return `<div class="rep-mine-empty">${esc(t("reportMineError"))}</div>`;
-  const list = _mine.list || [];
-  if (!list.length) return `<div class="rep-mine-empty">${esc(t("reportMineEmpty"))}</div>`;
+  if (!(_mine.list || []).length) return `<div class="rep-mine-empty">${esc(t("reportMineEmpty"))}</div>`;
+  return `${filtersHTML(_mine.list)}<div id="repRows">${mineRowsHTML()}</div>
+  <div class="rep-hint">${esc(t("reportMineHint"))}</div>`;
+}
+function mineRowsHTML() {
+  const list = (_mine.list || []).filter(r => matchFilters(r, _fltMine));
+  if (!list.length) return emptyHTML(_fltMine, "reportMineEmpty");
   const seen = _mine.uid ? _loadSeen(_mine.uid) : {};
   return `<div class="rep-mine">${list.map(r => {
     const k = kindOf(r.kind) || KINDS[0];
     const sdef = STATUS[r.status] || STATUS.open;
-    const sub = [r.number ? `#${r.number}` : null, r.createdAt ? ctx.timeAgo(r.createdAt) : null,
-                 r.comments ? t("reportMineComments", { n: r.comments }) : null].filter(Boolean).join(" · ");
+    const sub = subHTML(r, [r.comments ? t("reportMineComments", { n: r.comments }) : null]);
     const asking = _closeAsk === r.id;
     const unseen = r.number ? unseenReplies(r, seen) : 0;
     return `
@@ -1033,7 +1122,7 @@ function mineHTML() {
         <span class="rep-kind-ico"><span class="icon icon-${k.icon} icon-14"></span></span>
         <button type="button" class="rep-mine-main" data-rep="mineThread" data-id="${esc(r.id)}"${r.number ? "" : " disabled"} aria-label="${esc(t("reportMineOpenThread"))}">
           <div class="rep-mine-title">${unseen ? `<span class="rep-mine-new">${esc(t("reportMineNewReply"))}</span>` : ""}${esc(r.title || r.brand?.name || "—")}</div>
-          <div class="rep-mine-sub">${esc(sub)}</div>
+          <div class="rep-mine-sub">${sub}</div>
           ${r.closeFailed ? `<div class="rep-error">${esc(t("reportErrSend"))}</div>` : ""}
         </button>
         <span class="rep-status" style="--sc:${sdef.c}">${esc(t(sdef.key))}</span>
@@ -1046,8 +1135,7 @@ function mineHTML() {
             : `<button type="button" class="rep-mine-btn" data-rep="mineClose" data-id="${esc(r.id)}" aria-label="${esc(t("reportMineClose"))}"><span class="icon icon-close icon-12"></span></button>`) : ""}
         </div>
       </div>`;
-  }).join("")}</div>
-  <div class="rep-hint">${esc(t("reportMineHint"))}</div>`;
+  }).join("")}</div>`;
 }
 
 // "Automatic information" — exactly what travels with the report, shown before.
