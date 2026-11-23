@@ -155,6 +155,8 @@ The **TigerTag SDK** is the low-level library that handles all NFC chip operatio
 - **Spools that keep themselves current** *(new in 2.16.0)* — when a brand corrects a temperature, a diameter or a colour name, the spools you own follow along on their own. Only a TigerTag+ can ever ask you for anything, and only when the change concerns something written on the chip itself
 - **Filters written in the search bar** *(new in 2.59.0)* — brand, material, aspect, type, tag, list, weight, rack: click the bar or type a field name and each filter becomes a chip you combine
 - **Find a catalogue product by colour** *(new in 2.59.0)* — a HEX code, a RAL colour (in your own language) or a point of a photo; the closest products come first, with their ΔE on each picture
+- **Find your own spools by colour** *(new in 2.60.0)* — the same colour button in your inventory's search bar: the closest spools first, the rest hidden
+- **Only the brands you follow** *(new in 2.60.0)* — the catalogue shows the makers you picked, and sorts a series' colours side by side
 - **Photos framed in the spool's colour** *(new in 2.30.0)* — every spool photo sits in a frame of its own colour, in the grid, the lists, the catalogue and the details, so you spot the red one at a glance
 - Custom product image for DIY & Cloud spools
 - Manufacturing date, twin-tag detection and manual repair — chips written as a twin say so ("chip 1 of 2"), and the app asks for the second chip when only one has been scanned

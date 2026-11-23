@@ -5,6 +5,71 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.60.0 — 2026-11-23
+
+### Added
+- **Catalogue: pick the brands you follow.** The Search views show only their products (lighter,
+  fewer `/img` asks). The first visit asks for them (`_catViewAskBrands` opens the brands card);
+  the toolbar's "N brands" button reopens it (`#catBrandsPanel`: search, All / None, a toggle row
+  per maker with its product count, saved once on close). Everything unticked goes back to the first
+  state and the view asks again; a search that only matches unfollowed brands says how many and
+  offers to edit them. Kept in `prefs/app.catalogBrands` (read with the language at launch, no extra
+  read; shared with the mobile app) and `tigertag.catalogBrands.<uid>`. `_catBrandShown`,
+  `_catBrandsLoad`, `_catBrandsFromPrefs`, `_catBrandsSave`, `openCatBrands` / `closeCatBrands`.
+- **Catalogue: "Sort by: Series"** — brand, then series, then colour (`_catSortRank`,
+  `CAT_SORTS.series`), grid and table.
+- **Inventory: "Find by colour"** in the search bar of the grid, table and storage views — the
+  Search views' colour card (HEX, RAL Classic, photo, ΔE ceiling, multicolour). Spools past the
+  ceiling are hidden (dimmed in storage), grid and table show the closest first, the colour is one
+  of the bar's chips; not in a friend's view. `_colorSearchScope`, `_rowMatchesColor`,
+  `_invColorRank`, body class `color-search`.
+
+### Changed
+- **Search bar:** no magnifier; right to left QR, Filter, colour; the clear button has its own slot
+  left of them while there is text.
+- **Plans (storage, printers, camera wall):** the wheel scrolls (sideways when the plan is wide but
+  not tall), Ctrl / ⌘ + wheel or a pinch zooms, Ctrl / ⌘ + / − press the zoom buttons; thin themed
+  scrollbars (#323, asked in #301 and #315). `_planWheelZooms`, `_planWheelSideways`.
+- **Find by colour, HEX mode:** the picker (SV area + hue strip) shows in the card at once and
+  follows the field, presets, RAL and photo both ways, gliding in 280 ms (none with reduced motion).
+  `mountColorArea` split out of `openColorPop`.
+- **Find by colour card:** explanations in ⓘ bubbles (`infoTipHtml`); ΔE and multicolour in one
+  settings block; multicolour on by default; the RAL list fills the card's height and scrolls to the
+  chosen code.
+- **Firebase reads and writes cut** (sized for 500,000 users):
+  - XP, TigerCoins and community histories kept locally and topped up with new rows only
+    (`_deltaLog`: COUNT check, monthly full read). Keys `tigertag.xpLog.<uid>`,
+    `tigertag.coinlog.<uid>` (now `{rows, n, …}`), `tigertag.squadPulseHistory` (30 min gap).
+  - `users/{uid}` / `userProfiles/{uid}` no longer read again at sign-in: `syncUserDoc` takes the
+    listeners' first server snapshot (`_ownServerSnap`).
+  - Launch telemetry writes only what changed, or once a day (`tigertag.telemetryMemo.<uid>`,
+    `_telDue`); `sessionsCount` now counts days of use; `recordStudioState` takes the milestone
+    stamps from the sign-in read.
+- `linkedChipLinkTip` and `linkedChipAddTag` reworded in the 11 locales (same text as the mobile app).
+- Bundled data: brand table and catalogue refreshed (`db_update.py`, 24,865 products).
+
+### Fixed
+- **Ghost racks "undefined · 0/NaN"** coming back every day (#302). `updateRack` used `set(merge)`,
+  so a plan write landing after a delete recreated the doc with only `plan` / `lastUpdate`; the plan
+  also adopted a deleted rack's stale card. Now `update()` (not-found ignored), the plan skips cards
+  whose rack is gone, rack docs with no name and no grid are hidden (`_isRealRack`), and existing
+  ghost docs (only `plan` / `lastUpdate`, no spool pointing at them, own account, server snapshot)
+  are deleted (`_sweepGhostRacks`).
+- Find by colour: the search bar's pipette was missing at launch until the view changed.
+- Labels: the maker's logo prints on every layout that prints the brand (vertical labels, Slicer
+  label); logos drawn for a dark background keep their letters (`_monoLabelLogo`, cropped to ink).
+- Friend view: no empty dark box at the right of the header (#322).
+- RFID readers: a Feitian ROCKEY-ARM licence dongle is no longer listed as a reader (#320, #312).
+- `.ttag` import: Import mode no longer fails on every file (`FieldValue.delete()` in a `set()`
+  without merge) (#319, #311).
+- Klipper: editing a filament counts for the "Edit a filament in a printer" mission (#318, #268).
+- Favorites: no rebuild of every card on each inventory refresh (`_pvSameAsShown`), no flicker.
+
+### Removed
+- `persistPrinterSortIndices` (unused since the printer plan; it rewrote every printer).
+
+---
+
 ## v2.59.2 — 2026-11-20
 
 ### Fixed

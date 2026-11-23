@@ -1,4 +1,183 @@
 {
+  "2.60.0": {
+    "date": "2026-11-23",
+    "items": [
+      {
+        "icon": "filter",
+        "title": {
+          "en": "Only the brands you actually buy",
+          "fr": "Seulement les marques que tu achètes",
+          "de": "Nur die Marken, die du wirklich kaufst",
+          "es": "Solo las marcas que de verdad compras",
+          "it": "Solo i marchi che compri davvero",
+          "zh": "只看你真正会买的品牌",
+          "pt": "Só as marcas que você realmente compra",
+          "pt-pt": "Só as marcas que realmente compras",
+          "pl": "Tylko marki, które naprawdę kupujesz",
+          "ru": "Только бренды, которые ты реально покупаешь",
+          "nl": "Alleen de merken die je echt koopt"
+        },
+        "body": {
+          "en": "The catalogue now asks which brands you follow and shows only theirs. Lighter, faster, and you can change your mind any time from the brands button.",
+          "fr": "Le catalogue te demande les marques que tu suis et n'affiche qu'elles. Plus léger, plus rapide, et tu changes d'avis quand tu veux avec le bouton des marques.",
+          "de": "Der Katalog fragt, welchen Marken du folgst, und zeigt nur deren Produkte. Leichter, schneller, und über den Marken-Button änderst du es jederzeit.",
+          "es": "El catálogo te pregunta qué marcas sigues y solo muestra las suyas. Más ligero, más rápido, y cambias de idea cuando quieras con el botón de marcas.",
+          "it": "Il catalogo ti chiede quali marchi segui e mostra solo i loro. Più leggero, più veloce, e cambi idea quando vuoi dal pulsante dei marchi.",
+          "zh": "目录会先问你关注哪些品牌，然后只显示它们的产品。更轻、更快，随时可以用品牌按钮修改。",
+          "pt": "O catálogo pergunta quais marcas você segue e mostra só as delas. Mais leve, mais rápido, e você muda de ideia quando quiser pelo botão de marcas.",
+          "pt-pt": "O catálogo pergunta que marcas segues e mostra só as delas. Mais leve, mais rápido, e mudas de ideias quando quiseres no botão das marcas.",
+          "pl": "Katalog pyta, które marki obserwujesz, i pokazuje tylko je. Lżej, szybciej, a zdanie zmienisz kiedy chcesz przyciskiem marek.",
+          "ru": "Каталог спрашивает, за какими брендами ты следишь, и показывает только их. Легче, быстрее, а передумать можно в любой момент кнопкой брендов.",
+          "nl": "De catalogus vraagt welke merken je volgt en toont alleen die. Lichter, sneller, en je verandert het wanneer je wilt met de merkenknop."
+        }
+      },
+      {
+        "icon": "list",
+        "title": {
+          "en": "A whole series, side by side",
+          "fr": "Toute une série, côte à côte",
+          "de": "Eine ganze Serie, Seite an Seite",
+          "es": "Toda una serie, lado a lado",
+          "it": "Tutta una serie, fianco a fianco",
+          "zh": "整个系列，并排展示",
+          "pt": "Uma série inteira, lado a lado",
+          "pt-pt": "Uma série inteira, lado a lado",
+          "pl": "Cała seria, obok siebie",
+          "ru": "Вся серия рядом",
+          "nl": "Een hele serie, naast elkaar"
+        },
+        "body": {
+          "en": "Sort the catalogue by series: every colour of the same filament lines up together, so picking the right shade takes one look.",
+          "fr": "Trie le catalogue par série : toutes les couleurs d'un même filament s'alignent, choisir la bonne teinte se fait d'un coup d'œil.",
+          "de": "Sortier den Katalog nach Serie: alle Farben desselben Filaments stehen beisammen, der richtige Farbton ist auf einen Blick gefunden.",
+          "es": "Ordena el catálogo por serie: todos los colores del mismo filamento se alinean, y elegir el tono justo es cosa de un vistazo.",
+          "it": "Ordina il catalogo per serie: tutti i colori dello stesso filamento si mettono in fila, e scegliere la tinta giusta è questione di un'occhiata.",
+          "zh": "按系列排序目录：同一款耗材的所有颜色排在一起，一眼就能挑中合适的色调。",
+          "pt": "Ordene o catálogo por série: todas as cores do mesmo filamento ficam juntas, e escolher o tom certo é coisa de uma olhada.",
+          "pt-pt": "Ordena o catálogo por série: todas as cores do mesmo filamento ficam juntas, e escolher o tom certo é coisa de um olhar.",
+          "pl": "Sortuj katalog według serii: wszystkie kolory tego samego filamentu stoją razem, a właściwy odcień widać od razu.",
+          "ru": "Сортируй каталог по серии: все цвета одного филамента выстраиваются рядом, нужный оттенок виден с первого взгляда.",
+          "nl": "Sorteer de catalogus op serie: alle kleuren van hetzelfde filament staan bij elkaar, de juiste tint zie je in één oogopslag."
+        }
+      },
+      {
+        "icon": "palette",
+        "title": {
+          "en": "Find a spool by its colour",
+          "fr": "Retrouve une bobine par sa couleur",
+          "de": "Finde eine Spule an ihrer Farbe",
+          "es": "Encuentra una bobina por su color",
+          "it": "Trova una bobina dal suo colore",
+          "zh": "按颜色找线轴",
+          "pt": "Encontre um carretel pela cor",
+          "pt-pt": "Encontra uma bobine pela cor",
+          "pl": "Znajdź szpulę po kolorze",
+          "ru": "Найди катушку по цвету",
+          "nl": "Vind een spoel aan zijn kleur"
+        },
+        "body": {
+          "en": "The colour button now lives in your inventory's search bar too. Pick a colour, a RAL code or a point on a photo: your closest spools come first.",
+          "fr": "Le bouton couleur est aussi dans la barre de recherche de ton inventaire. Choisis une couleur, un code RAL ou un point sur une photo : tes bobines les plus proches passent devant.",
+          "de": "Der Farbknopf sitzt jetzt auch in der Suchleiste deines Inventars. Wähl eine Farbe, einen RAL-Code oder einen Punkt auf einem Foto: deine ähnlichsten Spulen kommen zuerst.",
+          "es": "El botón de color ya está también en la barra de búsqueda de tu inventario. Elige un color, un código RAL o un punto de una foto: tus bobinas más parecidas salen primero.",
+          "it": "Il pulsante colore ora è anche nella barra di ricerca del tuo inventario. Scegli un colore, un codice RAL o un punto su una foto: le bobine più vicine vengono prima.",
+          "zh": "颜色按钮现在也在库存的搜索栏里。选一个颜色、RAL 色号或照片上的一点：最接近的线轴排在最前面。",
+          "pt": "O botão de cor agora também está na barra de busca do seu inventário. Escolha uma cor, um código RAL ou um ponto numa foto: seus carretéis mais próximos vêm primeiro.",
+          "pt-pt": "O botão de cor agora também está na barra de pesquisa do teu inventário. Escolhe uma cor, um código RAL ou um ponto numa fotografia: as bobines mais próximas aparecem primeiro.",
+          "pl": "Przycisk koloru jest teraz też w pasku wyszukiwania twojego magazynu. Wybierz kolor, kod RAL albo punkt na zdjęciu: najbliższe szpule wskoczą na początek.",
+          "ru": "Кнопка цвета теперь есть и в строке поиска твоего инвентаря. Выбери цвет, код RAL или точку на фото: самые похожие катушки окажутся первыми.",
+          "nl": "De kleurknop zit nu ook in de zoekbalk van je inventaris. Kies een kleur, een RAL-code of een punt op een foto: je meest gelijkende spoelen komen eerst."
+        }
+      },
+      {
+        "icon": "pipette",
+        "title": {
+          "en": "The colour picker is right there",
+          "fr": "Le sélecteur de couleur est là, tout de suite",
+          "de": "Der Farbwähler ist sofort da",
+          "es": "El selector de color está ahí mismo",
+          "it": "Il selettore di colore è subito lì",
+          "zh": "取色器就在眼前",
+          "pt": "O seletor de cor está bem ali",
+          "pt-pt": "O seletor de cor está mesmo ali",
+          "pl": "Próbnik koloru jest od razu na miejscu",
+          "ru": "Палитра выбора цвета уже на месте",
+          "nl": "De kleurkiezer staat er meteen"
+        },
+        "body": {
+          "en": "No more hunting for a hidden click: the colour search card shows its picker straight away, and it glides to any colour you choose elsewhere.",
+          "fr": "Fini le clic caché à deviner : la carte de recherche par couleur affiche son sélecteur d'emblée, et il glisse vers chaque couleur choisie ailleurs.",
+          "de": "Kein versteckter Klick mehr: die Farbsuche zeigt ihren Farbwähler sofort, und er gleitet zu jeder Farbe, die du anderswo wählst.",
+          "es": "Se acabó buscar el clic escondido: la tarjeta de búsqueda por color muestra su selector de entrada, y se desliza hasta cada color que elijas.",
+          "it": "Basta cercare il clic nascosto: la scheda di ricerca per colore mostra subito il selettore, che scivola verso ogni colore scelto altrove.",
+          "zh": "不用再找隐藏的点击了：按颜色搜索的卡片直接显示取色器，你在别处选的颜色它都会顺滑跟过去。",
+          "pt": "Chega de caçar o clique escondido: o cartão de busca por cor mostra o seletor de cara, e ele desliza até cada cor que você escolher.",
+          "pt-pt": "Acabou procurar o clique escondido: o cartão de pesquisa por cor mostra logo o seletor, e ele desliza até cada cor que escolheres.",
+          "pl": "Koniec szukania ukrytego kliknięcia: karta wyszukiwania po kolorze od razu pokazuje próbnik, a ten płynnie przesuwa się do każdego wybranego koloru.",
+          "ru": "Больше не нужно искать скрытый клик: карточка поиска по цвету сразу показывает палитру, и она плавно переезжает к любому выбранному цвету.",
+          "nl": "Geen verstopte klik meer zoeken: de kleurzoekkaart toont de kiezer meteen, en die glijdt naar elke kleur die je elders kiest."
+        }
+      },
+      {
+        "icon": "rack-grid",
+        "title": {
+          "en": "Your plans scroll like a map",
+          "fr": "Tes plans défilent comme une carte",
+          "de": "Deine Pläne scrollen wie eine Karte",
+          "es": "Tus planos se desplazan como un mapa",
+          "it": "Le tue piante scorrono come una mappa",
+          "zh": "平面图像地图一样滚动",
+          "pt": "Seus planos rolam como um mapa",
+          "pt-pt": "As tuas plantas deslizam como um mapa",
+          "pl": "Twoje plany przewijają się jak mapa",
+          "ru": "Твои планы листаются как карта",
+          "nl": "Je plattegronden scrollen als een kaart"
+        },
+        "body": {
+          "en": "On the storage plan, the printers plan and the camera wall, the mouse wheel scrolls and Ctrl / ⌘ + wheel zooms. Pinch works too.",
+          "fr": "Sur le plan du rangement, celui des imprimantes et le mur de caméras, la molette fait défiler et Ctrl / ⌘ + molette zoome. Le pincement marche aussi.",
+          "de": "Auf dem Lagerplan, dem Druckerplan und der Kamerawand scrollt das Mausrad, Strg / ⌘ + Rad zoomt. Pinch geht auch.",
+          "es": "En el plano del almacén, el de las impresoras y el muro de cámaras, la rueda desplaza y Ctrl / ⌘ + rueda hace zoom. El pellizco también funciona.",
+          "it": "Sulla pianta del magazzino, quella delle stampanti e il muro delle telecamere, la rotellina scorre e Ctrl / ⌘ + rotellina zooma. Funziona anche il pizzico.",
+          "zh": "在存储平面图、打印机平面图和摄像头墙上，滚轮滚动，Ctrl / ⌘ + 滚轮缩放。双指捏合也可以。",
+          "pt": "No plano do armazenamento, no das impressoras e no mural de câmeras, a roda do mouse rola e Ctrl / ⌘ + roda dá zoom. A pinça também funciona.",
+          "pt-pt": "Na planta do armazenamento, na das impressoras e no mural de câmaras, a roda do rato desliza e Ctrl / ⌘ + roda faz zoom. A pinça também funciona.",
+          "pl": "Na planie magazynu, planie drukarek i ścianie kamer kółko myszy przewija, a Ctrl / ⌘ + kółko przybliża. Szczypanie też działa.",
+          "ru": "На плане хранения, плане принтеров и стене камер колесо мыши прокручивает, а Ctrl / ⌘ + колесо масштабирует. Щипок тоже работает.",
+          "nl": "Op de opslagplattegrond, de printerplattegrond en de camerawand scrolt het muiswiel en zoomt Ctrl / ⌘ + wiel. Knijpen werkt ook."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Ghost racks, exorcised",
+          "fr": "Racks fantômes, exorcisés",
+          "de": "Geisterregale, ausgetrieben",
+          "es": "Estanterías fantasma, exorcizadas",
+          "it": "Scaffali fantasma, esorcizzati",
+          "zh": "幽灵货架，已驱散",
+          "pt": "Racks fantasmas, exorcizados",
+          "pt-pt": "Racks fantasma, exorcizados",
+          "pl": "Regały-duchy, wypędzone",
+          "ru": "Призрачные стеллажи изгнаны",
+          "nl": "Spookrekken, uitgedreven"
+        },
+        "body": {
+          "en": "Those nameless empty racks that kept coming back to your storage are gone, and they won't return.",
+          "fr": "Ces racks vides et sans nom qui revenaient sans cesse dans ton rangement sont partis, et ils ne reviendront pas.",
+          "de": "Diese namenlosen leeren Regale, die immer wieder in deinem Lager auftauchten, sind weg und kommen nicht zurück.",
+          "es": "Esas estanterías vacías y sin nombre que volvían una y otra vez a tu almacén se han ido, y no volverán.",
+          "it": "Quegli scaffali vuoti e senza nome che continuavano a tornare nel tuo magazzino sono spariti, e non torneranno.",
+          "zh": "那些反复出现在存储里、没有名字的空货架已经消失，而且不会再回来。",
+          "pt": "Aqueles racks vazios e sem nome que voltavam toda hora ao seu armazenamento sumiram, e não vão voltar.",
+          "pt-pt": "Aqueles racks vazios e sem nome que voltavam sempre ao teu armazenamento desapareceram, e não vão voltar.",
+          "pl": "Te bezimienne puste regały, które ciągle wracały do twojego magazynu, zniknęły i już nie wrócą.",
+          "ru": "Безымянные пустые стеллажи, которые постоянно возвращались в твоё хранилище, исчезли и больше не появятся.",
+          "nl": "Die naamloze lege rekken die steeds terugkwamen in je opslag zijn weg, en ze komen niet terug."
+        }
+      }
+    ]
+  },
   "2.58.0": {
     "date": "2026-11-15",
     "items": [
