@@ -505,7 +505,15 @@ export async function showScreenshot({ key, name, target, prefix, aspect, captur
   const shot = _shot = { key, name, target, prefix, aspect, capture, closeHost, dataUrl: null };
   const frameStyle = `style="aspect-ratio:${esc(aspect || "800 / 480")}"`;
   body.innerHTML = `<div class="ttc-shot-frame ttc-shot-frame--loading" ${frameStyle}><span class="ttc-spinner"></span></div>`;
-  document.getElementById("tigertouchShotOverlay")?.classList.add("open");
+  /* Above whatever window asked for it. The live screens of the Tiger Touch and
+     the Tiger Scale are overlays of the same level, added to the page later than
+     this one — the later one wins, so the picture opened BEHIND the live view.
+     Moved to the end of the page each time (its listeners go with it). */
+  const overlay = document.getElementById("tigertouchShotOverlay");
+  if (overlay) {
+    if (overlay !== document.body.lastElementChild) document.body.appendChild(overlay);
+    overlay.classList.add("open");
+  }
   let res;
   try { res = await capture(); }
   catch (_) { res = { ok: false, error: "unreachable" }; }
