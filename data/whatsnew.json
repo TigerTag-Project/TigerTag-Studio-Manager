@@ -1,4 +1,96 @@
 {
+  "2.61.0": {
+    "date": "2026-11-24",
+    "items": [
+      {
+        "icon": "camera",
+        "title": {
+          "en": "Cameras that keep still",
+          "fr": "Des caméras qui tiennent en place",
+          "de": "Kameras, die stillhalten",
+          "es": "Cámaras que no parpadean",
+          "it": "Telecamere che stanno ferme",
+          "zh": "摄像头不再闪烁",
+          "pt": "Câmeras que ficam quietas",
+          "pt-pt": "Câmaras que não piscam",
+          "pl": "Kamery, które nie migają",
+          "ru": "Камеры больше не мигают",
+          "nl": "Camera's die stil blijven"
+        },
+        "body": {
+          "en": "Your printer cameras no longer blink while Studio starts, or when you connect one machine. The other feeds just keep rolling.",
+          "fr": "Les caméras de tes imprimantes ne clignotent plus au démarrage de Studio, ni quand tu connectes une machine. Les autres flux continuent de tourner.",
+          "de": "Deine Druckerkameras blinken nicht mehr beim Start von Studio oder wenn du eine Maschine verbindest. Die anderen Bilder laufen einfach weiter.",
+          "es": "Las cámaras de tus impresoras ya no parpadean al arrancar Studio ni al conectar una máquina. Las demás siguen a lo suyo.",
+          "it": "Le telecamere delle tue stampanti non lampeggiano più all'avvio di Studio o quando colleghi una macchina. Gli altri video continuano tranquilli.",
+          "zh": "Studio 启动时或连接某台打印机时，摄像头画面不再闪烁，其他画面照常播放。",
+          "pt": "As câmeras das suas impressoras não piscam mais ao abrir o Studio nem ao conectar uma máquina. As outras continuam rodando.",
+          "pt-pt": "As câmaras das tuas impressoras já não piscam ao abrir o Studio nem ao ligar uma máquina. As outras continuam a correr.",
+          "pl": "Kamery twoich drukarek nie migają już przy starcie Studio ani przy łączeniu maszyny. Pozostałe obrazy po prostu lecą dalej.",
+          "ru": "Камеры принтеров больше не мигают при запуске Studio или подключении машины. Остальные трансляции идут дальше.",
+          "nl": "Je printercamera's knipperen niet meer bij het starten van Studio of als je een machine verbindt. De andere beelden draaien gewoon door."
+        }
+      },
+      {
+        "icon": "search",
+        "title": {
+          "en": "Find your requests in a flash",
+          "fr": "Retrouve tes demandes en un éclair",
+          "de": "Finde deine Anfragen im Nu",
+          "es": "Encuentra tus solicitudes al instante",
+          "it": "Ritrova le tue richieste in un lampo",
+          "zh": "瞬间找到你的反馈",
+          "pt": "Encontre seus pedidos num piscar",
+          "pt-pt": "Encontra os teus pedidos num instante",
+          "pl": "Znajdź swoje zgłoszenia w mig",
+          "ru": "Найди свои запросы за секунду",
+          "nl": "Vind je aanvragen in een flits"
+        },
+        "body": {
+          "en": "Your requests now have a search field and filters by status, product and type, and each one says which product it went to.",
+          "fr": "Tes demandes ont maintenant une recherche et des filtres par statut, produit et type, et chacune dit à quel produit elle est partie.",
+          "de": "Deine Anfragen haben jetzt ein Suchfeld und Filter nach Status, Produkt und Typ, und jede zeigt, an welches Produkt sie ging.",
+          "es": "Tus solicitudes tienen ahora búsqueda y filtros por estado, producto y tipo, y cada una dice a qué producto fue.",
+          "it": "Le tue richieste ora hanno una ricerca e filtri per stato, prodotto e tipo, e ognuna dice a quale prodotto è andata.",
+          "zh": "你的反馈现在可以搜索，并按状态、产品和类型筛选，每条都会显示发往哪个产品。",
+          "pt": "Seus pedidos agora têm busca e filtros por status, produto e tipo, e cada um mostra para qual produto foi.",
+          "pt-pt": "Os teus pedidos têm agora pesquisa e filtros por estado, produto e tipo, e cada um diz para que produto foi.",
+          "pl": "Twoje zgłoszenia mają teraz wyszukiwarkę i filtry według statusu, produktu i typu, a każde pokazuje, do jakiego produktu trafiło.",
+          "ru": "У твоих запросов теперь есть поиск и фильтры по статусу, продукту и типу, и у каждого видно, к какому продукту он ушёл.",
+          "nl": "Je aanvragen hebben nu een zoekveld en filters op status, product en type, en elke aanvraag toont naar welk product ze ging."
+        }
+      },
+      {
+        "icon": "image",
+        "title": {
+          "en": "Screenshots in front, where you can see them",
+          "fr": "Les captures devant, là où tu les vois",
+          "de": "Screenshots vorne, wo du sie siehst",
+          "es": "Capturas delante, donde las ves",
+          "it": "Screenshot davanti, dove le vedi",
+          "zh": "截图显示在最前面",
+          "pt": "Capturas na frente, onde você vê",
+          "pt-pt": "Capturas à frente, onde as vês",
+          "pl": "Zrzuty ekranu na wierzchu, tam gdzie je widzisz",
+          "ru": "Скриншоты спереди, где их видно",
+          "nl": "Screenshots vooraan, waar je ze ziet"
+        },
+        "body": {
+          "en": "Taking a screenshot from a Tiger Scale or Tiger Touch live screen now shows it right on top, not hidden behind.",
+          "fr": "Une capture prise depuis l'écran en direct d'une Tiger Scale ou d'un Tiger Touch s'affiche maintenant devant, plus cachée derrière.",
+          "de": "Ein Screenshot vom Live-Bildschirm einer Tiger Scale oder eines Tiger Touch erscheint jetzt vorne, nicht mehr dahinter versteckt.",
+          "es": "Una captura desde la pantalla en directo de una Tiger Scale o un Tiger Touch ahora aparece delante, ya no escondida detrás.",
+          "it": "Uno screenshot dallo schermo live di una Tiger Scale o di un Tiger Touch ora appare davanti, non più nascosto dietro.",
+          "zh": "从 Tiger Scale 或 Tiger Touch 的实时屏幕截图，现在直接显示在最前面，不再藏在后面。",
+          "pt": "Uma captura da tela ao vivo de uma Tiger Scale ou de um Tiger Touch agora aparece na frente, não mais escondida atrás.",
+          "pt-pt": "Uma captura do ecrã em direto de uma Tiger Scale ou de um Tiger Touch aparece agora à frente, já não escondida atrás.",
+          "pl": "Zrzut z ekranu na żywo Tiger Scale lub Tiger Touch pokazuje się teraz na wierzchu, a nie schowany z tyłu.",
+          "ru": "Скриншот с живого экрана Tiger Scale или Tiger Touch теперь появляется спереди, а не прячется сзади.",
+          "nl": "Een screenshot van het live scherm van een Tiger Scale of Tiger Touch staat nu vooraan, niet meer verstopt erachter."
+        }
+      }
+    ]
+  },
   "2.60.0": {
     "date": "2026-11-23",
     "items": [

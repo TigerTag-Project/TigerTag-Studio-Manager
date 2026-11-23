@@ -1130,6 +1130,14 @@
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=52222&v=1794707113"
   },
   {
+    "id": 52300,
+    "name": "Swissfil",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 52467,
     "name": "Geeetech",
     "type_ids": [

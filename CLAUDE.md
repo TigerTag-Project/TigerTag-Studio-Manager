@@ -206,6 +206,7 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.coinlog.<id>` / `tigertag.xpLog.<id>` / `tigertag.squadPulseHistory` | that account's TigerCoins history (300 newest), XP history (2,000 newest) and the community history (90 days) `{rows, n, fullAt, toppedAt, cover, complete}`: shown at once, then topped up with the new rows only (`_deltaLog`) |
 | `tigertag.telemetryMemo.<id>` | what the launch telemetry last wrote for that account (part → `{sig, at}`, + the milestone stamps): a part is written again only when it changed or once a day (`_telDue`) |
 | `tigertag.header.<id>` | the header's and view bar's last figures for that account `{stats: {key: number}, coins: {balance, n}, bar: {daily, level, squad, lists, order, invite}}`, painted at launch before the data arrives, then updated where they differ |
+| `tigertag.reportTeamSeen.<id>` / `tigertag.reportTeamNotifs.<id>` | TigerMasters / admins only: per open request, the count of non-team comments last seen, and the kept "the author wrote" notices (30 days, 30 at most) (`renderer/report/index.js`) |
 
 ## Account object shape
 ```js

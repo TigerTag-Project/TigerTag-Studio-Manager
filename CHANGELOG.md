@@ -5,6 +5,42 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.61.0 — 2026-11-24
+
+### Added
+- **Requests: repository, search and filters** (#331, Ptitlouis6012). Each request shows the
+  repository it went to (a tag in its line and in an open conversation's header, from `target` or
+  the issue URL, `repoOf`); "All requests" and "My requests" get a search field (title, number,
+  repository), Status / Repository / Type filters (the type menu follows the repository) and a reset
+  key. Defaults unchanged ("All requests" on Open, "My requests" on everything).
+- **Requests: TigerMasters told when an author writes** (#333, Ptitlouis6012). A rise in an open
+  request's non-team comments is checked in its thread; only a comment from the reporter raises a
+  "Request #N" notice (unread until the notification centre opens, then kept 30 days / 30 notices).
+  Checked at sign-in and every 30 min while visible, only for TigerMasters and admins. Keys
+  `tigertag.reportTeamSeen.<uid>`, `tigertag.reportTeamNotifs.<uid>`. Request notices now belong to
+  one account (`_dropRequestNotifs`), which also fixes a reply notice leaking into the next account.
+
+### Fixed
+- **Printers board: cameras no longer flicker at launch.** The board was rebuilt ~25 times in the
+  first 30 s (each brand's Firestore snapshot, every inventory render, Elegoo ticks, the last-seen
+  seed), restarting every live feed each time. `renderPrintersView` now compares the board's shape
+  (`_boardSig`: machines, names, models, widgets, unit split, camera offered, job keys, selection,
+  arrange, zoom, language, external cameras) and, when unchanged, only re-lays positions out; live
+  values are patched in place (`_patchGridStatus`, `_patchGridJobs`, `_patchSlotsWidgets`,
+  `_camCatchUp`). The FlashForge mux consumers are released only on a real rebuild.
+- **Printers: Connect / Disconnect in the side panel** patched the status dots instead of rebuilding
+  the board (`_patchGridStatus` / `_patchTableStatus` / `_patchCamWall`), so other feeds keep running.
+- **Tiger Scale / Tiger Touch live screen:** Screenshot opened its window behind the live view (same
+  overlay level, live one later in the DOM); `showScreenshot` moves its overlay to the end of the page
+  before opening (#335).
+- **Search bar:** its lists (field list, chip editors) stand at z-index 100, under the side cards
+  (101+), instead of the shared `.csel-pop` 600, so a side card over the bar covers them.
+
+### Changed
+- Bundled data: brand table and catalogue refreshed (`db_update.py`, 24,947 products).
+
+---
+
 ## v2.60.0 — 2026-11-23
 
 ### Added

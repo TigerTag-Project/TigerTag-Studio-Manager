@@ -24302,6 +24302,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 70,
+      "color_g": 67,
+      "color_r": 61,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#3D4346FF",
+    "color_info": {
+      "colors": [
+        "#3D4346FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 77563715,
+    "img_src": "https://cdn.tigertag.io/img?id=77563715&v=1795448671",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Anthrazitgrau",
+    "product_type": "Filament",
+    "series": "Tough PLA",
+    "sku": "SWF-TPLA-ANTHRAZITGRAU-750G",
+    "title": "Tough PLA - Anthrazitgrau",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 0,
       "color_g": 0,
       "color_r": 0,
@@ -25198,6 +25253,61 @@
     "sku": "KEX-K5WOOD-WOOD-285-1KG",
     "title": "THE K5 WOOD - Wood",
     "updated_at": 1788379548200
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 224,
+      "color_g": 163,
+      "color_r": 0,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#00A3E0FF",
+    "color_info": {
+      "colors": [
+        "#00A3E0FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 80109938,
+    "img_src": "https://cdn.tigertag.io/img?id=80109938&v=1795431294",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Cyan",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-CY-250G-A",
+    "title": "ABS - Cyan",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -32775,7 +32885,7 @@
       "type": "mono"
     },
     "id": 97184114,
-    "img_src": "https://cdn.tigertag.io/img?id=97184114&v=1795428019",
+    "img_src": "https://cdn.tigertag.io/img?id=97184114&v=1795438127",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -32786,7 +32896,7 @@
     "series": "ABS",
     "sku": "ESUN-ABS-CLEAR-1000G",
     "title": "ABS - Clear",
-    "updated_at": 1795428015509
+    "updated_at": 1795438124462
   },
   {
     "RFID_Data": {
@@ -34654,6 +34764,61 @@
     "sku": "601 175 SW 1000",
     "title": "PPS CF10 - Schwarz",
     "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 197,
+      "color_g": 119,
+      "color_r": 71,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#4777C5FF",
+    "color_info": {
+      "colors": [
+        "#4777C5FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 103838389,
+    "img_src": "https://cdn.tigertag.io/img?id=103838389&v=1795448624",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Himmelblau",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-HIMMELBLAU-750G",
+    "title": "PLA - Himmelblau",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -67958,6 +68123,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 170,
+      "color_g": 201,
+      "color_r": 207,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38256,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#CFC9AAFF",
+    "color_info": {
+      "colors": [
+        "#CFC9AAFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 205334979,
+    "img_src": "https://cdn.tigertag.io/img?id=205334979&v=1795448675",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PETG",
+    "measure": "750 g",
+    "name": "Transparent",
+    "product_type": "Filament",
+    "series": "PET-G",
+    "sku": "SWF-PETG-TRANSPARENT-750G",
+    "title": "PET-G - Transparent",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 80,
       "color_g": 127,
       "color_r": 255,
@@ -70422,6 +70642,61 @@
     "sku": "060007",
     "title": "Varioshore TPU - Blue",
     "updated_at": 1792252874567
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 149,
+      "color_g": 80,
+      "color_r": 69,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#455095FF",
+    "color_info": {
+      "colors": [
+        "#455095FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 213420232,
+    "img_src": "https://cdn.tigertag.io/img?id=213420232&v=1795448629",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Dunkelblau",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-DUNKELBLAU-750G",
+    "title": "PLA - Dunkelblau",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -82503,24 +82778,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#EAA1B2FF",
+    "color": "#EAA1B2",
     "color_info": {
       "colors": [
-        "#EAA1B2FF"
+        "#EAA1B2"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 249177514,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=249177514&v=1795440456",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -82531,7 +82806,7 @@
     "series": "PLA+",
     "sku": "ESUN-PLA+-CANDYPINK-1000G",
     "title": "PLA+ - Candy Pink",
-    "updated_at": null
+    "updated_at": 1795440452372
   },
   {
     "RFID_Data": {
@@ -106965,6 +107240,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 123,
+      "color_g": 120,
+      "color_r": 117,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#75787BFF",
+    "color_info": {
+      "colors": [
+        "#75787BFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 322209452,
+    "img_src": "https://cdn.tigertag.io/img?id=322209452&v=1795431265",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Grey",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-GY-250G-A",
+    "title": "ABS - Grey",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 0,
       "color_g": 255,
       "color_r": 223,
@@ -124112,6 +124442,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 84,
+      "color_g": 107,
+      "color_r": 126,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#7E6B54FF",
+    "color_info": {
+      "colors": [
+        "#7E6B54FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 374206815,
+    "img_src": "https://cdn.tigertag.io/img?id=374206815&v=1795451224",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Holzfarben",
+    "product_type": "Filament",
+    "series": "PLA Wood",
+    "sku": "SWF-PLAWOOD-WOOD-750G",
+    "title": "PLA Wood - Holzfarben",
+    "updated_at": 1795451313799
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 222,
       "color_g": 230,
       "color_r": 247,
@@ -140257,6 +140642,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 93,
+      "color_g": 54,
+      "color_r": 180,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#B4365DFF",
+    "color_info": {
+      "colors": [
+        "#B4365DFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 425098431,
+    "img_src": "https://cdn.tigertag.io/img?id=425098431&v=1795448643",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Himbeerrot",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-HIMBEERROT-750G",
+    "title": "PLA - Himbeerrot",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 107,
       "color_g": 42,
       "color_r": 142,
@@ -148876,6 +149316,61 @@
     "sku": "E4509",
     "title": "Pro PCTG 3D-Fuel - Grape Purple",
     "updated_at": 1793174974105
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 18,
+      "color_g": 18,
+      "color_r": 18,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#121212FF",
+    "color_info": {
+      "colors": [
+        "#121212FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 451625355,
+    "img_src": "https://cdn.tigertag.io/img?id=451625355&v=1795446975",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Schwarz",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-SCHWARZ-750G",
+    "title": "ASA - Schwarz",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -168213,18 +168708,18 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#5F4133FF",
+    "color": "#5F4133",
     "color_info": {
       "colors": [
-        "#5F4133FF"
+        "#5F4133"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": "RAL 8011",
       "ral_delta_e": 2.7,
       "ral_source": "auto",
       "ral_source_url": null,
-      "ral_source_urls": null,
+      "ral_source_urls": [],
       "ral_sources": [
         "auto"
       ],
@@ -168234,7 +168729,7 @@
       "type": "mono"
     },
     "id": 508555194,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=508555194&v=1795440358",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -168245,7 +168740,7 @@
     "series": "PLA-Basic",
     "sku": "ESUN-PLA-COCOABROWN-1000G",
     "title": "PLA-Basic - Cocoa Brown",
-    "updated_at": null
+    "updated_at": 1795440354275
   },
   {
     "RFID_Data": {
@@ -175388,6 +175883,61 @@
     "sku": "5903175653970",
     "title": "PCTG Premium - Arctic White",
     "updated_at": 1788400723574
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 103,
+      "color_g": 73,
+      "color_r": 161,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#A14967FF",
+    "color_info": {
+      "colors": [
+        "#A14967FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 529007766,
+    "img_src": "https://cdn.tigertag.io/img?id=529007766&v=1795448638",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Pink",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-PINK-750G",
+    "title": "PLA - Pink",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -187984,24 +188534,24 @@
     "aspect2": null,
     "barcode": "6922572206045.0",
     "brand": "eSun",
-    "color": "#DF1995FF",
+    "color": "#DF1995",
     "color_info": {
       "colors": [
-        "#DF1995FF"
+        "#DF1995"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 563254934,
-    "img_src": "https://cdn.tigertag.io/img?id=563254934&v=1",
+    "img_src": "https://cdn.tigertag.io/img?id=563254934&v=1795440207",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -188012,7 +188562,7 @@
     "series": "PLA+ with spool",
     "sku": "PLA+CMYK175O-PP1P1",
     "title": "PLA+ with spool - MAGENTA",
-    "updated_at": 1794474460717
+    "updated_at": 1795440204253
   },
   {
     "RFID_Data": {
@@ -193283,24 +193833,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#A61FA8FF",
+    "color": "#A61FA8",
     "color_info": {
       "colors": [
-        "#A61FA8FF"
+        "#A61FA8"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 580707024,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=580707024&v=1795430920",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -193311,7 +193861,7 @@
     "series": "PLA-Basic",
     "sku": "ESUN-PLA-VIOLET-1000G",
     "title": "PLA-Basic - Violet",
-    "updated_at": null
+    "updated_at": 1795430916142
   },
   {
     "RFID_Data": {
@@ -193921,6 +194471,61 @@
     "sku": "3DTMOrange",
     "title": "PLA Crystal Transparent - Crystal Orange",
     "updated_at": 1792328883321
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 97,
+      "color_g": 162,
+      "color_r": 189,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#BDA261FF",
+    "color_info": {
+      "colors": [
+        "#BDA261FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 582203373,
+    "img_src": "https://cdn.tigertag.io/img?id=582203373&v=1795431297",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Gold",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-GD-250G-A",
+    "title": "ABS - Gold",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -205033,6 +205638,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 255,
+      "color_g": 255,
+      "color_r": 255,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#FFFFFFFF",
+    "color_info": {
+      "colors": [
+        "#FFFFFFFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 617754750,
+    "img_src": "https://cdn.tigertag.io/img?id=617754750&v=1795431269",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "White",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-WT-250G-A",
+    "title": "ABS - White",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 0,
       "color_g": 0,
       "color_r": 0,
@@ -207316,6 +207976,61 @@
     "sku": "AZR-PLA-ORG-CHP",
     "title": "PLA Original - CHAMPAGNE",
     "updated_at": 1793538656939
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 195,
+      "color_g": 142,
+      "color_r": 71,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#478EC3FF",
+    "color_info": {
+      "colors": [
+        "#478EC3FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 624176123,
+    "img_src": "https://cdn.tigertag.io/img?id=624176123&v=1795448645",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Hellblau",
+    "product_type": "Filament",
+    "series": "Tough PLA",
+    "sku": "SWF-TPLA-HELLBLAU-750G",
+    "title": "Tough PLA - Hellblau",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -215190,6 +215905,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 137,
+      "color_g": 147,
+      "color_r": 144,
+      "data1": 56,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38256,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#909389FF",
+    "color_info": {
+      "colors": [
+        "#909389FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 646017143,
+    "img_src": "https://cdn.tigertag.io/img?id=646017143&v=1795450697",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PETG",
+    "measure": "750 g",
+    "name": "Betongrau",
+    "product_type": "Filament",
+    "series": "PET-G",
+    "sku": "SWF-PETG-BETONGRAU-175-750G",
+    "title": "PET-G - Betongrau",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 0,
       "color_g": 124,
       "color_r": 245,
@@ -220583,6 +221353,61 @@
     "sku": "DLZ-JY-PLA+-GN-1.1kg-C",
     "title": "Standard PLA+ - Green",
     "updated_at": 1794490742008
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 19,
+      "color_g": 19,
+      "color_r": 20,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#141313FF",
+    "color_info": {
+      "colors": [
+        "#141313FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 663181922,
+    "img_src": "https://cdn.tigertag.io/img?id=663181922&v=1795448636",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Schwarz",
+    "product_type": "Filament",
+    "series": "Tough PLA",
+    "sku": "SWF-TPLA-SCHWARZ-750G",
+    "title": "Tough PLA - Schwarz",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -249756,6 +250581,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 56,
+      "color_g": 66,
+      "color_r": 99,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#634238FF",
+    "color_info": {
+      "colors": [
+        "#634238FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 746863165,
+    "img_src": "https://cdn.tigertag.io/img?id=746863165&v=1795448690",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Braun",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-BRAUN-750G",
+    "title": "ASA - Braun",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 177,
       "color_b2": 118,
       "color_b3": 250,
@@ -253026,6 +253906,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 221,
+      "color_g": 236,
+      "color_r": 240,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#F0ECDDFF",
+    "color_info": {
+      "colors": [
+        "#F0ECDDFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 758715633,
+    "img_src": "https://cdn.tigertag.io/img?id=758715633&v=1795446946",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Weiss",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-WEISS-750G",
+    "title": "PLA - Weiss",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 255,
       "color_g": 255,
       "color_r": 255,
@@ -254067,7 +255002,7 @@
       "type": "mono"
     },
     "id": 761901831,
-    "img_src": "https://cdn.tigertag.io/img?id=761901831&v=1795427897",
+    "img_src": "https://cdn.tigertag.io/img?id=761901831&v=1795438178",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -254078,7 +255013,7 @@
     "series": "ABS",
     "sku": "ESUN-ABS-ORANGE-1000G",
     "title": "ABS - Orange",
-    "updated_at": 1795427894053
+    "updated_at": 1795438174724
   },
   {
     "RFID_Data": {
@@ -276033,24 +276968,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#5B2067FF",
+    "color": "#5B2067",
     "color_info": {
       "colors": [
-        "#5B2067FF"
+        "#5B2067"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 831796095,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=831796095&v=1795440551",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -276061,7 +276996,7 @@
     "series": "PETG+HS",
     "sku": "ESUN-PETG-HS-TRANSPARENTPURPLE-1000G",
     "title": "PETG+HS - Transparent Purple",
-    "updated_at": null
+    "updated_at": 1795440547713
   },
   {
     "RFID_Data": {
@@ -296609,6 +297544,61 @@
   },
   {
     "RFID_Data": {
+      "color_a": 255,
+      "color_b": 161,
+      "color_g": 193,
+      "color_r": 199,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#C7C1A1FF",
+    "color_info": {
+      "colors": [
+        "#C7C1A1FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 896545478,
+    "img_src": "https://cdn.tigertag.io/img?id=896545478&v=1795448616",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Transparent",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-TRANSPARENT-750G",
+    "title": "PLA - Transparent",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
       "color_a": 128,
       "color_b": 41,
       "color_g": 34,
@@ -312326,6 +313316,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 61,
+      "color_g": 109,
+      "color_r": 90,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#5A6D3DFF",
+    "color_info": {
+      "colors": [
+        "#5A6D3DFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 946563077,
+    "img_src": "https://cdn.tigertag.io/img?id=946563077&v=1795431316",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Olive Green",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-OG-250G-A",
+    "title": "ABS - Olive Green",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 46,
       "color_g": 27,
       "color_r": 155,
@@ -323986,6 +325031,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 81,
+      "color_g": 205,
+      "color_r": 142,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#8ECD51FF",
+    "color_info": {
+      "colors": [
+        "#8ECD51FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 982598361,
+    "img_src": "https://cdn.tigertag.io/img?id=982598361&v=1795448675",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Hellgrün",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-HELLGRUN-750G",
+    "title": "ASA - Hellgrün",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 192,
       "color_g": 224,
       "color_r": 159,
@@ -324507,24 +325607,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#F5F3E4FF",
+    "color": "#F5F3E4",
     "color_info": {
       "colors": [
-        "#F5F3E4FF"
+        "#F5F3E4"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 983553840,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=983553840&v=1795430020",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -324535,7 +325635,7 @@
     "series": "ABS+",
     "sku": "ABS+175N1KG",
     "title": "ABS+ - Natural",
-    "updated_at": 1794685427217
+    "updated_at": 1795430016362
   },
   {
     "RFID_Data": {
@@ -327748,6 +328848,61 @@
     "sku": "KEX-K5PLA-AMERICANSKIN-285-1KG",
     "title": "THE K5 PLA - American Skin",
     "updated_at": 1788378077816
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 117,
+      "color_g": 129,
+      "color_r": 128,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#808175FF",
+    "color_info": {
+      "colors": [
+        "#808175FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 992515120,
+    "img_src": "https://cdn.tigertag.io/img?id=992515120&v=1795448677",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Betongrau",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-BETONGRAU-750G",
+    "title": "PLA - Betongrau",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -372981,6 +374136,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 165,
+      "color_g": 162,
+      "color_r": 156,
+      "data1": 56,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#9CA2A5FF",
+    "color_info": {
+      "colors": [
+        "#9CA2A5FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1131941510,
+    "img_src": "https://cdn.tigertag.io/img?id=1131941510&v=1795450662",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Perlsilber",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-PERLSILBER-175-750G",
+    "title": "PLA - Perlsilber",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 78,
       "color_g": 168,
       "color_r": 58,
@@ -393201,6 +394411,65 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 52,
+      "color_g": 115,
+      "color_r": 237,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#ED7334FF",
+    "color_info": {
+      "colors": [
+        "#ED7334FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": "RAL 2008",
+      "ral_delta_e": 1.9,
+      "ral_source": "auto",
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": [
+        "auto"
+      ],
+      "rals": [
+        "RAL 2008"
+      ],
+      "type": "mono"
+    },
+    "id": 1194107105,
+    "img_src": "https://cdn.tigertag.io/img?id=1194107105&v=1795431312",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Sunny Orange",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-SO-250G-A",
+    "title": "ABS - Sunny Orange",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 41,
       "color_g": 88,
       "color_r": 251,
@@ -402867,6 +404136,61 @@
     "sku": "3DMA-MPLA-INDIGOBLUE",
     "title": "Matte PLA - Indigo Blue",
     "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 42,
+      "color_g": 197,
+      "color_r": 246,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#F6C52AFF",
+    "color_info": {
+      "colors": [
+        "#F6C52AFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1227864179,
+    "img_src": "https://cdn.tigertag.io/img?id=1227864179&v=1795448657",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Gelb",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-GELB-750G",
+    "title": "PLA - Gelb",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -442584,7 +443908,7 @@
       "type": "mono"
     },
     "id": 1351690506,
-    "img_src": "https://cdn.tigertag.io/img?id=1351690506&v=1795427939",
+    "img_src": "https://cdn.tigertag.io/img?id=1351690506&v=1795437988",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -442595,7 +443919,7 @@
     "series": "ABS",
     "sku": "ESUN-ABS-YELLOW-1000G",
     "title": "ABS - Yellow",
-    "updated_at": 1795427936194
+    "updated_at": 1795437984801
   },
   {
     "RFID_Data": {
@@ -467535,7 +468859,7 @@
       "type": "mono"
     },
     "id": 1426054455,
-    "img_src": "https://cdn.tigertag.io/img?id=1426054455&v=1795427957",
+    "img_src": "https://cdn.tigertag.io/img?id=1426054455&v=1795438079",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -467546,7 +468870,7 @@
     "series": "ABS",
     "sku": "ESUN-ABS-GOLD-1000G",
     "title": "ABS - Gold",
-    "updated_at": 1795427953063
+    "updated_at": 1795438075339
   },
   {
     "RFID_Data": {
@@ -468215,7 +469539,7 @@
       "type": "mono"
     },
     "id": 1427518139,
-    "img_src": "https://cdn.tigertag.io/img?id=1427518139&v=1795427973",
+    "img_src": "https://cdn.tigertag.io/img?id=1427518139&v=1795438036",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -468226,7 +469550,7 @@
     "series": "ABS",
     "sku": "ESUN-ABS-BROWN-1000G",
     "title": "ABS - Brown",
-    "updated_at": 1795427968881
+    "updated_at": 1795438032237
   },
   {
     "RFID_Data": {
@@ -476612,6 +477936,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 108,
+      "color_g": 103,
+      "color_r": 104,
+      "data1": 56,
+      "data2": 230,
+      "data3": 270,
+      "data4": 60,
+      "data5": 6,
+      "data6": 95,
+      "data7": 110,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 47930,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 1000
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "eSun",
+    "color": "#68676C",
+    "color_info": {
+      "colors": [
+        "#68676C"
+      ],
+      "pantone": null,
+      "pantones": [],
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
+      "type": "mono"
+    },
+    "id": 1452602608,
+    "img_src": "https://cdn.tigertag.io/img?id=1452602608&v=1795428424",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "1000 g",
+    "name": "Silver",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "ESUN-ABS-SILVER-1000G",
+    "title": "ABS - Silver",
+    "updated_at": 1795428693281
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 122,
       "color_g": 41,
       "color_r": 80,
@@ -479489,6 +480868,61 @@
     "sku": "G00-B00-1.75-1000-spl",
     "title": "PETG Basic - Reflex blue",
     "updated_at": 1794697269458
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 117,
+      "color_g": 129,
+      "color_r": 128,
+      "data1": 56,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#808175FF",
+    "color_info": {
+      "colors": [
+        "#808175FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1461544439,
+    "img_src": "https://cdn.tigertag.io/img?id=1461544439&v=1795450667",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Betongrau",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-BETONGRAU-175-750G",
+    "title": "PLA - Betongrau",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -487020,6 +488454,61 @@
     "sku": "B0104022",
     "title": "PLA Galaxy Sparkly Glitter - Bipolar Nebula (Dark Green)",
     "updated_at": 1788314141292
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 22,
+      "color_g": 22,
+      "color_r": 23,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#171616FF",
+    "color_info": {
+      "colors": [
+        "#171616FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1487754547,
+    "img_src": "https://cdn.tigertag.io/img?id=1487754547&v=1795448610",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Schwarz",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-SCHWARZ-750G",
+    "title": "PLA - Schwarz",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -494693,6 +496182,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 125,
+      "color_g": 75,
+      "color_r": 93,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#5D4B7DFF",
+    "color_info": {
+      "colors": [
+        "#5D4B7DFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1509327015,
+    "img_src": "https://cdn.tigertag.io/img?id=1509327015&v=1795448634",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Violett",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-VIOLETT-750G",
+    "title": "PLA - Violett",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 58,
       "color_g": 94,
       "color_r": 31,
@@ -498678,6 +500222,61 @@
     "sku": "700-001-1840",
     "title": "TPU - Red",
     "updated_at": 1794564188248
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 54,
+      "color_g": 207,
+      "color_r": 249,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#F9CF36FF",
+    "color_info": {
+      "colors": [
+        "#F9CF36FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1520439787,
+    "img_src": "https://cdn.tigertag.io/img?id=1520439787&v=1795448680",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Gelb",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-GELB-750G",
+    "title": "ASA - Gelb",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -511592,6 +513191,61 @@
     "sku": "SILKPLALV",
     "title": "PLA Silk - Mint Green",
     "updated_at": 1792271106390
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 103,
+      "color_g": 73,
+      "color_r": 161,
+      "data1": 56,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#A14967FF",
+    "color_info": {
+      "colors": [
+        "#A14967FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1560051094,
+    "img_src": "https://cdn.tigertag.io/img?id=1560051094&v=1795450638",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Pink",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-PINK-175-750G",
+    "title": "PLA - Pink",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -525002,24 +526656,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#6200FFFF",
+    "color": "#6200FF",
     "color_info": {
       "colors": [
-        "#6200FFFF"
+        "#6200FF"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 1600398452,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=1600398452&v=1795440380",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -525030,7 +526684,7 @@
     "series": "PLA-Basic",
     "sku": "ESUN-PLA-BLUEPURPLE-1000G",
     "title": "PLA-Basic - Blue Purple",
-    "updated_at": null
+    "updated_at": 1795440376218
   },
   {
     "RFID_Data": {
@@ -555785,18 +557439,18 @@
         "#46BCF6"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 1699189696,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=1699189696&v=1795429247",
     "info1": true,
     "info2": false,
     "info3": false,
@@ -555807,7 +557461,7 @@
     "series": "PLA-Luminous",
     "sku": "PLA-LM175L-U1R1",
     "title": "PLA-Luminous - luminous blue",
-    "updated_at": 1792795727269
+    "updated_at": 1795429242985
   },
   {
     "RFID_Data": {
@@ -556087,6 +557741,61 @@
     "sku": "HJ-PLA Pro-175R1KG -US",
     "title": "PLA Pro - Red",
     "updated_at": 1793177163075
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 22,
+      "color_g": 22,
+      "color_r": 23,
+      "data1": 56,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#171616FF",
+    "color_info": {
+      "colors": [
+        "#171616FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1700130692,
+    "img_src": "https://cdn.tigertag.io/img?id=1700130692&v=1795450633",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Schwarz",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-SCHWARZ-175-750G",
+    "title": "PLA - Schwarz",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -562064,6 +563773,61 @@
     "sku": "SL-N-PLA-CBN-1KG-A",
     "title": "PLA - Coffee Brown",
     "updated_at": 1794474460717
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 220,
+      "color_g": 230,
+      "color_r": 238,
+      "data1": 56,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#EEE6DCFF",
+    "color_info": {
+      "colors": [
+        "#EEE6DCFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1722853852,
+    "img_src": "https://cdn.tigertag.io/img?id=1722853852&v=1795450674",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Weiss",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-WEISS-175-750G",
+    "title": "ASA - Weiss",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -571206,6 +572970,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 64,
+      "color_g": 62,
+      "color_r": 239,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#EF3E40FF",
+    "color_info": {
+      "colors": [
+        "#EF3E40FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1750246928,
+    "img_src": "https://cdn.tigertag.io/img?id=1750246928&v=1795448685",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Verkehrsrot",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-VERKEHRSROT-750G",
+    "title": "ASA - Verkehrsrot",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 0,
       "color_b2": 0,
       "color_g": 255,
@@ -575250,6 +577069,61 @@
     "sku": "GWCZ-EL-3DF-PEG1161",
     "title": "PETG Glitter - Light Pink",
     "updated_at": 1792189738528
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 240,
+      "color_g": 161,
+      "color_r": 79,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#4FA1F0FF",
+    "color_info": {
+      "colors": [
+        "#4FA1F0FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1764667402,
+    "img_src": "https://cdn.tigertag.io/img?id=1764667402&v=1795448620",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Hellblau",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-HELLBLAU-750G",
+    "title": "PLA - Hellblau",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -591501,6 +593375,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 36,
+      "color_g": 38,
+      "color_r": 72,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#482624",
+    "color_info": {
+      "colors": [
+        "#482624"
+      ],
+      "pantone": null,
+      "pantones": [],
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
+      "type": "mono"
+    },
+    "id": 1819179358,
+    "img_src": "https://cdn.tigertag.io/img?id=1819179358&v=1795450046",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Schokoladenbraun",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-SCHOKOLADENBRAUN-750G",
+    "title": "PLA - Schokoladenbraun",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 255,
       "color_g": 255,
       "color_r": 0,
@@ -600772,6 +602701,61 @@
   },
   {
     "RFID_Data": {
+      "color_a": 255,
+      "color_b": 63,
+      "color_g": 241,
+      "color_r": 255,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#FFF13FFF",
+    "color_info": {
+      "colors": [
+        "#FFF13FFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1847978103,
+    "img_src": "https://cdn.tigertag.io/img?id=1847978103&v=1795431286",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Yellow",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-YL-250G-A",
+    "title": "ABS - Yellow",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
       "color_a": 128,
       "color_b": 230,
       "color_b2": 232,
@@ -609886,6 +611870,61 @@
     "sku": "KEX-K6PLA-ORANGE-175-3KG",
     "title": "THE K6 PLA - Orange",
     "updated_at": 1788535666817
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 163,
+      "color_g": 162,
+      "color_r": 154,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#9AA2A3FF",
+    "color_info": {
+      "colors": [
+        "#9AA2A3FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 1873999258,
+    "img_src": "https://cdn.tigertag.io/img?id=1873999258&v=1795448699",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Perlsilber",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-PERLSILBER-750G",
+    "title": "ASA - Perlsilber",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -666975,6 +669014,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 97,
+      "color_g": 110,
+      "color_r": 52,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#346E61FF",
+    "color_info": {
+      "colors": [
+        "#346E61FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2046786269,
+    "img_src": "https://cdn.tigertag.io/img?id=2046786269&v=1795448662",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Grün",
+    "product_type": "Filament",
+    "series": "Tough PLA",
+    "sku": "SWF-TPLA-GRUN-750G",
+    "title": "Tough PLA - Grün",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 204,
       "color_g": 204,
       "color_r": 204,
@@ -672931,6 +675025,61 @@
     "sku": "AF-EMERALD-GREEN-GEMSTONE-TRANSLUCENT-PLA",
     "title": "PLA Atomic Filament - Emerald Green Gemstone",
     "updated_at": 1793372608612
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 114,
+      "color_g": 168,
+      "color_r": 182,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#B6A872FF",
+    "color_info": {
+      "colors": [
+        "#B6A872FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2063130686,
+    "img_src": "https://cdn.tigertag.io/img?id=2063130686&v=1795448690",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Beige",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-BEIGE-750G",
+    "title": "PLA - Beige",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -688282,6 +690431,61 @@
     "sku": "217500010100",
     "title": "ABS - Black",
     "updated_at": 1788471415849
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 61,
+      "color_g": 65,
+      "color_r": 199,
+      "data1": 56,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#C7413DFF",
+    "color_info": {
+      "colors": [
+        "#C7413DFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2107921595,
+    "img_src": "https://cdn.tigertag.io/img?id=2107921595&v=1795450643",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Verkehrsrot",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-VERKEHRSROT-175-750G",
+    "title": "PLA - Verkehrsrot",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -706822,18 +709026,18 @@
         "#53595B"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 2163978235,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=2163978235&v=1795429271",
     "info1": true,
     "info2": false,
     "info3": false,
@@ -706844,7 +709048,7 @@
     "series": "PLA-Luminous",
     "sku": "PLA-LM175L-G1R1",
     "title": "PLA-Luminous - luminous green",
-    "updated_at": 1792795730797
+    "updated_at": 1795429267262
   },
   {
     "RFID_Data": {
@@ -716546,6 +718750,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 34,
+      "color_g": 36,
+      "color_r": 202,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#CA2422FF",
+    "color_info": {
+      "colors": [
+        "#CA2422FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2193409713,
+    "img_src": "https://cdn.tigertag.io/img?id=2193409713&v=1795448649",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Verkehrsrot",
+    "product_type": "Filament",
+    "series": "Tough PLA",
+    "sku": "SWF-TPLA-VERKEHRSROT-750G",
+    "title": "Tough PLA - Verkehrsrot",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 245,
       "color_g": 245,
       "color_r": 245,
@@ -722694,6 +724953,61 @@
     "sku": "PA04032",
     "title": "PolyTerra™ - Army Purple",
     "updated_at": 1794172481217
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 18,
+      "color_g": 183,
+      "color_r": 249,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#F9B712FF",
+    "color_info": {
+      "colors": [
+        "#F9B712FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2208779563,
+    "img_src": "https://cdn.tigertag.io/img?id=2208779563&v=1795448658",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Gelb",
+    "product_type": "Filament",
+    "series": "Tough PLA",
+    "sku": "SWF-TPLA-GELB-750G",
+    "title": "Tough PLA - Gelb",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -749435,24 +751749,24 @@
     "aspect2": null,
     "barcode": "6922572206021.0",
     "brand": "eSun",
-    "color": "#0084D4FF",
+    "color": "#0084D4",
     "color_info": {
       "colors": [
-        "#0084D4FF"
+        "#0084D4"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 2291185994,
-    "img_src": "https://cdn.tigertag.io/img?id=2291185994&v=1",
+    "img_src": "https://cdn.tigertag.io/img?id=2291185994&v=1795440214",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -749463,7 +751777,7 @@
     "series": "PLA+ with spool",
     "sku": "PLA+CMYK175CY1P1",
     "title": "PLA+ with spool - CYAN",
-    "updated_at": 1788530909161
+    "updated_at": 1795440210389
   },
   {
     "RFID_Data": {
@@ -754078,6 +756392,61 @@
     "sku": "MARSWORK-PLABASIC-BRIGHTGREEN-REFILL",
     "title": "PLA Basic - Bright Green",
     "updated_at": 1792795844271
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 106,
+      "color_g": 100,
+      "color_r": 87,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#57646AFF",
+    "color_info": {
+      "colors": [
+        "#57646AFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2305739474,
+    "img_src": "https://cdn.tigertag.io/img?id=2305739474&v=1795448703",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Anthrazitgrau",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-ANTHRAZITGRAU-750G",
+    "title": "ASA - Anthrazitgrau",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -770999,6 +773368,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 17,
+      "color_g": 16,
+      "color_r": 17,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38256,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#111011FF",
+    "color_info": {
+      "colors": [
+        "#111011FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2362147800,
+    "img_src": "https://cdn.tigertag.io/img?id=2362147800&v=1795446990",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PETG",
+    "measure": "750 g",
+    "name": "Schwarz",
+    "product_type": "Filament",
+    "series": "PET-G",
+    "sku": "SWF-PETG-SCHWARZ-750G",
+    "title": "PET-G - Schwarz",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 142,
       "color_g": 141,
       "color_r": 239,
@@ -784549,24 +786973,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#CEC5BBFF",
+    "color": "#CEC5BB",
     "color_info": {
       "colors": [
-        "#CEC5BBFF"
+        "#CEC5BB"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 2407007234,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=2407007234&v=1795430956",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -784577,7 +787001,7 @@
     "series": "ABS",
     "sku": "ESUN-ABS-NATURAL-1000G",
     "title": "ABS - Natural",
-    "updated_at": null
+    "updated_at": 1795430952867
   },
   {
     "RFID_Data": {
@@ -786164,6 +788588,61 @@
     "sku": "PRM-PTM-NOCBRO-1000",
     "title": "PETG Matte - Noctua Brown",
     "updated_at": 1792247676192
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 155,
+      "color_g": 168,
+      "color_r": 166,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#A6A89BFF",
+    "color_info": {
+      "colors": [
+        "#A6A89BFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2412510102,
+    "img_src": "https://cdn.tigertag.io/img?id=2412510102&v=1795448695",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Betongrau",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-BETONGRAU-750G",
+    "title": "ASA - Betongrau",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -802078,6 +804557,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 221,
+      "color_g": 236,
+      "color_r": 240,
+      "data1": 56,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#F0ECDDFF",
+    "color_info": {
+      "colors": [
+        "#F0ECDDFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2462385225,
+    "img_src": "https://cdn.tigertag.io/img?id=2462385225&v=1795450627",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Weiss",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-WEISS-175-750G",
+    "title": "PLA - Weiss",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 200,
       "color_g": 86,
       "color_r": 30,
@@ -806614,6 +809148,61 @@
     "sku": "50.203.0790",
     "title": "PLA Pro - Neon Green",
     "updated_at": 1792799235599
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 42,
+      "color_g": 197,
+      "color_r": 246,
+      "data1": 56,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#F6C52AFF",
+    "color_info": {
+      "colors": [
+        "#F6C52AFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2474330804,
+    "img_src": "https://cdn.tigertag.io/img?id=2474330804&v=1795450652",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Gelb",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-GELB-175-750G",
+    "title": "PLA - Gelb",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -812164,6 +814753,61 @@
     "sku": "CLP-9010707009405",
     "title": "ASA CF 3DJake - Dark Grey",
     "updated_at": 1793372418604
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 42,
+      "color_g": 125,
+      "color_r": 241,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#F17D2AFF",
+    "color_info": {
+      "colors": [
+        "#F17D2AFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2493550694,
+    "img_src": "https://cdn.tigertag.io/img?id=2493550694&v=1795448654",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Orange",
+    "product_type": "Filament",
+    "series": "Tough PLA",
+    "sku": "SWF-TPLA-ORANGE-750G",
+    "title": "Tough PLA - Orange",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -818381,6 +821025,61 @@
     "sku": "ANAD14COW",
     "title": "Adura Addnorth - Cold White",
     "updated_at": 1793372165802
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 131,
+      "color_g": 183,
+      "color_r": 57,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#39B783FF",
+    "color_info": {
+      "colors": [
+        "#39B783FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2515773383,
+    "img_src": "https://cdn.tigertag.io/img?id=2515773383&v=1795448671",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Grün",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-GRUN-750G",
+    "title": "ASA - Grün",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -824977,6 +827676,61 @@
     "sku": "KEX-K5WOOD-IVORYWHITE-175-3KG",
     "title": "THE K5 WOOD - Ivory White",
     "updated_at": 1788379548200
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 152,
+      "color_g": 143,
+      "color_r": 136,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#888F98FF",
+    "color_info": {
+      "colors": [
+        "#888F98FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2537747339,
+    "img_src": "https://cdn.tigertag.io/img?id=2537747339&v=1795431300",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Silver",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-SV-250G-A",
+    "title": "ABS - Silver",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -839521,24 +842275,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#FF46A2FF",
+    "color": "#FF46A2",
     "color_info": {
       "colors": [
-        "#FF46A2FF"
+        "#FF46A2"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 2581610668,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=2581610668&v=1795440475",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -839549,7 +842303,7 @@
     "series": "PLA+",
     "sku": "ESUN-PLA+-HOTPINK-1000G",
     "title": "PLA+ - Hot Pink",
-    "updated_at": null
+    "updated_at": 1795440470963
   },
   {
     "RFID_Data": {
@@ -850558,6 +853312,61 @@
     "sku": "KEX-K5PETG-WHITE-175-1KG",
     "title": "THE K5 PETG - White",
     "updated_at": 1788380758067
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 214,
+      "color_g": 215,
+      "color_r": 225,
+      "data1": 56,
+      "data2": 230,
+      "data3": 270,
+      "data4": 60,
+      "data5": 6,
+      "data6": 95,
+      "data7": 110,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 47930,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 1000
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "eSun",
+    "color": "#E1D7D6",
+    "color_info": {
+      "colors": [
+        "#E1D7D6"
+      ],
+      "pantone": null,
+      "pantones": [],
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
+      "type": "mono"
+    },
+    "id": 2616843693,
+    "img_src": "https://cdn.tigertag.io/img?id=2616843693&v=1795428492",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "1000 g",
+    "name": "Warm White",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "ESUN-ABS-WARMWHITE-1000G",
+    "title": "ABS - Warm White",
+    "updated_at": 1795428693281
   },
   {
     "RFID_Data": {
@@ -893828,7 +896637,7 @@
       "type": "mono"
     },
     "id": 2739311663,
-    "img_src": "https://cdn.tigertag.io/img?id=2739311663&v=1795427986",
+    "img_src": "https://cdn.tigertag.io/img?id=2739311663&v=1795438055",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -893839,7 +896648,7 @@
     "series": "ABS",
     "sku": "ESUN-ABS-PINK-1000G",
     "title": "ABS - Pink",
-    "updated_at": 1795427983637
+    "updated_at": 1795438053528
   },
   {
     "RFID_Data": {
@@ -897794,6 +900603,61 @@
     "sku": "PETG175Y1R1",
     "title": "PETG - YELLOW",
     "updated_at": 1794474460717
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 17,
+      "color_g": 33,
+      "color_r": 54,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#362111FF",
+    "color_info": {
+      "colors": [
+        "#362111FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2752521052,
+    "img_src": "https://cdn.tigertag.io/img?id=2752521052&v=1795431308",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Coffee Brown",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-CBN-250G-A",
+    "title": "ABS - Coffee Brown",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -922815,6 +925679,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 214,
+      "color_g": 224,
+      "color_r": 240,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#F0E0D6FF",
+    "color_info": {
+      "colors": [
+        "#F0E0D6FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2821216396,
+    "img_src": "https://cdn.tigertag.io/img?id=2821216396&v=1795431277",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Beige",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-SK-250G-A",
+    "title": "ABS - Beige",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 193,
       "color_g": 162,
       "color_r": 254,
@@ -925246,24 +928165,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#102457FF",
+    "color": "#102457",
     "color_info": {
       "colors": [
-        "#102457FF"
+        "#102457"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 2829316854,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=2829316854&v=1795440400",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -925274,7 +928193,7 @@
     "series": "PLA-Basic",
     "sku": "ESUN-PLA-BLUEGRAY-1000G",
     "title": "PLA-Basic - Blue Gray",
-    "updated_at": null
+    "updated_at": 1795440397161
   },
   {
     "RFID_Data": {
@@ -934137,6 +937056,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 95,
+      "color_g": 211,
+      "color_r": 117,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#75D35FFF",
+    "color_info": {
+      "colors": [
+        "#75D35FFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2856310947,
+    "img_src": "https://cdn.tigertag.io/img?id=2856310947&v=1795448661",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Hellgrün",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-HELLGRUN-750G",
+    "title": "PLA - Hellgrün",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 173,
       "color_g": 173,
       "color_r": 173,
@@ -936256,6 +939230,61 @@
     "sku": "VSA110016",
     "title": "Rock PLA Gradient - Alpine Forest",
     "updated_at": 1788319750555
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 137,
+      "color_g": 147,
+      "color_r": 144,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38256,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#909389FF",
+    "color_info": {
+      "colors": [
+        "#909389FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2862165222,
+    "img_src": "https://cdn.tigertag.io/img?id=2862165222&v=1795448680",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PETG",
+    "measure": "750 g",
+    "name": "Betongrau",
+    "product_type": "Filament",
+    "series": "PET-G",
+    "sku": "SWF-PETG-BETONGRAU-750G",
+    "title": "PET-G - Betongrau",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -943246,6 +946275,61 @@
     "sku": "KEX-K5PETGR-BLUE-175-1KG",
     "title": "THE K5 PETG Rapid - Blue",
     "updated_at": 1788380758068
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 45,
+      "color_g": 105,
+      "color_r": 249,
+      "data1": 56,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#F9692DFF",
+    "color_info": {
+      "colors": [
+        "#F9692DFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 2883952437,
+    "img_src": "https://cdn.tigertag.io/img?id=2883952437&v=1795450647",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Orange",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-ORANGE-175-750G",
+    "title": "PLA - Orange",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -962651,6 +965735,65 @@
     "series": "PETG",
     "sku": "PTG-PRM-2.85M-GRY-2.5KG",
     "title": "PETG - Grey",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 121,
+      "color_g": 46,
+      "color_r": 197,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#C52E79FF",
+    "color_info": {
+      "colors": [
+        "#C52E79FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": "RAL 4010",
+      "ral_delta_e": 1.5,
+      "ral_source": "auto",
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": [
+        "auto"
+      ],
+      "rals": [
+        "RAL 4010"
+      ],
+      "type": "mono"
+    },
+    "id": 2942957140,
+    "img_src": "https://cdn.tigertag.io/img?id=2942957140&v=1795431304",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Megenta",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-MAG-250G-A",
+    "title": "ABS - Megenta",
     "updated_at": null
   },
   {
@@ -982801,6 +985944,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 45,
+      "color_g": 105,
+      "color_r": 249,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#F9692DFF",
+    "color_info": {
+      "colors": [
+        "#F9692DFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3001364177,
+    "img_src": "https://cdn.tigertag.io/img?id=3001364177&v=1795448652",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Orange",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-ORANGE-750G",
+    "title": "PLA - Orange",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 26,
       "color_g": 26,
       "color_r": 26,
@@ -990790,24 +993988,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#E7B1A5FF",
+    "color": "#E7B1A5",
     "color_info": {
       "colors": [
-        "#E7B1A5FF"
+        "#E7B1A5"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 3029382401,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=3029382401&v=1795440514",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -990818,7 +994016,7 @@
     "series": "ABS",
     "sku": "ESUN-ABS-SKIN-1000G",
     "title": "ABS - Skin",
-    "updated_at": null
+    "updated_at": 1795440510330
   },
   {
     "RFID_Data": {
@@ -998553,6 +1001751,61 @@
     "sku": "A01-R3-1.75-1000-splfree",
     "title": "PLA Matte - Plum",
     "updated_at": 1794697269458
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 220,
+      "color_g": 230,
+      "color_r": 238,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#EEE6DCFF",
+    "color_info": {
+      "colors": [
+        "#EEE6DCFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3052188051,
+    "img_src": "https://cdn.tigertag.io/img?id=3052188051&v=1795448661",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Weiss",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-WEISS-750G",
+    "title": "ASA - Weiss",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -1018394,6 +1021647,65 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 0,
+      "color_g": 0,
+      "color_r": 0,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#000000FF",
+    "color_info": {
+      "colors": [
+        "#000000FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": "RAL 9005",
+      "ral_delta_e": 2.1,
+      "ral_source": "auto",
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": [
+        "auto"
+      ],
+      "rals": [
+        "RAL 9005"
+      ],
+      "type": "mono"
+    },
+    "id": 3112329015,
+    "img_src": "https://cdn.tigertag.io/img?id=3112329015&v=1795431273",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Black",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-BK-250G-A",
+    "title": "ABS - Black",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 203,
       "color_g": 202,
       "color_r": 201,
@@ -1018610,6 +1021922,61 @@
     "sku": "R3DA1R107TMS",
     "title": "PLA High Temp - White",
     "updated_at": 1794876724864
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 95,
+      "color_g": 158,
+      "color_r": 210,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#D29E5FFF",
+    "color_info": {
+      "colors": [
+        "#D29E5FFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3112933564,
+    "img_src": "https://cdn.tigertag.io/img?id=3112933564&v=1795448686",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Gold",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-GOLD-750G",
+    "title": "PLA - Gold",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -1058253,6 +1061620,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 227,
+      "color_g": 237,
+      "color_r": 240,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#F0EDE3FF",
+    "color_info": {
+      "colors": [
+        "#F0EDE3FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3236937600,
+    "img_src": "https://cdn.tigertag.io/img?id=3236937600&v=1795446957",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Weiss",
+    "product_type": "Filament",
+    "series": "Tough PLA",
+    "sku": "SWF-TPLA-WEISS-750G",
+    "title": "Tough PLA - Weiss",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 11,
       "color_g": 11,
       "color_r": 11,
@@ -1068668,6 +1072090,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 61,
+      "color_g": 65,
+      "color_r": 199,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#C7413DFF",
+    "color_info": {
+      "colors": [
+        "#C7413DFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3266910600,
+    "img_src": "https://cdn.tigertag.io/img?id=3266910600&v=1795448648",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Verkehrsrot",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-VERKEHRSROT-750G",
+    "title": "PLA - Verkehrsrot",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 97,
       "color_g": 162,
       "color_r": 189,
@@ -1074465,6 +1077942,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 175,
+      "color_g": 136,
+      "color_r": 64,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#4088AFFF",
+    "color_info": {
+      "colors": [
+        "#4088AFFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3285312847,
+    "img_src": "https://cdn.tigertag.io/img?id=3285312847&v=1795448666",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Himmelblau",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-HIMMELBLAU-750G",
+    "title": "ASA - Himmelblau",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 96,
       "color_g": 41,
       "color_r": 72,
@@ -1074762,24 +1078294,24 @@
     "aspect2": null,
     "barcode": "6922572206359",
     "brand": "eSun",
-    "color": "#04645EFF",
+    "color": "#04645E",
     "color_info": {
       "colors": [
-        "#04645EFF"
+        "#04645E"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 3285619144,
-    "img_src": "https://cdn.tigertag.io/img?id=3285619144&v=1",
+    "img_src": "https://cdn.tigertag.io/img?id=3285619144&v=1795440273",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -1074790,7 +1078322,7 @@
     "series": "ABS-GF",
     "sku": "ABS-GF175G1TZ1",
     "title": "ABS-GF - GREEN",
-    "updated_at": 1788532062831
+    "updated_at": 1795440269622
   },
   {
     "RFID_Data": {
@@ -1123569,24 +1127101,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#FF64B1FF",
+    "color": "#FF64B1",
     "color_info": {
       "colors": [
-        "#FF64B1FF"
+        "#FF64B1"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 3436748110,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=3436748110&v=1795430944",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -1123597,7 +1127129,7 @@
     "series": "PLA-Basic",
     "sku": "ESUN-PLA-ROSE-1000G",
     "title": "PLA-Basic - Rose",
-    "updated_at": null
+    "updated_at": 1795430940491
   },
   {
     "RFID_Data": {
@@ -1130503,6 +1134035,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 97,
+      "color_g": 110,
+      "color_r": 52,
+      "data1": 56,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#346E61FF",
+    "color_info": {
+      "colors": [
+        "#346E61FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3456995840,
+    "img_src": "https://cdn.tigertag.io/img?id=3456995840&v=1795450657",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Grün",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-GRUN-175-750G",
+    "title": "PLA - Grün",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 79,
       "color_g": 85,
       "color_r": 80,
@@ -1132656,24 +1136243,24 @@
     "aspect2": null,
     "barcode": "6922572206014.0",
     "brand": "eSun",
-    "color": "#D9E1E2FF",
+    "color": "#D9E1E2",
     "color_info": {
       "colors": [
-        "#D9E1E2FF"
+        "#D9E1E2"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 3463549351,
-    "img_src": "https://cdn.tigertag.io/img?id=3463549351&v=1",
+    "img_src": "https://cdn.tigertag.io/img?id=3463549351&v=1795440231",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -1132684,7 +1136271,7 @@
     "series": "PLA+ with spool",
     "sku": "PLA+CMYK175W1P1",
     "title": "PLA+ with spool - WHITE",
-    "updated_at": 1788530909161
+    "updated_at": 1795440227562
   },
   {
     "RFID_Data": {
@@ -1135727,6 +1139314,61 @@
     "sku": "415232",
     "title": "Cleaning Filament - Natural",
     "updated_at": 1794589454974
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 97,
+      "color_g": 110,
+      "color_r": 52,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#346E61FF",
+    "color_info": {
+      "colors": [
+        "#346E61FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3471929947,
+    "img_src": "https://cdn.tigertag.io/img?id=3471929947&v=1795448669",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Grün",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-GRUN-750G",
+    "title": "PLA - Grün",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -1159173,6 +1162815,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 77,
+      "color_g": 74,
+      "color_r": 69,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#454A4DFF",
+    "color_info": {
+      "colors": [
+        "#454A4DFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3543914795,
+    "img_src": "https://cdn.tigertag.io/img?id=3543914795&v=1795451206",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Mattschwarz",
+    "product_type": "Filament",
+    "series": "PLA Matt",
+    "sku": "SWF-PLAMATT-SCHWARZ-750G",
+    "title": "PLA Matt - Mattschwarz",
+    "updated_at": 1795451313799
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 71,
       "color_g": 87,
       "color_r": 115,
@@ -1170520,6 +1174217,61 @@
     "sku": "BF-TPU80A-WEISS-750G",
     "title": "TPU 80 Shore A - Weiß",
     "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 238,
+      "color_g": 230,
+      "color_r": 232,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38256,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#E8E6EEFF",
+    "color_info": {
+      "colors": [
+        "#E8E6EEFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3576420174,
+    "img_src": "https://cdn.tigertag.io/img?id=3576420174&v=1795448670",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PETG",
+    "measure": "750 g",
+    "name": "Weiss",
+    "product_type": "Filament",
+    "series": "PET-G",
+    "sku": "SWF-PETG-WEISS-750G",
+    "title": "PET-G - Weiss",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -1189055,6 +1192807,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 238,
+      "color_g": 230,
+      "color_r": 232,
+      "data1": 56,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38256,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#E8E6EEFF",
+    "color_info": {
+      "colors": [
+        "#E8E6EEFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3636238222,
+    "img_src": "https://cdn.tigertag.io/img?id=3636238222&v=1795450689",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PETG",
+    "measure": "750 g",
+    "name": "Weiss",
+    "product_type": "Filament",
+    "series": "PET-G",
+    "sku": "SWF-PETG-WEISS-175-750G",
+    "title": "PET-G - Weiss",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 242,
       "color_g": 242,
       "color_r": 242,
@@ -1191138,6 +1194945,65 @@
     "sku": "KEX-K5WOOD-BLACK-175-3KG",
     "title": "THE K5 WOOD - Black",
     "updated_at": 1788379705674
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 38,
+      "color_g": 39,
+      "color_r": 188,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#BC2726FF",
+    "color_info": {
+      "colors": [
+        "#BC2726FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": "RAL 3020",
+      "ral_delta_e": 1.9,
+      "ral_source": "auto",
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": [
+        "auto"
+      ],
+      "rals": [
+        "RAL 3020"
+      ],
+      "type": "mono"
+    },
+    "id": 3643501983,
+    "img_src": "https://cdn.tigertag.io/img?id=3643501983&v=1795431281",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Red",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-RD-250G-A",
+    "title": "ABS - Red",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -1205348,6 +1209214,116 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 67,
+      "color_g": 62,
+      "color_r": 61,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#3D3E43FF",
+    "color_info": {
+      "colors": [
+        "#3D3E43FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3692471817,
+    "img_src": "https://cdn.tigertag.io/img?id=3692471817&v=1795448681",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Anthrazitgrau",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-ANTHRAZITGRAU-750G",
+    "title": "PLA - Anthrazitgrau",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 165,
+      "color_g": 186,
+      "color_r": 188,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#BCBAA5FF",
+    "color_info": {
+      "colors": [
+        "#BCBAA5FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3692488779,
+    "img_src": "https://cdn.tigertag.io/img?id=3692488779&v=1795448666",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Grau",
+    "product_type": "Filament",
+    "series": "Tough PLA",
+    "sku": "SWF-TPLA-GRAU-750G",
+    "title": "Tough PLA - Grau",
+    "updated_at": 1795450784791
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 17,
       "color_g": 17,
       "color_r": 17,
@@ -1207359,6 +1211335,61 @@
     "series": "Olefin",
     "sku": "BF-OLEFIN-SCHWARZ-850G",
     "title": "Olefin - Schwarz",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 84,
+      "color_g": 107,
+      "color_r": 126,
+      "data1": 56,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#7E6B54FF",
+    "color_info": {
+      "colors": [
+        "#7E6B54FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3699182187,
+    "img_src": "https://cdn.tigertag.io/img?id=3699182187&v=1795451316",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Holzfarben",
+    "product_type": "Filament",
+    "series": "PLA Wood",
+    "sku": "SWF-PLAWOOD-WOOD-175-750G",
+    "title": "PLA Wood - Holzfarben",
     "updated_at": null
   },
   {
@@ -1234709,6 +1238740,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 18,
+      "color_g": 18,
+      "color_r": 18,
+      "data1": 56,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#121212FF",
+    "color_info": {
+      "colors": [
+        "#121212FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3785499126,
+    "img_src": "https://cdn.tigertag.io/img?id=3785499126&v=1795450671",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Schwarz",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-SCHWARZ-175-750G",
+    "title": "ASA - Schwarz",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 62,
       "color_g": 158,
       "color_r": 46,
@@ -1237018,24 +1241104,24 @@
     "aspect2": null,
     "barcode": "6922572231436",
     "brand": "eSun",
-    "color": "#7B4534FF",
+    "color": "#7B4534",
     "color_info": {
       "colors": [
-        "#7B4534FF"
+        "#7B4534"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 3791043207,
-    "img_src": "https://cdn.tigertag.io/img?id=3791043207&v=2",
+    "img_src": "https://cdn.tigertag.io/img?id=3791043207&v=1795440254",
     "info1": true,
     "info2": false,
     "info3": false,
@@ -1237046,7 +1241132,7 @@
     "series": "PETG-Matte",
     "sku": "PETG-MT175O-BR1R1",
     "title": "PETG-Matte - BRICK RED",
-    "updated_at": 1788531736862
+    "updated_at": 1795440249675
   },
   {
     "RFID_Data": {
@@ -1238332,6 +1242418,61 @@
     "sku": "Z3D-FLEX CANDY",
     "title": "TPU 95A - Candy",
     "updated_at": 1792265368582
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 165,
+      "color_g": 162,
+      "color_r": 156,
+      "data1": 221,
+      "data2": 190,
+      "data3": 220,
+      "data4": 80,
+      "data5": 4,
+      "data6": 50,
+      "data7": 70,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#9CA2A5FF",
+    "color_info": {
+      "colors": [
+        "#9CA2A5FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3795602701,
+    "img_src": "https://cdn.tigertag.io/img?id=3795602701&v=1795448673",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Perlsilber",
+    "product_type": "Filament",
+    "series": "PLA",
+    "sku": "SWF-PLA-PERLSILBER-750G",
+    "title": "PLA - Perlsilber",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {
@@ -1245687,24 +1249828,24 @@
     "aspect2": null,
     "barcode": "6922572206038.0",
     "brand": "eSun",
-    "color": "#FEDD00FF",
+    "color": "#FEDD00",
     "color_info": {
       "colors": [
-        "#FEDD00FF"
+        "#FEDD00"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 3819722072,
-    "img_src": "https://cdn.tigertag.io/img?id=3819722072&v=1",
+    "img_src": "https://cdn.tigertag.io/img?id=3819722072&v=1795440242",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -1245715,7 +1249856,7 @@
     "series": "PLA+ with spool",
     "sku": "PLA+CMYK175Y1P1",
     "title": "PLA+ with spool - YELLOW",
-    "updated_at": 1788530909161
+    "updated_at": 1795440238434
   },
   {
     "RFID_Data": {
@@ -1278859,24 +1283000,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#FFFFFFFF",
+    "color": "#FFFFFF",
     "color_info": {
       "colors": [
-        "#FFFFFFFF"
+        "#FFFFFF"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 3926228765,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=3926228765&v=1795440533",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -1278887,7 +1283028,7 @@
     "series": "ABS",
     "sku": "ESUN-ABS-LUMINOUS-1000G",
     "title": "ABS - Luminous",
-    "updated_at": null
+    "updated_at": 1795440529598
   },
   {
     "RFID_Data": {
@@ -1296208,6 +1300349,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 39,
+      "color_g": 170,
+      "color_r": 29,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#1DAA27FF",
+    "color_info": {
+      "colors": [
+        "#1DAA27FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3979471034,
+    "img_src": "https://cdn.tigertag.io/img?id=3979471034&v=1795431290",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Green",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-GN-250G-A",
+    "title": "ABS - Green",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 204,
       "color_g": 204,
       "color_r": 204,
@@ -1296711,6 +1300907,61 @@
     "sku": "R3DB1E103NHS",
     "title": "ABS+ - Orange",
     "updated_at": 1794881150245
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 17,
+      "color_g": 16,
+      "color_r": 17,
+      "data1": 56,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38256,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#111011FF",
+    "color_info": {
+      "colors": [
+        "#111011FF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 3980493058,
+    "img_src": "https://cdn.tigertag.io/img?id=3980493058&v=1795450684",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PETG",
+    "measure": "750 g",
+    "name": "Schwarz",
+    "product_type": "Filament",
+    "series": "PET-G",
+    "sku": "SWF-PETG-SCHWARZ-175-750G",
+    "title": "PET-G - Schwarz",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -1299253,24 +1303504,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#002F5EFF",
+    "color": "#002F5E",
     "color_info": {
       "colors": [
-        "#002F5EFF"
+        "#002F5E"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 3987321611,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=3987321611&v=1795440437",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -1299281,7 +1303532,7 @@
     "series": "PLA-Basic",
     "sku": "ESUN-PLA-DEEPBLUE-1000G",
     "title": "PLA-Basic - deep blue",
-    "updated_at": null
+    "updated_at": 1795440434023
   },
   {
     "RFID_Data": {
@@ -1304481,6 +1308732,61 @@
     "sku": "R3DAlE101SMD",
     "title": "PLA HS Silk Dual - Silk Blue-Green",
     "updated_at": 1794881167035
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 170,
+      "color_g": 201,
+      "color_r": 207,
+      "data1": 56,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38256,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#CFC9AAFF",
+    "color_info": {
+      "colors": [
+        "#CFC9AAFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 4006201788,
+    "img_src": "https://cdn.tigertag.io/img?id=4006201788&v=1795450692",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PETG",
+    "measure": "750 g",
+    "name": "Transparent",
+    "product_type": "Filament",
+    "series": "PET-G",
+    "sku": "SWF-PETG-TRANSPARENT-175-750G",
+    "title": "PET-G - Transparent",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -1342478,6 +1346784,61 @@
   {
     "RFID_Data": {
       "color_a": 255,
+      "color_b": 171,
+      "color_g": 41,
+      "color_r": 23,
+      "data1": 56,
+      "data2": 240,
+      "data3": 280,
+      "data4": 70,
+      "data5": 6,
+      "data6": 80,
+      "data7": 90,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 51857,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 250
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Sunlu",
+    "color": "#1729ABFF",
+    "color_info": {
+      "colors": [
+        "#1729ABFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 4116091159,
+    "img_src": "https://cdn.tigertag.io/img?id=4116091159&v=1795431320",
+    "info1": true,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "250 g",
+    "name": "Klein Blue",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "SL-N-ABS-KB-250G-A",
+    "title": "ABS - Klein Blue",
+    "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
       "color_b": 178,
       "color_g": 204,
       "color_r": 218,
@@ -1345635,6 +1349996,61 @@
     "sku": "CA14018",
     "title": "CoPE Panchroma - Dark Grey",
     "updated_at": 1793372464015
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 155,
+      "color_g": 168,
+      "color_r": 166,
+      "data1": 56,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 12844,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#A6A89BFF",
+    "color_info": {
+      "colors": [
+        "#A6A89BFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 4126367464,
+    "img_src": "https://cdn.tigertag.io/img?id=4126367464&v=1795450679",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ASA",
+    "measure": "750 g",
+    "name": "Betongrau",
+    "product_type": "Filament",
+    "series": "ASA",
+    "sku": "SWF-ASA-BETONGRAU-175-750G",
+    "title": "ASA - Betongrau",
+    "updated_at": null
   },
   {
     "RFID_Data": {
@@ -1374563,24 +1378979,24 @@
     "aspect2": null,
     "barcode": null,
     "brand": "eSun",
-    "color": "#707070FF",
+    "color": "#707070",
     "color_info": {
       "colors": [
-        "#707070FF"
+        "#707070"
       ],
       "pantone": null,
-      "pantones": null,
+      "pantones": [],
       "ral": null,
       "ral_delta_e": null,
       "ral_source": null,
       "ral_source_url": null,
-      "ral_source_urls": null,
-      "ral_sources": null,
-      "rals": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
       "type": "mono"
     },
     "id": 4220731383,
-    "img_src": null,
+    "img_src": "https://cdn.tigertag.io/img?id=4220731383&v=1795440495",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -1374591,7 +1379007,7 @@
     "series": "ABS+",
     "sku": "ESUN-ABS+-DGREY-1000G",
     "title": "ABS+ - D-Grey",
-    "updated_at": null
+    "updated_at": 1795440491321
   },
   {
     "RFID_Data": {
@@ -1374969,7 +1379385,7 @@
       "type": "mono"
     },
     "id": 4221587115,
-    "img_src": "https://cdn.tigertag.io/img?id=4221587115&v=1795428002",
+    "img_src": "https://cdn.tigertag.io/img?id=4221587115&v=1795438012",
     "info1": false,
     "info2": false,
     "info3": false,
@@ -1374980,7 +1379396,7 @@
     "series": "ABS",
     "sku": "ESUN-ABS-PURPLE-1000G",
     "title": "ABS - Purple",
-    "updated_at": 1795427998596
+    "updated_at": 1795438008353
   },
   {
     "RFID_Data": {
@@ -1378134,6 +1382550,61 @@
     "sku": "PA13002",
     "title": "PLA - Black",
     "updated_at": 1794662187965
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 220,
+      "color_g": 214,
+      "color_r": 219,
+      "data1": 56,
+      "data2": 230,
+      "data3": 270,
+      "data4": 60,
+      "data5": 6,
+      "data6": 95,
+      "data7": 110,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 47930,
+      "id_material": 20562,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 1000
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "eSun",
+    "color": "#DBD6DC",
+    "color_info": {
+      "colors": [
+        "#DBD6DC"
+      ],
+      "pantone": null,
+      "pantones": [],
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": [],
+      "ral_sources": [],
+      "rals": [],
+      "type": "mono"
+    },
+    "id": 4231629306,
+    "img_src": "https://cdn.tigertag.io/img?id=4231629306&v=1795428466",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "ABS",
+    "measure": "1000 g",
+    "name": "Cold White",
+    "product_type": "Filament",
+    "series": "ABS",
+    "sku": "ESUN-ABS-COLDWHITE-1000G",
+    "title": "ABS - Cold White",
+    "updated_at": 1795428693281
   },
   {
     "RFID_Data": {
@@ -1393829,6 +1398300,61 @@
     "sku": "ABS-PRM-2.85M-WHT-2.2KG",
     "title": "ABS - White",
     "updated_at": null
+  },
+  {
+    "RFID_Data": {
+      "color_a": 255,
+      "color_b": 156,
+      "color_g": 85,
+      "color_r": 54,
+      "data1": 221,
+      "data2": null,
+      "data3": null,
+      "data4": null,
+      "data5": null,
+      "data6": null,
+      "data7": null,
+      "id_aspect1": 104,
+      "id_aspect2": null,
+      "id_brand": 52300,
+      "id_material": 38219,
+      "id_type": 142,
+      "id_unit": 21,
+      "measure": 750
+    },
+    "aspect1": "Basic",
+    "aspect2": null,
+    "barcode": null,
+    "brand": "Swissfil",
+    "color": "#36559CFF",
+    "color_info": {
+      "colors": [
+        "#36559CFF"
+      ],
+      "pantone": null,
+      "pantones": null,
+      "ral": null,
+      "ral_delta_e": null,
+      "ral_source": null,
+      "ral_source_url": null,
+      "ral_source_urls": null,
+      "ral_sources": null,
+      "rals": null,
+      "type": "mono"
+    },
+    "id": 4281717594,
+    "img_src": "https://cdn.tigertag.io/img?id=4281717594&v=1795448641",
+    "info1": false,
+    "info2": false,
+    "info3": false,
+    "material": "PLA",
+    "measure": "750 g",
+    "name": "Dunkelblau",
+    "product_type": "Filament",
+    "series": "Tough PLA",
+    "sku": "SWF-TPLA-DUNKELBLAU-750G",
+    "title": "Tough PLA - Dunkelblau",
+    "updated_at": 1795450784791
   },
   {
     "RFID_Data": {

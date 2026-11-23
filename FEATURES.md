@@ -1,6 +1,6 @@
 # Tiger Studio Manager — Feature Catalogue
 
-Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.60.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
+Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.61.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
 
 ---
 
@@ -351,6 +351,7 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 - **Requests tools** — a Copy button on every message, an open count on All requests, a Requests tab and "New request" cards in the team's notification centre (v2.50.0).
 - **Request conversations** — each request in My requests opens its GitHub thread; answer from the app (text, pictures, PDFs, JSON, a printer's data), close it, unseen replies flagged, an alert window when a request moves (snoozed by Later) (v2.49.0).
 - **All requests** — every member reads every request; questions take community answers; TigerMasters (`roles: "tigermaster"`, server-only) and admins answer as the team and mark done / decline (v2.49.0).
+- **Request search and filters** — My requests and All requests search by title, number or product and filter by status, product and type; each request names the product it went to; TigerMasters are notified when the author of an open request writes in it (v2.61.0).
 
 ## "What's New" & release UX
 
