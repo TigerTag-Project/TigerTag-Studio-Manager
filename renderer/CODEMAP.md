@@ -25,24 +25,24 @@ L6127-6672     Stats, twin auto-link / manual pairing, sort + quick filters
 L6463-7512     Inventory render — table/grid keyed-diff, view mode, search
 L7302-7927     RFID encode/burn modal (cem)
 L7720-8255     TigerTag+ catalogue refresh / convert / duplicate
-L8028-10115     Spool detail panel (openDetail, buildPanelHTML, weight update)
-L9863-10357     Resizable panels, debug panel, auto-update settings
-L10150-10469     Hard delete + container auto-assign + legacy tombstone purge
-L10261-10587     Firestore explorer + language save + debug mode
-L10379-10885     Friends sidebar quick-list + friends list render
-L10676-11384     Racks + printers Firestore subscriptions (+ live friends/notifs)
-L11177-12475    Printers views — grid / table / cam wall + drag-drop
-L12268-14770   Printer detail side panel (renderPrinterDetail) + inline edit
-L14553-16179   Add-printer flow (brand picker, form, tutorials, submit)
-L16120-17076   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
-L17017-18189   renderRackView + rack drag-drop + rack edit modal
-L18127-18692   Friend view + add-friend modal
-L18633-19433   Display-name setup + friend requests + blacklist
-L19374-19692   Public/private keys + user profile sync
-L19633-20001   Custom avatar upload + Discord-style cropper
-L19938-20668   syncUserDoc + session telemetry + language sync
-L20604-20684   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
-L20620-21045   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
+L8028-10116     Spool detail panel (openDetail, buildPanelHTML, weight update)
+L9864-10358     Resizable panels, debug panel, auto-update settings
+L10151-10470     Hard delete + container auto-assign + legacy tombstone purge
+L10262-10588     Firestore explorer + language save + debug mode
+L10380-10886     Friends sidebar quick-list + friends list render
+L10677-11385     Racks + printers Firestore subscriptions (+ live friends/notifs)
+L11178-12476    Printers views — grid / table / cam wall + drag-drop
+L12269-14771   Printer detail side panel (renderPrinterDetail) + inline edit
+L14554-16180   Add-printer flow (brand picker, form, tutorials, submit)
+L16121-17077   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
+L17018-18190   renderRackView + rack drag-drop + rack edit modal
+L18128-18693   Friend view + add-friend modal
+L18634-19434   Display-name setup + friend requests + blacklist
+L19375-19693   Public/private keys + user profile sync
+L19634-20002   Custom avatar upload + Discord-style cropper
+L19939-20669   syncUserDoc + session telemetry + language sync
+L20605-20685   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
+L20621-21046   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
 ```
 
 ---
@@ -59,10 +59,10 @@ L20620-21045   Electron RFID integration (readers, dual-scan, NFC processor, chi
 | `printers/snapmaker/index.js` | Moonraker WS :7125 — connect, status merge, live block, filament edit, file sheet, print control | `snapConnect`, `snapDisconnect`, `renderSnapmakerLiveInner`, `openSnapFilamentEdit`, `snapSendGcode` |
 | `printers/flashforge/index.js` | HTTP polling :8898 — ping, connect, `/detail` parser, live block, filament edit | `ffgConnect`, `ffgPingPrinter`, `renderFlashforgeLiveInner`, `openFlashforgeFilamentEdit` |
 | `printers/flashforge/cam_mux.js` | Single-fetch MJPEG multiplexer, blob URLs to all `<img>` consumers | `ffgMuxStart`, `ffgMuxRegister` |
-| `printers/creality/index.js` | WS :9999 — heartbeat, CFS boxsInfo, live block, file list, LED/pause/stop | `creConnect`, `renderCrealityLiveInner`, `creActionPrintFile` |
+| `printers/creality/index.js` | WS :10000 — heartbeat, CFS boxsInfo, live block, file list, LED/pause/stop | `creConnect`, `renderCrealityLiveInner`, `creActionPrintFile` |
 | `printers/bambulab/index.js` | MQTTS :8883 — connect/parse via main-process IPC, AMS, live block | `bambuConnect`, `renderBambuLiveInner`, `openBambuFilamentEdit` |
 | `printers/elegoo/index.js` | MQTT/WS — connect, live block, file sheet, timelapse | `elegooConnect`, `renderElegooLiveInner`, `openElegooFileSheet` |
-| `printers/anycubic/index.js` | MQTTS :9883 (LAN) + cloud REST/MQTT — ACE box/slots, live block, filament edit. Detailed section below | `acuConnect`, `renderAnycubicLiveInner`, `openAcuFilamentEdit` |
+| `printers/anycubic/index.js` | MQTTS :9884 (LAN) + cloud REST/MQTT — ACE box/slots, live block, filament edit. Detailed section below | `acuConnect`, `renderAnycubicLiveInner`, `openAcuFilamentEdit` |
 | `printers/prusa/index.js` | PrusaLink HTTP (Digest, via main `prusa:http`) — 2 s status poll, job/thumbnail, MMU / XL-tool slots from job metadata, hold-to-confirm pause/resume/stop, debug request log. Camera (`widget_camera.js`): Buddy3D RTSP or PrusaLink snapshots, one feed per printer. Beta — see its `PROTOCOL.md` | `prusaConnect`, `renderPrusaLiveInner`, `prusaJobControl`, `prusaWireLive`, `renderPrusaCamBanner` |
 | `printers/<brand>/widget_camera.js` | Per-brand camera banner (one per brand) — `inventory.js` only dispatches via `renderCamBanner(p)` | `renderSnapCamBanner`, `renderCreCamBanner`, `renderFfgCamBanner`, `renderBambuCamBanner`, `renderElegooCamBanner`, `renderAcuCamBanner` |
 | `printers/<brand>/add-flow.js` | Per-brand Add-printer scan/manual flow (Scan choice modal, slide-in panel, manual IP probe) | `openSnapAddFlow`, `openFfgAddFlow`, `openCreAddFlow`, `openBblAddFlow`, `openElgAddFlow` |
@@ -83,13 +83,13 @@ Raw socket probes run in the **main process** over IPC (`ffg:tcp-probe`, `cre:tc
 
 | File | What |
 |------|------|
-| `PROTOCOL.md` | Agent skill — MQTTS port 9883 (TLS 1.2 forced), `multiColorBox` getInfo/setInfo, slicer-config credential decode, port map, report-shape pitfalls. **Read it before touching this folder.** |
+| `PROTOCOL.md` | Agent skill — MQTTS port 9884 (TLS 1.2 forced), `multiColorBox` getInfo/setInfo, slicer-config credential decode, port map, report-shape pitfalls. **Read it before touching this folder.** |
 | `index.js` | MQTT connect/disconnect/parse via `window.anycubic` IPC. Exports: `acuKey`, `acuGetConn`, `acuIsOnline`, `acuConnect` (`{skipCam}`), `acuDisconnect`, `renderAcuOnlineBadge`, `renderAnycubicLiveInner`, `renderAnycubicLogInner`, `openAcuFilamentEdit`, `closeAcuFilamentEdit`. `_acuMerge` routes the report families (`print`/`tempature`/`fan`/`status`/`multiColorBox`/`info` — PROTOCOL.md §5b) into `conn.data`; the `info` report carries the camera stream URL (`data.urls.rtspUrl` → `conn.data.camUrl`). Filament-edit bottom sheet DOM is created lazily here (inventory.html untouched). |
 | `cards.js` | `renderAcuJobCard` (filename/%/remaining/layers/state), `renderAcuTempCard` (nozzle+bed), `renderAcuFilamentCard` — ACE units + external spool (box -1), slots 0-3, `data-acu-fil-edit` squares. |
-| `probe.js` | `acuReadSlicerCreds` (slicer-config import — the ONLY credential source), `acuProbeIp` / `acuScanLan` (TCP :18910 + `GET /info`), `acuCatalogIdFromModel`. |
+| `probe.js` | `acuReadSlicerCreds` (slicer-config import — the ONLY credential source), `acuProbeIp` / `acuScanLan` (TCP :18911 + `GET /info`), `acuCatalogIdFromModel`. |
 | `add-flow.js` | 3-way choice: **Import from Anycubic Slicer** (primary) / Scan / Manual IP. Scan & manual candidates are merged with slicer credentials by IP (DHCP repair included). |
 | `settings.js` | Brand meta + schema — fields `ip`, `acuModelId` (numeric topic id, ≠ `printerModelId` catalog id), `deviceId`, `username`, `password`. |
-| `widget_camera.js` | `renderAcuCamBanner` — when `camLive`, `<img data-acu-key>` fed by 'anycubic:cam-frame' IPC (ffmpeg remuxes the :18088 HTTP-FLV stream to ~5 fps JPEG in main.js, Bambu-RTSP pattern); when idle, returns "" so the hero photo shows (cam-wall safe). The FLV stream is **on-demand** and the driver **actively controls it**: `_acuRequestCamera`/`_acuStartCapture` publish `video/startCapture`, ffmpeg attaches on the printer's `video/report` `initSuccess` (bounded `flvProbe` covers the race), `acuReleaseCamera` sends `stopCapture` on panel close. Stream URL = `conn.data.camUrl` (from the `info/report` `rtspUrl`): `/flv` on a Kobra 3 V2, `/live/<token>` on a Kobra X — both fed to `flvProbe`/`cam-start`; the probe accepts 200 + 206. Cam wall + detached window (`acu_ipc` type in `renderer/cam/cam.js`) reuse the same frames. CSS in `printers/anycubic/anycubic.css`. |
+| `widget_camera.js` | `renderAcuCamBanner` — when `camLive`, `<img data-acu-key>` fed by 'anycubic:cam-frame' IPC (ffmpeg remuxes the :18089 HTTP-FLV stream to ~5 fps JPEG in main.js, Bambu-RTSP pattern); when idle, returns "" so the hero photo shows (cam-wall safe). The FLV stream is **on-demand** and the driver **actively controls it**: `_acuRequestCamera`/`_acuStartCapture` publish `video/startCapture`, ffmpeg attaches on the printer's `video/report` `initSuccess` (bounded `flvProbe` covers the race), `acuReleaseCamera` sends `stopCapture` on panel close. Stream URL = `conn.data.camUrl` (from the `info/report` `rtspUrl`): `/flv` on a Kobra 3 V2, `/live/<token>` on a Kobra X — both fed to `flvProbe`/`cam-start`; the probe accepts 200 + 206. Cam wall + detached window (`acu_ipc` type in `renderer/cam/cam.js`) reuse the same frames. CSS in `printers/anycubic/anycubic.css`. |
 | `agora-cam.js` | **Cloud-mode camera** (Agora WebRTC, PROTOCOL.md §9b). `acuAgoraStart/Stop(key, creds)`: Agora Web SDK (npm dep `agora-rtc-sdk-ng`, global `AgoraRTC`) `setEncryptionConfig("aes-256-gcm2", key, salt)` → `join(appId, channel, rtcToken, clientUid)` → subscribe to the printer's video `uid` → `track.play()` into the `.acu-cam-agora` banner container. Creds from cloud order 1001 (`anycubic:cloud-camera-open`). Self-heal interval re-attaches the track across re-renders. Side panel + cam wall; `acuReleaseCloudCameras()` leaves the channel on cam-wall exit. Detached window: the cloud reuses the Agora uid, so a 2nd client would kick this one — instead this single client captures its video to JPEG and relays frames over `BroadcastChannel('acu-cam')` (`_relayTick`); the detached window's `acu_bc` cam type renders them. `acuAgoraOnRelayWant/End` keep the player alive while detached. |
 
 Wiring (mirrors Bambu): always-on MQTT in `subscribePrinters` (skipCam), auto-connect in the grid/table (skipCam) and cam views, `_getPrinterJob` job normalization, `openPrinterDetail`/`closePrinterDetail`, `#acuLive` + debug-only `#acuLog` blocks in `renderPrinterDetail`, `data-acu-fil-edit` + `#acuLogPauseBtn`/`#acuLogClearBtn` in the delegated click handler, `openAcuAddFlow` in the brand picker, `acu_ipc` entry in `_serializeCamerasForDetach`. Main-process IPC: `anycubic:connect/disconnect/publish(endpoint)` (+ `status`/`message` events), `anycubic:cam-start/stop` (+ `cam-frame`), `anycubic:read-slicer-config`, `anycubic:tcp-probe`, `anycubic:http-info`.
@@ -181,7 +181,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory subscription + auth + account list (L8710-9783)
+## Inventory subscription + auth + account list (L8710-9784)
 | L | What | Anchors |
 |---|---|---|
 | 4446-4554 | **Firestore inventory subscription** — `onSnapshot` with friend-view defense-in-depth | `subscribeInventory`, `unsubscribeInventory` |
@@ -190,7 +190,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Stats / twins / filters (L9421-10583)
+## Stats / twins / filters (L9421-10584)
 | L | What | Anchors |
 |---|---|---|
 | 4854-4902 | Key status, row sort, load action, **stats** | `renderStats`, `loadInventory` |
@@ -199,7 +199,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory render (L10353-16248)
+## Inventory render (L10354-16249)
 | L | What | Anchors |
 |---|---|---|
 | 5171-5385 | **`renderInventory()`** — welcome card, rack-view priority, table/grid dispatch | `renderInventory` |
@@ -207,14 +207,14 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 | 5693-5753 | **Identical-spool grouping (view-only)** — group key + render-item builder, expanded-keys set. Table only in Phase 1 (Grid = Phase 2) | `_spoolGroupKey`, `groupRows` |
 | 5753-6111 | **Keyed-diff render** — row signature, create/update grid card + table row + group header row (no full rebuild) | `_rowSignature`, `_createGridCard`, `_updateGridCard`, `renderGrid`, `_groupHeaderInnerHTML`, `_toggleGroupExpanded`, `renderTable` |
 | 6111-6332 | View mode toggle (persisted), group toggle, search clear, filter change, stat tile → Type chip, sort indicators | `setViewMode`, `updateSortIndicators` |
-| ~15160-15390 | **Filter bar fields** — `FB_FIELDS` (brand, series, material, aspect, type, product type, diameter, tag, list, weight, rack) per scope (`inv` spools · `prod` products/Lists · `cat` catalogue · `prn` printers: brand, model, state, tag, kept apart in `state.printerFilters`, applied in the printer views), each reading the record's IDs; `_fbPass` = AND across chips / OR inside; facet counts over what the other chips + search leave; colour bars and colour search as extra chips; mounted after the search field's listeners | `_fbScope`, `_fbConds`, `_fbPass`, `_fbOptions`, `_fbFieldDefs`, `_fbExtraChips`, `_fbSetConds`, `_fbTrophies`, `_clearSearchFilters` |
-| ~15479-15598 | **Colour search** (Search views) — the search bar's colour button opens `#colorSearchPanel` (renderer/color-search.js): HEX / RAL / photo + ΔE ceiling into `state.catColor`; `_catColorApply` keeps the catalogue hits within it (CIEDE2000, closest colour, multicolour opt-in, brand-declared RAL first) and sorts them; shown as a filter-bar chip (`_fbExtraChips`), "ΔE x.x" as a badge at the bottom left of each picture (card and table thumbnail) | `openColorSearch`, `closeColorSearch`, `_catColorSet`, `_catColorChipSync`, `_catColorApply`, `_catDeHTML` |
+| ~15161-15391 | **Filter bar fields** — `FB_FIELDS` (brand, series, material, aspect, type, product type, diameter, tag, list, weight, rack) per scope (`inv` spools · `prod` products/Lists · `cat` catalogue · `prn` printers: brand, model, state, tag, kept apart in `state.printerFilters`, applied in the printer views), each reading the record's IDs; `_fbPass` = AND across chips / OR inside; facet counts over what the other chips + search leave; colour bars and colour search as extra chips; mounted after the search field's listeners | `_fbScope`, `_fbConds`, `_fbPass`, `_fbOptions`, `_fbFieldDefs`, `_fbExtraChips`, `_fbSetConds`, `_fbTrophies`, `_clearSearchFilters` |
+| ~15480-15599 | **Colour search** (Search views) — the search bar's colour button opens `#colorSearchPanel` (renderer/color-search.js): HEX / RAL / photo + ΔE ceiling into `state.catColor`; `_catColorApply` keeps the catalogue hits within it (CIEDE2000, closest colour, multicolour opt-in, brand-declared RAL first) and sorts them; shown as a filter-bar chip (`_fbExtraChips`), "ΔE x.x" as a badge at the bottom left of each picture (card and table thumbnail) | `openColorSearch`, `closeColorSearch`, `_catColorSet`, `_catColorChipSync`, `_catColorApply`, `_catDeHTML` |
 | (same block) | **Catalogue brands** — `state.catBrands` (prefs/app.catalogBrands + `tigertag.catalogBrands.<uid>`): the Search views show only the picked makers, ask for them first (`_catViewAskBrands`), `#catBrandsPanel` side card edits a draft saved on close | `_catBrandShown`, `_catBrandsLoad`, `_catBrandsFromPrefs`, `_catBrandsSave`, `_catAllBrands`, `openCatBrands`, `closeCatBrands` |
 | ~7072-7193 | **Lists / wishlists — Firestore subscriptions + CRUD** — personal lists (`subscribeLists`) and friend lists (read-only, `subscribeFriendLists`); in-memory array + create/add/remove | `subscribeLists`, `unsubscribeLists`, `subscribeFriendLists`, `unsubscribeFriendLists`, `_listsArray`, `_createList`, `_addToList`, `_removeFromList` |
 
 ---
 
-## RFID encode / burn modal — cem (L16425-17045)
+## RFID encode / burn modal — cem (L16426-17046)
 | L | What | Anchors |
 |---|---|---|
 | 6023-6114 | **`_burnRfid(r)`** — writes a chip from a row | `_burnRfid` |
@@ -223,48 +223,48 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## TigerTag+ catalogue (L16129-19979)
+## TigerTag+ catalogue (L16130-19980)
 | L | What | Anchors |
 |---|---|---|
-| 11163-11256 | Refresh API data for a spool | `_refreshApiData` |
-| 11257-11284 | **Catalogue payload → doc fields** — the ONE `product/get` mapping, shared by the conversion and the TigerData+ creation | `_productApiFields` |
-| 11285-11331 | TigerTag+ product lookup (validate an id, preview) | `_lookupPlusProduct` |
-| 11332-11361 | **Convert TigerTag → TigerTag+** (sets `id_tigertag` to the TigerTag+ id) | `_convertToPlus` |
-| 11362-11455 | **Catalogue browser** — import-all-once cache (localStorage) + sync | `_catalogLoadCache`, `_catalogBuildIndex`, `_catalogSync` |
-| 11456-11550 | In-memory search engine + incremental (chunked) row render | `_catalogSearch`, `_catalogRenderChunk`, `_catalogRowHTML` |
-| 11551-11608 | Catalogue **names → reference-DB ids** (best-effort) + colour parsing; a product's material family (`material_type`) for the Material filter | `_catByName`, `_catFamily`, `_catMaterialId`, `_catHexToRgba`, `_catChiplessNonce` |
-| 11609-11730 | **Create a TigerData+** from a product — canonical chip schema, `id_product` set, chipless nonce kept | `_catalogCreate` |
-| 11731-11767 | Catalogue modal open/close | `openCatalogModal`, `closeCatalogModal` |
-| 15382-15441 | **Catalogue pick** side card — "From the catalogue" of the new-chip window (rfid_protocol/linked): brand + `_catalogFilter`, one tap → `_catalogCreate(id, { msgEl })` | `openCatalogPick`, `closeCatalogPick`, `_catalogPickFill` |
-| 11910-11944 | **Search views** — the catalogue as a grid/table view segment (`catalogGrid` / `catalogTable`); own hits + selection, driven by the MAIN search bar | `renderCatalogView`, `_catViewHeadHTML` |
-| 11945-12026 | Filters = filter-bar chips (Type · Brand · Series · Material families `material_type` · Aspect · colour); an empty result that the chips cause offers to clear them; the sort select (`cvSort`) = cached rank per sort key | `CAT_SORTS`, `_catSortRank`, `_catViewFillFacets`, `_catViewSearch` |
-| ~13669-13759 | **Catalogue multi-select** — `state.selectedCatalog` + the shared bulk bar (catalogue context in _bulkCtx: ★ / 🛒 / Add to a list, no delete); ids resolved to product rows through the product-card detail cache, 6 at a time, capped at `CAT_BULK_MAX` | `_catBulkClick`, `_catResolveRow`, `_catResolveRows`, `_catSelectedRows` |
-| 11957-12034 | Search-view card / row markup; table = chunked append (IntersectionObserver), grid = virtualised window (only visible rows ± 4, padding stands in for the rest) | `_catViewCardHTML`, `_catViewRowHTML`, `_catViewRenderChunk`, `_catViewGridRender` |
-| 12035-12080 | Search-view selection + action bar (select ≠ create) | `_catViewSelect`, `_catViewSyncBar` |
-| 11768-11923 | Duplicate spool as cloud doc | `duplicateSpoolAsCloud` |
-| ~9822-10002 | **Lists / wishlists — UI** — products view (favourites/order tab) + "Add to list" popover menu (one product or a bulk selection, written in one arrayUnion by _addManyToList) | `renderProductsView`, `renderListsView`, `_openAddToListMenu` |
-| ~10265 | Message inline edit | `startMessageInlineEdit` |
+| 11164-11257 | Refresh API data for a spool | `_refreshApiData` |
+| 11258-11285 | **Catalogue payload → doc fields** — the ONE `product/get` mapping, shared by the conversion and the TigerData+ creation | `_productApiFields` |
+| 11286-11332 | TigerTag+ product lookup (validate an id, preview) | `_lookupPlusProduct` |
+| 11333-11362 | **Convert TigerTag → TigerTag+** (sets `id_tigertag` to the TigerTag+ id) | `_convertToPlus` |
+| 11363-11456 | **Catalogue browser** — import-all-once cache (localStorage) + sync | `_catalogLoadCache`, `_catalogBuildIndex`, `_catalogSync` |
+| 11457-11551 | In-memory search engine + incremental (chunked) row render | `_catalogSearch`, `_catalogRenderChunk`, `_catalogRowHTML` |
+| 11552-11609 | Catalogue **names → reference-DB ids** (best-effort) + colour parsing; a product's material family (`material_type`) for the Material filter | `_catByName`, `_catFamily`, `_catMaterialId`, `_catHexToRgba`, `_catChiplessNonce` |
+| 11610-11731 | **Create a TigerData+** from a product — canonical chip schema, `id_product` set, chipless nonce kept | `_catalogCreate` |
+| 11732-11768 | Catalogue modal open/close | `openCatalogModal`, `closeCatalogModal` |
+| 15383-15442 | **Catalogue pick** side card — "From the catalogue" of the new-chip window (rfid_protocol/linked): brand + `_catalogFilter`, one tap → `_catalogCreate(id, { msgEl })` | `openCatalogPick`, `closeCatalogPick`, `_catalogPickFill` |
+| 11911-11945 | **Search views** — the catalogue as a grid/table view segment (`catalogGrid` / `catalogTable`); own hits + selection, driven by the MAIN search bar | `renderCatalogView`, `_catViewHeadHTML` |
+| 11946-12027 | Filters = filter-bar chips (Type · Brand · Series · Material families `material_type` · Aspect · colour); an empty result that the chips cause offers to clear them; the sort select (`cvSort`) = cached rank per sort key | `CAT_SORTS`, `_catSortRank`, `_catViewFillFacets`, `_catViewSearch` |
+| ~13670-13760 | **Catalogue multi-select** — `state.selectedCatalog` + the shared bulk bar (catalogue context in _bulkCtx: ★ / 🛒 / Add to a list, no delete); ids resolved to product rows through the product-card detail cache, 6 at a time, capped at `CAT_BULK_MAX` | `_catBulkClick`, `_catResolveRow`, `_catResolveRows`, `_catSelectedRows` |
+| 11958-12035 | Search-view card / row markup; table = chunked append (IntersectionObserver), grid = virtualised window (only visible rows ± 4, padding stands in for the rest) | `_catViewCardHTML`, `_catViewRowHTML`, `_catViewRenderChunk`, `_catViewGridRender` |
+| 12036-12081 | Search-view selection + action bar (select ≠ create) | `_catViewSelect`, `_catViewSyncBar` |
+| 11769-11924 | Duplicate spool as cloud doc | `duplicateSpoolAsCloud` |
+| ~9823-10003 | **Lists / wishlists — UI** — products view (favourites/order tab) + "Add to list" popover menu (one product or a bulk selection, written in one arrayUnion by _addManyToList) | `renderProductsView`, `renderListsView`, `_openAddToListMenu` |
+| ~10266 | Message inline edit | `startMessageInlineEdit` |
 
 ---
 
-## Spool detail panel (L19029-26774)
+## Spool detail panel (L19030-26775)
 | L | What | Anchors |
 |---|---|---|
 | 6662-6815 | Structural signature (patch vs rebuild), weight patch, saved check | `_detailStructuralSig`, `_patchDetailWeight` |
 | 6816-7435 | **`openDetail(spoolId)`** / close / refresh + usage telemetry | `openDetail`, `closeDetail`, `refreshOpenDetail`, `_recordUsage` |
-| 21836-21866 | The values a spool link proposes (weight, note): held banner on the spool card, saved in one gesture | `_linkValuesBannerHTML`, `_saveLinkValues` |
+| 21837-21867 | The values a spool link proposes (weight, note): held banner on the spool card, saved in one gesture | `_linkValuesBannerHTML`, `_saveLinkValues` |
 | 7486-7548 | **Twin-link picker modal** | `openTwinLinkPicker` |
 | 7549-7560 | Ecosystem window — one fixed-grid window, a sheet per device (TigerPOD Mini, TigerScale, TigerSpool, Tiger Touch, NFC Connect, TigerTag) | `ECO_SHEETS`, `openEcoSheet`, `_renderEcoSheet`, `_ecoStep`, `openTigerPodModal` |
 | 7561-7616 | **Container picker modal** (46 containers from `data/container_spool/spools_filament.json`) | `openContainerPicker`, `doContainerUpdate` |
-| ~19377-19447 | **Video player — the ONE builder** for the spool detail + product card: `parseVideoUrl` (file / YouTube / Google Drive / external), `_productVideosHTML` (chip video + playable attachments, deduped) → `_videoSectionHTML` (inline `<video>`, or poster → in-place iframe on click) | `parseVideoUrl`, `_isPlayableVideo`, `_productVideosHTML`, `_videoSectionHTML` |
-| ~20027-20176 | **Inventory → .xlsx** (Settings → Data): a real spreadsheet written with no library — ZIP of XML parts stored uncompressed, columns sized from the data, frozen header + filters, text as strings, numbers and dates typed | `_exportInventoryXlsx`, `_xlsxCells`, `_xlsxSheet`, `_zipStore` |
+| ~19378-19448 | **Video player — the ONE builder** for the spool detail + product card: `parseVideoUrl` (file / YouTube / Google Drive / external), `_productVideosHTML` (chip video + playable attachments, deduped) → `_videoSectionHTML` (inline `<video>`, or poster → in-place iframe on click) | `parseVideoUrl`, `_isPlayableVideo`, `_productVideosHTML`, `_videoSectionHTML` |
+| ~20028-20177 | **Inventory → .xlsx** (Settings → Data): a real spreadsheet written with no library — ZIP of XML parts stored uncompressed, columns sized from the data, frozen header + filters, text as strings, numbers and dates typed | `_exportInventoryXlsx`, `_xlsxCells`, `_xlsxSheet`, `_zipStore` |
 | ~8197 | **Tags / Balises** — free-form labels, entity-agnostic Shopify-style editor (chips + inline dropdown + "Add tags" modal) driven by a `ctx` (`getTags`/`writeTags`/`allTags`/`readOnly`/`ids`). Two providers: `_spoolTagCtx` (spools, twin-mirrored write) and `_printerTagCtx` (printers, savePrinterField). Spool editor in buildPanelHTML+openDetail; printer editor in renderPrinterDetail (`#ppTag*`, tags-only echo patches chips in place via a structural-signature guard) | `_normalizeTag`, `_allTags`, `_allPrinterTags`, `_writeSpoolTags`, `_writePrinterTags`, `_ctxAddTag`, `_ctxRemoveTag`, `_wireTagEditor`, `openTagsModal` |
 | 7658-8348 | **`buildPanelHTML(r)`** — header, colours, print settings, weight slider w/ debounce, storage row, tags, links, container, toolbox, raw JSON | `buildPanelHTML` |
 | 8349-8407 | **Weight update** (direct / raw-scale modes, twin propagation) | `doWeightUpdate` |
 
 ---
 
-## Panels / debug / auto-update (L25534-28134)
+## Panels / debug / auto-update (L25535-28135)
 | L | What | Anchors |
 |---|---|---|
 | 8408-8481 | Resizable panels (detail + debug) — drag handle, persisted width | `makePanelResizable`, `openDebug` |
@@ -276,7 +276,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Friends rendering (L27001-28834)
+## Friends rendering (L27002-28835)
 | L | What | Anchors |
 |---|---|---|
 | 8920-9004 | Sidebar friends quick-list + hover tooltip | `renderSidebarFriends`, `showSbFriendTip` |
@@ -285,7 +285,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Racks + printers subscriptions (L27762-29207)
+## Racks + printers subscriptions (L27763-29208)
 | L | What | Anchors |
 |---|---|---|
 | 9216-9258 | Racks subscription | `subscribeRacks`, `unsubscribeRacks` |
@@ -295,132 +295,132 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printers views (L28155-33233)
+## Printers views (L28156-33279)
 | L | What | Anchors |
 |---|---|---|
-| 9423-9594 | **Job status helpers** + surgical grid patches (job card, online badge, grid signature) | `_getPrinterJob`, `_patchGridJobs`, `_jobCardHtml`, `_isPrinterOnline`, `_patchGridStatus` |
-| 9595-9764 | **Grid view** — auto-connect all brands, online/offline partition, cards | `renderPrintersView` |
-| 9765-9887 | **Table view** — sortable columns, row click → sidecard | `_renderPrinterTable` |
-| 9888-10150 | **Cam wall view** — patch mode, card sizes, detached cam window serializer | `_renderPrinterCam`, `_patchCamWall`, `_serializeCamerasForDetach` |
-| 10151-10348 | Printer plan drag guard (a dragged card's click does not open it) | `_printerJustDragged` |
-| 24032-24169 | **The board's objects** — one `data-board-id` addresses a machine (`brand:id`), one of its units (`unit:…`) or its units as one widget (`units:…`); position/z read + saved through the same three functions | `_boardObj`, `boardPos`, `boardZ`, `boardSave`, `saveUnitPlanPos`, `savePrinterPlanPos` |
-| 24170-24259 | **Clusters** — several board objects bound together for good. The id lives on the members beside the coordinates it binds (`planCluster` / `unitsPlanCluster` / `units.{id}.planPrintersCluster`), so no new collection, no rules block, and deleting a machine takes its membership with it | `_newClusterId`, `_printerBoardIds`, `clusterOf`, `clusterMembers`, `saveBoardCluster` |
-| 24318-24480 | **Plan layout** — places every object at its own coordinates, adopts orphans, compacts z to 1..N, sizes the board, then draws one outline per cluster | `layoutPrintersPlan`, `seedPrinterPlan`, `_drawClusterHulls` |
-| 24510-24778 | **Selection + drag** — a `Set` of board ids; selecting any member of a cluster expands to the whole of it in `_syncPlanSelection`, so the drag carries clusters without knowing they exist | `_syncPlanSelection`, `_expandPlanSelToClusters`, `_clearPlanSelection`, `wirePrinterMarquee`, `wirePrinterPlanDrag` |
-| 24778-24888 | **The board's right-click menu** — group / ungroup the selection; the kebab menu's own component, dropped from the cursor | `openPlanContextMenu`, `closePlanContextMenu`, `wirePlanClusterMenu` |
+| 9423-9595 | **Job status helpers** + surgical grid patches (job card, online badge, grid signature) | `_getPrinterJob`, `_patchGridJobs`, `_jobCardHtml`, `_isPrinterOnline`, `_patchGridStatus` |
+| 9596-9765 | **Grid view** — auto-connect all brands, online/offline partition, cards | `renderPrintersView` |
+| 9766-9888 | **Table view** — sortable columns, row click → sidecard | `_renderPrinterTable` |
+| 9889-10151 | **Cam wall view** — patch mode, card sizes, detached cam window serializer | `_renderPrinterCam`, `_patchCamWall`, `_serializeCamerasForDetach` |
+| 10152-10349 | Printer plan drag guard (a dragged card's click does not open it) | `_printerJustDragged` |
+| 24033-24170 | **The board's objects** — one `data-board-id` addresses a machine (`brand:id`), one of its units (`unit:…`) or its units as one widget (`units:…`); position/z read + saved through the same three functions | `_boardObj`, `boardPos`, `boardZ`, `boardSave`, `saveUnitPlanPos`, `savePrinterPlanPos` |
+| 24171-24260 | **Clusters** — several board objects bound together for good. The id lives on the members beside the coordinates it binds (`planCluster` / `unitsPlanCluster` / `units.{id}.planPrintersCluster`), so no new collection, no rules block, and deleting a machine takes its membership with it | `_newClusterId`, `_printerBoardIds`, `clusterOf`, `clusterMembers`, `saveBoardCluster` |
+| 24319-24481 | **Plan layout** — places every object at its own coordinates, adopts orphans, compacts z to 1..N, sizes the board, then draws one outline per cluster | `layoutPrintersPlan`, `seedPrinterPlan`, `_drawClusterHulls` |
+| 24511-24779 | **Selection + drag** — a `Set` of board ids; selecting any member of a cluster expands to the whole of it in `_syncPlanSelection`, so the drag carries clusters without knowing they exist | `_syncPlanSelection`, `_expandPlanSelToClusters`, `_clearPlanSelection`, `wirePrinterMarquee`, `wirePrinterPlanDrag` |
+| 24779-24889 | **The board's right-click menu** — group / ungroup the selection; the kebab menu's own component, dropped from the cursor | `openPlanContextMenu`, `closePlanContextMenu`, `wirePlanClusterMenu` |
 
 ---
 
-## Printer detail side panel (L32164-36183)
+## Printer detail side panel (L32210-36233)
 | L | What | Anchors |
 |---|---|---|
-| 10349-10911 | Open/close lifecycle (connect/disconnect per brand), conn button, refresh | `openPrinterDetail`, `closePrinterDetail`, `refreshOpenPrinterDetail` |
-| 10912-10922 | **`renderCamBanner(p)`** — dispatch to per-brand `widget_camera.js` (never builds camera HTML inline) | `renderCamBanner` |
-| 10923-12013 | **`renderPrinterDetail()`** — hero + camera banner + status + per-brand live block + control cards + log | `renderPrinterDetail` |
-| 12014-12125 | Inline edit for printer name / IP / port (pencil, Enter/Escape) + field persist | `startInlineEdit`, `savePrinterField` |
+| 10350-10912 | Open/close lifecycle (connect/disconnect per brand), conn button, refresh | `openPrinterDetail`, `closePrinterDetail`, `refreshOpenPrinterDetail` |
+| 10913-10923 | **`renderCamBanner(p)`** — dispatch to per-brand `widget_camera.js` (never builds camera HTML inline) | `renderCamBanner` |
+| 10924-12014 | **`renderPrinterDetail()`** — hero + camera banner + status + per-brand live block + control cards + log | `renderPrinterDetail` |
+| 12015-12126 | Inline edit for printer name / IP / port (pencil, Enter/Escape) + field persist | `startInlineEdit`, `savePrinterField` |
 
 ---
 
-## Add-printer flow (L35111-37183)
+## Add-printer flow (L35161-37233)
 Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.js` owns the shell.
 
 | L | What | Anchors |
 |---|---|---|
-| 12126-12224 | **Brand picker modal** — dispatches to per-brand add-flow | `openPrinterBrandPicker` |
-| 31959-32008 | **Demo printers** (debug mode) — section of the brand picker, one-click add of a simulated printer (`docs/DEMO-MODE.md`); `syncDemoPrinters` (printers/demo-badge.js) runs on every printer-list snapshot | `_renderDemoPrinterRows`, `addDemoPrinter` |
-| 12225-12306 | Add/edit printer form | `openPrinterAddForm`, `closePrinterAddForm` |
-| 12307-12558 | Tutorial image bottom-sheet + **multi-step connection tutorial** | `openTutoSheet`, `openPrinterTutorial`, `_ptRenderStep` |
-| 12559-12688 | **`submitPrinterAdd()`** — ADD (auto-id) vs EDIT (preserve id/isActive/sortIndex) | `submitPrinterAdd` |
+| 12127-12225 | **Brand picker modal** — dispatches to per-brand add-flow | `openPrinterBrandPicker` |
+| 32005-32054 | **Demo printers** (debug mode) — section of the brand picker, one-click add of a simulated printer (`docs/DEMO-MODE.md`); `syncDemoPrinters` (printers/demo-badge.js) runs on every printer-list snapshot | `_renderDemoPrinterRows`, `addDemoPrinter` |
+| 12226-12307 | Add/edit printer form | `openPrinterAddForm`, `closePrinterAddForm` |
+| 12308-12559 | Tutorial image bottom-sheet + **multi-step connection tutorial** | `openTutoSheet`, `openPrinterTutorial`, `_ptRenderStep` |
+| 12560-12689 | **`submitPrinterAdd()`** — ADD (auto-id) vs EDIT (preserve id/isActive/sortIndex) | `submitPrinterAdd` |
 
 ---
 
-## Racks CRUD + slots (L36202-39928)
+## Racks CRUD + slots (L36252-39978)
 | L | What | Anchors |
 |---|---|---|
-| 12689-12854 | Rack create / update / delete / empty + orphan ref cleanup | `createRack`, `updateRack`, `deleteRack`, `emptyRack` |
-| 12855-12991 | Empty-rack cascade, twin resolver, slot assign/unassign, slot fill HTML | `playEmptyRackCascade`, `assignSpoolToSlot`, `unassignSpool`, `findSpoolInSlot` |
-| 12992-13072 | **Slot locking** — right-click toggle, lock/unlock all, kebab menu positioning | `isSlotLocked`, `toggleSlotLock`, `positionRackMenu` |
-| 13073-13299 | **Auto-fill / auto-store / auto-unstore** + search dim + unranked helpers | `autoFillEmptySlots`, `maybeAutoStoreUnrankedSpools`, `applyRackSearchDim`, `getUnrackedSpools` |
-| 13341-13470 | **Skyline-packing masonry** layout + relayout scheduler + rack reorder | `layoutRacksMasonry`, `reorderRacks` |
-| 13471-13582 | **Rich hover tooltip** for filled slots (mini puck preview) | `buildRackTooltipHTML`, `wireRackTooltipDelegation` |
+| 12690-12855 | Rack create / update / delete / empty + orphan ref cleanup | `createRack`, `updateRack`, `deleteRack`, `emptyRack` |
+| 12856-12992 | Empty-rack cascade, twin resolver, slot assign/unassign, slot fill HTML | `playEmptyRackCascade`, `assignSpoolToSlot`, `unassignSpool`, `findSpoolInSlot` |
+| 12993-13073 | **Slot locking** — right-click toggle, lock/unlock all, kebab menu positioning | `isSlotLocked`, `toggleSlotLock`, `positionRackMenu` |
+| 13074-13300 | **Auto-fill / auto-store / auto-unstore** + search dim + unranked helpers | `autoFillEmptySlots`, `maybeAutoStoreUnrankedSpools`, `applyRackSearchDim`, `getUnrackedSpools` |
+| 13342-13471 | **Skyline-packing masonry** layout + relayout scheduler + rack reorder | `layoutRacksMasonry`, `reorderRacks` |
+| 13472-13583 | **Rich hover tooltip** for filled slots (mini puck preview) | `buildRackTooltipHTML`, `wireRackTooltipDelegation` |
 
 ---
 
-## Storage view render + DnD (L38771-41726)
+## Storage view render + DnD (L38821-41776)
 | L | What | Anchors |
 |---|---|---|
-| 13583-14230 | **`renderRackView()`** — biggest function in the file: stats bar + filter chips, two-column layout, masonry, kebab menus, live search, read-only friend mode, rack reorder DnD | `renderRackView` |
-| 14231-14448 | Drag sources (slot puck / unranked row) + drop targets + **drop-to-void unassign** | `wireDragSources`, `wireDropTargets`, `clearOtherDropHighlights` |
-| 14449-14472 | Unrank cascade animation | `playUnrankAnimation` |
-| 14473-14677 | **Rack create/edit modal** — name, presets, rows×columns, delete confirm, field errors | `openRackEditModal`, `renderRackPresets`, `confirmDeleteRack` |
+| 13584-14231 | **`renderRackView()`** — biggest function in the file: stats bar + filter chips, two-column layout, masonry, kebab menus, live search, read-only friend mode, rack reorder DnD | `renderRackView` |
+| 14232-14449 | Drag sources (slot puck / unranked row) + drop targets + **drop-to-void unassign** | `wireDragSources`, `wireDropTargets`, `clearOtherDropHighlights` |
+| 14450-14473 | Unrank cascade animation | `playUnrankAnimation` |
+| 14474-14678 | **Rack create/edit modal** — name, presets, rows×columns, delete confirm, field errors | `openRackEditModal`, `renderRackPresets`, `confirmDeleteRack` |
 
 ---
 
-## Friend view (L40522-42526)
+## Friend view (L40572-42576)
 | L | What | Anchors |
 |---|---|---|
-| 14678-14759 | Friend inventory open/close (one-shot read, no live updates) | `openFriendInventory`, `closeFriendInventory` |
-| 14760-14953 | **Friend banner** + switch to friend view (own inventory/racks listeners stay alive, parked in `_ownStash`; last friends in `_friendCache`, fresh 3 min = no read) / switch back (restores the stash, no re-read) | `renderFriendBanner`, `switchToFriendView`, `switchBackToOwnView`, `prewarmAuthToken` |
-| 14954-15008 | Friends section in dropdown + incoming request modal queue | `renderFriendsSection`, `showFriendRequestModal` |
-| 15009-15146 | **Add-friend modal** — split XXX-XXX field, live preview lookup | `openAddFriendModal`, `_adfChanged` |
-| 41290-41414 | **Deep links** — friend (`tigertag://friend/`, web `?friend=`) pre-fills the add-friend modal; **spool links** (`tigertag://spool/<id>`, web `?spool=&weight=&note=`, a `qr.tigertag.io` link pasted in the search; parsed by `qr-link.js`) open the spool for its owner (inventory → `uidMigrationMap` → another account of the device); the link's values wait on the held linkValuesBanner of the spool card (see the detail panel) | `_handleFriendDeepLink`, `_spoolLinkArrived`, `_openSpoolLink`, `_handleSpoolDeepLink` |
+| 14679-14760 | Friend inventory open/close (one-shot read, no live updates) | `openFriendInventory`, `closeFriendInventory` |
+| 14761-14954 | **Friend banner** + switch to friend view (own inventory/racks listeners stay alive, parked in `_ownStash`; last friends in `_friendCache`, fresh 3 min = no read) / switch back (restores the stash, no re-read) | `renderFriendBanner`, `switchToFriendView`, `switchBackToOwnView`, `prewarmAuthToken` |
+| 14955-15009 | Friends section in dropdown + incoming request modal queue | `renderFriendsSection`, `showFriendRequestModal` |
+| 15010-15147 | **Add-friend modal** — split XXX-XXX field, live preview lookup | `openAddFriendModal`, `_adfChanged` |
+| 41340-41464 | **Deep links** — friend (`tigertag://friend/`, web `?friend=`) pre-fills the add-friend modal; **spool links** (`tigertag://spool/<id>`, web `?spool=&weight=&note=`, a `qr.tigertag.io` link pasted in the search; parsed by `qr-link.js`) open the spool for its owner (inventory → `uidMigrationMap` → another account of the device); the link's values wait on the held linkValuesBanner of the spool card (see the detail panel) | `_handleFriendDeepLink`, `_spoolLinkArrived`, `_openSpoolLink`, `_handleSpoolDeepLink` |
 
 ---
 
-## Display name + friend requests (L41649-44187)
+## Display name + friend requests (L41699-44257)
 | L | What | Anchors |
 |---|---|---|
-| 15147-15190 | **Display-name setup modal** (first-login pseudo picker) | `openDisplayNameSetup` |
-| 15191-15283 | Friend requests subscription + badge + accept/refuse/block/remove (bidirectional batch writes) | `subscribeFriendRequests`, `acceptFriendRequest`, `removeFriend` |
-| 15284-15347 | Blacklist load / unblock / render | `loadBlacklist`, `renderBlacklist` |
+| 15148-15191 | **Display-name setup modal** (first-login pseudo picker) | `openDisplayNameSetup` |
+| 15192-15284 | Friend requests subscription + badge + accept/refuse/block/remove (bidirectional batch writes) | `subscribeFriendRequests`, `acceptFriendRequest`, `removeFriend` |
+| 15285-15348 | Blacklist load / unblock / render | `loadBlacklist`, `renderBlacklist` |
 
 ---
 
-## Keys + profile sync (L43055-44404)
+## Keys + profile sync (L43105-44474)
 | L | What | Anchors |
 |---|---|---|
-| 15348-15392 | **`claimPublicKey(uid, oldKey)`** atomic transaction (10 retries) + regenerate + send friend request | `claimPublicKey`, `sendFriendRequest` |
-| 15417-15467 | Key generators (`XXX-XXX`, 40-char hex) + `userProfiles/{uid}` sync | `generatePublicKey`, `generatePrivateKey`, `syncUserProfile` |
+| 15349-15393 | **`claimPublicKey(uid, oldKey)`** atomic transaction (10 retries) + regenerate + send friend request | `claimPublicKey`, `sendFriendRequest` |
+| 15418-15468 | Key generators (`XXX-XXX`, 40-char hex) + `userProfiles/{uid}` sync | `generatePublicKey`, `generatePrivateKey`, `syncUserProfile` |
 
 ---
 
-## Custom avatar (L43318-44886)
+## Custom avatar (L43368-44956)
 | L | What | Anchors |
 |---|---|---|
-| 16260-16434 | File pick, image decode (HEIC via the main process on macOS), alpha detection, error text, remove | `_readAvatarFile`, `removeCustomAvatar` |
-| 16435-16620 | **Discord-style cropper** — crop / zoom / rotate + cropped upload | `openAvatarCropper`, `uploadCroppedAvatar` |
+| 16261-16435 | File pick, image decode (HEIC via the main process on macOS), alpha detection, error text, remove | `_readAvatarFile`, `removeCustomAvatar` |
+| 16436-16621 | **Discord-style cropper** — crop / zoom / rotate + cropped upload | `openAvatarCropper`, `uploadCroppedAvatar` |
 
 ---
 
-## User doc sync + telemetry + bootstrap (L43654-46329)
+## User doc sync + telemetry + bootstrap (L43701-46378)
 | L | What | Anchors |
 |---|---|---|
-| 16913-17328 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
-| ~18747-18827 | **RFID chip list + tag+ backup** — `users/{uid}/rfidList/{UID_HEX}` upsert (firstSeen once-stamped; tag+ signature backup write-once = TigerTag+ indicator). Dedup via inventory-doc `rfidListed`/`rfidBackup` booleans (no in-memory index). Census once per account on first inventory snapshot; backup on auto-scan | `censusRfidListFromInventory`, `recordRfidChipScan` |
-| 17329-17361 | Language sync from Firestore + `applyLang(lang)` | `syncLangFromFirestore`, `applyLang` |
-| 17362-17377 | **Init bootstrap** — loadLocales → applyTranslations → loadLookups → loadImgMap → runMigration → initAuth → signalFirstPaint | grep "loadLocales().then" |
+| 16914-17329 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
+| ~18748-18828 | **RFID chip list + tag+ backup** — `users/{uid}/rfidList/{UID_HEX}` upsert (firstSeen once-stamped; tag+ signature backup write-once = TigerTag+ indicator). Dedup via inventory-doc `rfidListed`/`rfidBackup` booleans (no in-memory index). Census once per account on first inventory snapshot; backup on auto-scan | `censusRfidListFromInventory`, `recordRfidChipScan` |
+| 17330-17362 | Language sync from Firestore + `applyLang(lang)` | `syncLangFromFirestore`, `applyLang` |
+| 17363-17378 | **Init bootstrap** — loadLocales → applyTranslations → loadLookups → loadImgMap → runMigration → initAuth → signalFirstPaint | grep "loadLocales().then" |
 
 ---
 
-## Electron RFID integration (L45573-46895)
+## Electron RFID integration (L45622-46944)
 | L | What | Anchors |
 |---|---|---|
-| 30941-31028 | Reader indicator (topbar), reader connect/disconnect, card present/removed badge | `renderRfidReaderBadges` |
-| 31029-31060 | Dual-scan buffer (2 readers / 1.5 s) | `_flushRfidScans` |
-| 31061-31193 | **Main NFC scan processor**; a chip flagged to update (`needUpdateAt`) is rewritten from its record as soon as it is read on the TigerPOD | `_processNfcScans`, `_autoUpdateChip` |
-| 31194-31303 | **Build and write one chip document** to Firestore (API fields only for TigerTag+) | `_writeChipDoc` |
-| 31304-31364 | Auto-update status stream | |
-| 31365-31366 | TD1S engine moved to `IoT/td1s/index.js` (closing comment) | |
+| 30987-31074 | Reader indicator (topbar), reader connect/disconnect, card present/removed badge | `renderRfidReaderBadges` |
+| 31075-31106 | Dual-scan buffer (2 readers / 1.5 s) | `_flushRfidScans` |
+| 31107-31239 | **Main NFC scan processor**; a chip flagged to update (`needUpdateAt`) is rewritten from its record as soon as it is read on the TigerPOD | `_processNfcScans`, `_autoUpdateChip` |
+| 31240-31349 | **Build and write one chip document** to Firestore (API fields only for TigerTag+) | `_writeChipDoc` |
+| 31350-31410 | Auto-update status stream | |
+| 31411-31412 | TD1S engine moved to `IoT/td1s/index.js` (closing comment) | |
 
 ---
 
-## Local MCP server — tools + Settings card (L45646-48792)
+## Local MCP server — tools + Settings card (L45695-48841)
 | L | What | Anchors |
 |---|---|---|
-| 38588-39049 | **Read-only MCP tools** + whole-account read (`data_guide` notice, decoder, `firestore_get` / `firestore_query`, friends, wishlists, history, devices; credential masking `MCP_SECRET_FIELD`, scope `_mcpCheckPath`) — definitions (`search_inventory`, `get_spool`, `inventory_summary`, `list_racks`, `list_printers`), row serialiser, handlers, `mcp:call` → `mcp:result` relay. Server itself: `services/mcpServer.js` | `MCP_TOOLS`, `MCP_HANDLERS`, `_mcpRows`, `_mcpSpool` |
+| 38638-39099 | **Read-only MCP tools** + whole-account read (`data_guide` notice, decoder, `firestore_get` / `firestore_query`, friends, wishlists, history, devices; credential masking `MCP_SECRET_FIELD`, scope `_mcpCheckPath`) — definitions (`search_inventory`, `get_spool`, `inventory_summary`, `list_racks`, `list_printers`), row serialiser, handlers, `mcp:call` → `mcp:result` relay. Server itself: `services/mcpServer.js` | `MCP_TOOLS`, `MCP_HANDLERS`, `_mcpRows`, `_mcpSpool` |
 | (inside this block) | **AI assistant window wiring** — the ctx handed to `renderer/ai/assistant.js` (spool names, stock sample for the suggested questions, journal, user undo, glow) | `initAiAssistant`, `_mcpUndo`, `_mcpGuideUrl` |
-| 46313-46610 | **Catalogue + print planning MCP tools** — `search_catalog` (EAN / SKU / words / colour over `_catalogIndex`), `lookup_reference` (reference tables + containers), `match_filaments` (material by ID, CIEDE2000 colour, grams + margin, one pick per slot, catalogue suggestions), `identify_spool` (QR link / UID → spool, `parseQrLink`) |
-| 46660-47117 | **MCP write tools** — `set_spool_weight`, `update_spool`, `move_spool`, `update_product`, `create_spools`, `list_changes`, `undo_change` (+ `find_free_slots`, `create_rack`, `rename_rack` through the racks CRUD writers, and `get_label` through the labels module's labelFor / saveLabel / qrSvg): write gate (`writeFor`), journal in localStorage `tigertag.agentChanges.<uid>`, twin-mirrored batch, `questsMuted` | `_mcpWriteGate`, `_mcpPatchSpool`, `_mcpJournal`, `_mcpLog`, `_mcpRowFor` | `_mcpLab`, `_mcpDeltaE`, `_mcpMaterialRef`, `_mcpCatalogue`, `_mcpCatalogueByColor` |
+| 46383-46680 | **Catalogue + print planning MCP tools** — `search_catalog` (EAN / SKU / words / colour over `_catalogIndex`), `lookup_reference` (reference tables + containers), `match_filaments` (material by ID, CIEDE2000 colour, grams + margin, one pick per slot, catalogue suggestions), `identify_spool` (QR link / UID → spool, `parseQrLink`) |
+| 46730-47187 | **MCP write tools** — `set_spool_weight`, `update_spool`, `move_spool`, `update_product`, `create_spools`, `list_changes`, `undo_change` (+ `find_free_slots`, `create_rack`, `rename_rack` through the racks CRUD writers, and `get_label` through the labels module's labelFor / saveLabel / qrSvg): write gate (`writeFor`), journal in localStorage `tigertag.agentChanges.<uid>`, twin-mirrored batch, `questsMuted` | `_mcpWriteGate`, `_mcpPatchSpool`, `_mcpJournal`, `_mcpLog`, `_mcpRowFor` | `_mcpLab`, `_mcpDeltaE`, `_mcpMaterialRef`, `_mcpCatalogue`, `_mcpCatalogueByColor` |
 | (inside this block) | The account signed in is passed to main (`mcp:set-account`); My profile's card opens the AI assistant page (`#btnEacOpenAi`) | `_mcpSyncAccount` |
 | (inside this block) | The public guide for connecting an assistant to the hosted connector, opened by the setup on that assistant's anchor | `_mcpGuideUrl` |
 
@@ -435,25 +435,25 @@ Most common navigation tasks → grep these anchors first:
 | Touch the weight slider / weight save | `doWeightUpdate` L9299, `_patchDetailWeight` L7661 |
 | Touch the Add Product panel | `openAddProductPanel` L2231, `saveAddProduct` L2417 |
 | Touch the RFID encode/burn modal | `openEncodeModal` L6962, `_cemStartBurn` L7107 |
-| Touch a modal | Twin link L8396, Container L8471, Rack edit L15987, Login L3586, Edit account L3301 |
-| Touch the storage view | `renderRackView` L15108 — biggest function in the file |
-| Touch rack drag-drop | `wireDragSources` L15748, `wireDropTargets` L15813, drop-to-void L15900 |
-| Touch the printers grid / table / cam wall | `renderPrintersView` L10501, `_renderPrinterTable` L10670, `_renderPrinterCam` L10835 |
-| Touch the printer detail card | `renderPrinterDetail` L11828, `openPrinterDetail` L11254 |
+| Touch a modal | Twin link L8396, Container L8471, Rack edit L15988, Login L3586, Edit account L3301 |
+| Touch the storage view | `renderRackView` L15109 — biggest function in the file |
+| Touch rack drag-drop | `wireDragSources` L15749, `wireDropTargets` L15814, drop-to-void L15901 |
+| Touch the printers grid / table / cam wall | `renderPrintersView` L10502, `_renderPrinterTable` L10671, `_renderPrinterCam` L10836 |
+| Touch the printer detail card | `renderPrinterDetail` L11829, `openPrinterDetail` L11255 |
 | Touch a printer brand integration (WS/MQTT/HTTP, live block, filament edit) | `printers/<brand>/index.js` — NOT in this file |
 | Touch the Anycubic MQTT layer (LAN + cloud) | `acuConnect` in `printers/anycubic/index.js` (+ `anycubic:*` IPC in main.js) |
 | Touch the Anycubic live block / ACE card | `renderAnycubicLiveInner`, `renderAcuFilamentCard` |
-| Touch a printer camera banner | `printers/<brand>/widget_camera.js`; dispatch at `renderCamBanner` L11817 |
-| Touch the Add-printer scan flow | `printers/<brand>/add-flow.js`; shell at `openPrinterBrandPicker` L13033 |
-| Touch the printer tutorials | `openPrinterTutorial` L13360 |
+| Touch a printer camera banner | `printers/<brand>/widget_camera.js`; dispatch at `renderCamBanner` L11818 |
+| Touch the Add-printer scan flow | `printers/<brand>/add-flow.js`; shell at `openPrinterBrandPicker` L13034 |
+| Touch the printer tutorials | `openPrinterTutorial` L13361 |
 | Touch the TigerScale panel | `IoT/tigerscale/index.js`; init wiring at L3151 |
 | Touch the TD1S sensor / TD-Color edit modals | `IoT/td1s/index.js` + `edit-modals.js` |
-| Touch the Friends system | lists L9825, friend view L16191, requests L16702 |
+| Touch the Friends system | lists L9826, friend view L16192, requests L16703 |
 | Touch the custom avatar / cropper | `_readAvatarFile`, `openAvatarCropper`, `uploadCroppedAvatar` (grep -n) |
 | Touch the auth flow | `handleSignedIn` L4508, `initAuth` L4641, login modal L3586 |
-| Touch the Firestore subscriptions | inventory L4395, racks L10121, printers L10165, friend reqs L16702 |
-| Touch the telemetry | `syncUserDoc` L17359 (studio* fields), `_recordUsage` L8346 |
-| Touch the auto-update banner | L9509 |
+| Touch the Firestore subscriptions | inventory L4395, racks L10122, printers L10166, friend reqs L16703 |
+| Touch the telemetry | `syncUserDoc` L17360 (studio* fields), `_recordUsage` L8346 |
+| Touch the auto-update banner | L9510 |
 | Touch the diagnostic / report-problem modal | `reportError` L721, `openDiagnosticModal` L822 |
 
 ---
@@ -465,5 +465,5 @@ Most common navigation tasks → grep these anchors first:
 - **Selectors**: `$` is `document.getElementById`. Many DOM nodes have IDs matching the section (e.g. `#detailPanel`, `#friendsPanel`).
 - **i18n**: 11 locales (en/fr/de/es/it/zh/pt/pt-pt/pl/ru/nl) under `renderer/locales/`. Never hand-edit — use `npm run i18n:add`. The `npm run i18n:check` pre-commit hook blocks drift.
 - **CSS**: 10 themed files under `renderer/css/` (`00-base.css` → `70-detail-misc.css`, plus `55-creality.css` and `57-elegoo.css`). When this file references a UI section, the styles live in the matching CSS module.
-- **Per-brand camera widgets**: each printer folder has a `widget_camera.js` that owns all camera HTML + lifecycle. `inventory.js` calls `renderCamBanner(p)` (L11817) which dispatches — it never builds camera HTML inline. To add a brand: create `printers/<brand>/widget_camera.js`, export `render<Brand>CamBanner(p)`, add a case in `renderCamBanner`, CSS in `renderer/css/5X-<brand>.css`.
+- **Per-brand camera widgets**: each printer folder has a `widget_camera.js` that owns all camera HTML + lifecycle. `inventory.js` calls `renderCamBanner(p)` (L11818) which dispatches — it never builds camera HTML inline. To add a brand: create `printers/<brand>/widget_camera.js`, export `render<Brand>CamBanner(p)`, add a case in `renderCamBanner`, CSS in `renderer/css/5X-<brand>.css`.
 - **Line numbers drift** — if a range looks wrong, grep the anchor name. `npm run codemap:check` catches major drift at commit time.

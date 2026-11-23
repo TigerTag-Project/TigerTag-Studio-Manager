@@ -30404,8 +30404,13 @@ import { initScreenTools } from './ai/screen-tools.js';
        client slot — which is exactly why the camera view then showed a black
        card while the board had a picture. The side panel already gives its own
        back on close; the board must do the same when it stops being on screen. */
-    _prevPlanImgs.forEach(({ key, img }) => { try { ffgMuxUnregister(key, img); } catch {} });
-    _prevPlanImgs.length = 0;
+    /* (On the board itself this waits until the rebuild is certain: a rebuild
+       that turns out identical keeps its elements, and they stay registered.) */
+    const _releasePlanImgs = () => {
+      _prevPlanImgs.forEach(({ key, img }) => { try { ffgMuxUnregister(key, img); } catch {} });
+      _prevPlanImgs.length = 0;
+    };
+    if (_printerSub !== "grid") _releasePlanImgs();
 
     if (_printerSub === "table") { _renderPrinterTable(host); return; }
     if (_printerSub === "cam")   { _renderPrinterCam(host); return; }
@@ -30433,6 +30438,42 @@ import { initScreenTools } from './ai/screen-tools.js';
        each card carries its own coordinates. Sorting by state was the whole
        reason a printer moved when it blinked. */
     const _orderedPrinters = state.printers;
+
+    /* NOTHING TO REDRAW, NOTHING REDRAWN. At launch this ran some twenty-five
+       times in thirty seconds — each brand's Firestore snapshot, every
+       inventory render, a brand tick, the last-seen seed — and each pass tore
+       down every live camera on the board and restarted it: the whole board
+       flickered while the app came up. What a rebuild is FOR is the board's
+       shape: which machines, their names, their widgets, whether a card offers
+       a camera or job keys, the selection, the arrange mode. Everything live
+       inside that shape — the dots, the job bars, the widgets' values, a feed
+       placed by `_camCatchUp` — is patched in place between rebuilds
+       (`_patchGridStatus`, `_patchGridJobs`, `_patchSlotsWidgets`). So the
+       board is rebuilt when its shape changed, and otherwise only re-laid out:
+       the positions live outside the markup. */
+    const _camOffered = p => {
+      const online = _isOnline(p);
+      const html   = (online || _camSourceId(p)) ? _boardCamHtml(p) : "";
+      return !!html || (online && (_camStartable(p) || _camStarting(p)));
+    };
+    const _boardSig = [
+      state.lang, _printerArrange, Math.round(_printerZoom * 100),
+      ...state.printers.map(p => {
+        const k   = _printerKey(p);
+        const job = _getPrinterJob(p);
+        return [k, p.printerName, p.printerModelId, p.demo ? 1 : 0, p.mode, p.isActive ? 1 : 0,
+                state.selectedPrinters.has(k) ? 1 : 0, _camOffered(p) ? 1 : 0,
+                (job?.isActive && brands.get(p.brand)?.isReadOnly?.(p) !== true) ? 1 : 0,
+                ...BOARD_WIDGETS.map(w => widgetOn(p, w.kind) ? 1 : 0), unitsAreSplit(p) ? 1 : 0].join("~");
+      }).sort(),
+      (() => { try { return extCamBoardCardsHtml(); } catch { return ""; } })(),
+    ].join("|");
+    if (!force && host._boardSig === _boardSig && host.querySelector(":scope > .printers-scroll > .printers-grid--plan")) {
+      layoutPrintersPlan();
+      applyPrinterFilter();
+      _syncSelAllHeader();
+      return;
+    }
 
     // One flat grid — all brands mixed, ordered strictly by user-defined
     // sortIndex (set via drag & drop). Each card carries its brand pill so
@@ -30587,7 +30628,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     /* The board lives in its own scroller: the cards are placed in plan
        coordinates and the scroller is what moves over them, so panning and
        zooming never touch a single position. */
-    host.innerHTML = `
+    const _boardHtml = `
       <div class="pv-plan-bar">
         <button type="button" class="rv-plan-btn${_printerArrange ? " on" : ""}" id="pvArrangeBtn"
                 aria-pressed="${_printerArrange ? "true" : "false"}">
@@ -30605,6 +30646,10 @@ import { initScreenTools } from './ai/screen-tools.js';
       <div class="printers-scroll">
         <div class="printers-grid printers-grid--plan">${cards}</div>
       </div>`;
+
+    _releasePlanImgs();
+    host.innerHTML = _boardHtml;
+    host._boardSig = _boardSig;
 
     /* No sort drag-and-drop on the board. Two ways to move the same card is one
        too many, and the old one rewrote `sortIndex` behind the arrangement —
@@ -33951,12 +33996,16 @@ import { initScreenTools } from './ai/screen-tools.js';
       if (p.brand === "elegoo")                           elegooConnect(p);
       if (p.brand === "anycubic"   && (p.ip || p.mode === "cloud")) acuConnect(p);
     }
-    // Refresh the panel body and the printer grid immediately so the badge
-    // dots in the card list also flip to offline/connecting right away.
+    /* Refresh the panel body, and only the status dots of the board — the same
+       patch a brand's own status change uses. A full `renderPrintersView()`
+       here rebuilt every card, so every other machine's live camera was torn
+       down and restarted: one click on Connect made the whole board's feeds
+       flicker. */
     try { renderPrinterDetail(); } catch (_) {}
     if (_isPrinterMode(state.viewMode)) {
-      if (state.viewMode === "printer-cam") try { _patchCamWall(); } catch (_) {}
-      else try { renderPrintersView(); } catch (_) {}
+      if (state.viewMode === "printer-cam")        try { _patchCamWall(); } catch (_) {}
+      else if (state.viewMode === "printer-table") try { _patchTableStatus(); } catch (_) {}
+      else                                         try { _patchGridStatus(); } catch (_) {}
     }
   });
 
