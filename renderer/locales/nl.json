@@ -956,6 +956,7 @@
   "notifReq_declined": "Verzoek #{{n}} gaat voorlopig niet door",
   "notifReq_cancelled": "Verzoek #{{n}} is gesloten",
   "notifReqReply": "Verzoek #{{n}} heeft een reactie gekregen",
+  "notifReqAuthor": "De auteur van verzoek #{{n}} heeft een bericht gestuurd",
   "reportTitlePhBug": "In één zin: wat gaat er mis?",
   "reportTitlePhIdea": "In één zin: wat zou je willen?",
   "reportBodyPhBug": "Wat deed je, wat verwachtte je en wat gebeurde er in plaats daarvan?",

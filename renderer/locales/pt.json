@@ -956,6 +956,7 @@
   "notifReq_declined": "O pedido #{{n}} não vai adiante por enquanto",
   "notifReq_cancelled": "O pedido #{{n}} foi fechado",
   "notifReqReply": "O pedido #{{n}} recebeu uma resposta",
+  "notifReqAuthor": "O autor da solicitação #{{n}} enviou uma mensagem",
   "reportTitlePhBug": "Numa linha: o que está dando errado?",
   "reportTitlePhIdea": "Numa linha: o que você adoraria?",
   "reportBodyPhBug": "O que você fez, o que esperava e o que aconteceu no lugar?",

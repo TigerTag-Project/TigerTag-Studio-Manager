@@ -123,7 +123,9 @@ export function initReport(c) {
   // Team replies and status changes are read from GitHub on demand: at sign-in, when
   // "My requests" opens, and every WATCH_MS while a request is still open.
   setInterval(() => {
-    if (document.visibilityState === "visible" && (_mine.list || []).some(r => CLOSABLE.has(r.status))) syncReports().catch(() => {});
+    if (document.visibilityState !== "visible") return;
+    if ((_mine.list || []).some(r => CLOSABLE.has(r.status))) syncReports().catch(() => {});
+    if (ctx.isTeam?.()) syncAll().catch(() => {});   // the team: an author may have written on an open request
   }, WATCH_MS);
 }
 
@@ -411,6 +413,85 @@ function _checkReplies() {
   if (shown.length) _showAlert(shown);
 }
 
+// ── The team: the author wrote on an open request ────────────────────────────
+// "All requests" is watched like "My requests" is for the user: a notice when the AUTHOR of an
+// open request wrote something. The server's numbers cannot say who wrote (`comments` = every
+// comment, `replies` = the team's), so a rise in the others' count is checked in the conversation
+// itself, where each comment says whether it comes from the reporter, the team or another member.
+// A notice stays in the notification centre like a "new request" one: unread until the centre is
+// opened, then read, and kept (30 days, 30 of them) — on this computer, per account.
+const TEAM_SEEN_KEY = uid => `tigertag.reportTeamSeen.${uid}`;
+const TEAM_NOTIFS_KEY = uid => `tigertag.reportTeamNotifs.${uid}`;
+const TEAM_NOTIFS_KEEP = { max: 30, ms: 30 * 24 * 3600e3 };
+const _authorNotifId = id => `req-author-${id}`;
+const _others = r => Math.max(0, (Number(r.comments) || 0) - (Number(r.replies) || 0));
+function _loadTeamSeen(uid) {
+  try { return JSON.parse(localStorage.getItem(TEAM_SEEN_KEY(uid)) || "{}") || {}; } catch (_) { return {}; }
+}
+function _saveTeamSeen(uid, map) {
+  try { localStorage.setItem(TEAM_SEEN_KEY(uid), JSON.stringify(map)); } catch (_) {}
+}
+// The notices kept for an account: { reportId, number, title, at (the author's message), seenAt (when Studio noticed), read }.
+function _loadTeamNotifs(uid) {
+  try { const l = JSON.parse(localStorage.getItem(TEAM_NOTIFS_KEY(uid)) || "[]"); return Array.isArray(l) ? l : []; } catch (_) { return []; }
+}
+function _saveTeamNotifs(uid, list) {
+  const now = Date.now();
+  const kept = list.filter(e => now - (Number(e.seenAt) || now) < TEAM_NOTIFS_KEEP.ms)
+    .sort((a, b) => (Number(b.seenAt) || 0) - (Number(a.seenAt) || 0)).slice(0, TEAM_NOTIFS_KEEP.max);
+  try { localStorage.setItem(TEAM_NOTIFS_KEY(uid), JSON.stringify(kept)); } catch (_) {}
+}
+/** Put one kept notice in the centre. `quiet`: an old one coming back, no chime. */
+function _raiseTeamNotif(e, quiet) {
+  if (!quiet) ctx.clearNotif?.(_authorNotifId(e.reportId));   // a new message on a request that already had a notice: it chimes again
+  ctx.notifyReply?.({ id: _authorNotifId(e.reportId), icon: "suggestion", action: "report", at: e.at || e.seenAt, read: !!e.read, quiet: !!quiet,
+    title: t("notifReqAuthor", { n: e.number }), text: e.title || "" });
+}
+/** The team opened this request's conversation: what its author wrote is seen. */
+function _markTeamSeen(id) {
+  const uid = ctx.getUid?.(), r = (_all.list || []).find(x => x.id === id);
+  if (!uid || !r) return;
+  _saveTeamSeen(uid, { ..._loadTeamSeen(uid), [id]: _others(r) });
+  const l = _loadTeamNotifs(uid), e = l.find(x => x.reportId === id);
+  if (e && !e.read) { e.read = true; _saveTeamNotifs(uid, l); _raiseTeamNotif(e, true); }
+}
+/** The notification centre was opened: every notice is read (the badge clears, the cards stay). */
+export function markTeamNotifsRead() {
+  const uid = ctx?.getUid?.();
+  if (!uid) return;
+  const l = _loadTeamNotifs(uid);
+  if (l.some(e => !e.read)) _saveTeamNotifs(uid, l.map(e => ({ ...e, read: true })));
+}
+async function _checkAuthorMessages() {
+  const uid = ctx.getUid?.(), list = _all.list;
+  if (!uid || !list || !ctx.isTeam?.()) return;
+  _loadTeamNotifs(uid).forEach(e => _raiseTeamNotif(e, true));   // the kept notices are in the centre (again, after another account used it)
+  const seen = _loadTeamSeen(uid), next = { ...seen }, rising = [];
+  for (const r of list) {
+    if (!r || r.id == null) continue;
+    const n = _others(r);
+    if (!(r.id in next)) { next[r.id] = n; continue; }   // first sighting: a silent baseline (the whole history is not announced)
+    // Mine: "My requests" announces it. Closed: nothing left to answer. Open on screen: being read.
+    if (r.mine || !CLOSABLE.has(r.status) || (_thread?.team && _thread.id === r.id && isReportOpen())) { next[r.id] = n; continue; }
+    if (n > next[r.id]) rising.push(r);
+  }
+  for (const r of rising) {
+    const n = _others(r);
+    let by = false, at = 0;
+    try {
+      const j = await authedPost(MINE_ENDPOINT, { action: "thread", reportId: r.id, as: "team" });
+      const byAuthor = (j.thread?.comments || []).filter(c => c.from !== "team").slice(-(n - next[r.id])).filter(c => c.from === "reporter");
+      by = byAuthor.length > 0; at = by ? byAuthor[byAuthor.length - 1].at : 0;
+    } catch (_) { continue; }   // not read: tried again at the next check
+    next[r.id] = n;   // read: counted, whoever wrote
+    if (!by) continue;   // another member answered a question: not announced
+    const e = { reportId: r.id, number: r.number, title: r.title || "", at, seenAt: Date.now(), read: false };
+    _saveTeamNotifs(uid, [e, ..._loadTeamNotifs(uid).filter(x => x.reportId !== r.id)]);
+    _raiseTeamNotif(e, false);
+  }
+  _saveTeamSeen(uid, next);
+}
+
 // ── Alert window: "your request moved" ───────────────────────────────────────
 // The request art (TigerSquad look: requests are a squad perk) — the icon tile until it exists.
 const ALERT_ART = isLaddered("tigersquad/requests/tiger-request") ? "tigersquad/requests/tiger-request" : null;
@@ -459,6 +540,7 @@ async function openThread(id, { team = false, reply = "", onSent = null } = {}) 
     onSent: typeof onSent === "function" ? onSent : null };
   _view = team ? "all" : "mine"; _closeAsk = null; _resolveAsk = null;
   if (!team) _markSeen((_mine.list || []).find(r => r.id === id));
+  if (team) _markTeamSeen(id);   // the author's message is read
   render();
   try { const j = await authedPost(MINE_ENDPOINT, { action: "thread", reportId: id, ...(team && ctx.isTeam?.() ? { as: "team" } : {}) }); if (_thread?.id === id) _thread.data = j.thread; }
   catch (_) { if (_thread?.id === id) _thread.error = true; }
@@ -471,12 +553,17 @@ const _threadActive = () => !!(_thread && isReportOpen() && (_view === "mine" ||
 // ── All requests (every member reads them; the team acts on them) ────────────
 // `maxAge`: a tab opened again within it keeps the list it shows (no call).
 async function syncAll({ maxAge = 0 } = {}) {
-  if (_all.loading || (maxAge && _all.list && Date.now() - (_all.at || 0) < maxAge)) return;
-  _all.loading = true; _all.error = false;
-  try { _all.list = (await authedPost(MINE_ENDPOINT, { action: "all" })).reports || []; _all.at = Date.now(); } catch (_) { _all.error = true; }
+  const uid = ctx.getUid?.() || null;
+  if (_all.uid !== uid) _all = { ..._all, list: null, loading: false, error: false, msgReports: null, at: 0, uid };   // another account: its own list
+  const cur = _all;   // what this call fills: if the account changes meanwhile, the new one has its own
+  if (cur.loading || (maxAge && cur.list && Date.now() - (cur.at || 0) < maxAge)) return;
+  cur.loading = true; cur.error = false;
+  try { cur.list = (await authedPost(MINE_ENDPOINT, { action: "all" })).reports || []; cur.at = Date.now(); } catch (_) { cur.error = true; }
   // The team also sees the TigerCoins envelope messages their recipients reported.
-  if (ctx.isTeam?.()) { try { _all.msgReports = (await authedPost(MINE_ENDPOINT, { action: "messageReports" })).reports || []; } catch (_) { _all.msgReports = null; } }
-  _all.loading = false;
+  if (ctx.isTeam?.()) { try { cur.msgReports = (await authedPost(MINE_ENDPOINT, { action: "messageReports" })).reports || []; } catch (_) { cur.msgReports = null; } }
+  cur.loading = false;
+  if (_all !== cur) return;   // the account changed while reading: this answer is not for the new one
+  if (_all.list) _checkAuthorMessages().catch(() => {});
   // The list also feeds the open count on the "All requests" tab: repaint any list view.
   if (isReportOpen() && !_thread && (_view !== "new" || !kindOf(st?.kind))) render();
 }
@@ -660,6 +747,7 @@ export async function syncReports({ maxAge = 0 } = {}) {
   if (isReportOpen() && _view === "mine" && !_thread) render();
   try { _mine.list = (await authedPost(MINE_ENDPOINT, { action: "list" })).reports || []; _mine.at = Date.now(); _checkReplies(); }
   catch (_) { _mine.error = true; }
+  if (ctx.isTeam?.() && !_all.list && !_all.loading) syncAll().catch(() => {});   // the team's watch starts with the session, not with the tab
   _mine.loading = false;
   if (isReportOpen() && !_thread) render();
   return _mine.list;

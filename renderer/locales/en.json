@@ -956,6 +956,7 @@
   "notifReq_declined": "Request #{{n}} won't go ahead for now",
   "notifReq_cancelled": "Request #{{n}} is closed",
   "notifReqReply": "Request #{{n}} got a reply",
+  "notifReqAuthor": "The author of request #{{n}} sent a message",
   "reportTitlePhBug": "In one line: what's going wrong?",
   "reportTitlePhIdea": "In one line: what would you love?",
   "reportBodyPhBug": "What did you do, what did you expect, and what happened instead?",
