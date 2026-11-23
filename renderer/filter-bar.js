@@ -15,7 +15,9 @@
 
    The host describes its fields (`fields()`), reads and writes the condition
    list (`conds()` / `setConds()`), and may add chips it edits itself
-   (`extraChips()`: the colour search, the colour bars). `onFieldTyped()`, when
+   (`extraChips()`: the colour search, the colour bars). `blocked()`, when given, says
+   something covers the field (a side card over the toolbar): no list or editor opens
+   meanwhile, which would pop up over that card. `onFieldTyped()`, when
    given, is told a field was added by typing its name then Enter (a trophy). This module only draws
    and edits; it never filters anything. The look is the app's own dropdown
    (`.csel-pop` / `.csel-opt` / `.csel-search`) and the colour chip
@@ -188,7 +190,7 @@ export function mountFilterBar(o) {
     return o.fields().filter(f => flat(f.label).startsWith(s));
   }
   function openMenu() {
-    if (!o.active()) return;
+    if (!o.active() || o.blocked?.()) return;
     const q = input.value.trim();
     const fields = matchingFields(q);
     if (q && !fields.length) { if (popSlot === searchBox) close(); return; }
@@ -211,6 +213,7 @@ export function mountFilterBar(o) {
   }
   // A field picked from the list: the text that named it goes, its chip opens.
   function pickField(id) {
+    if (o.blocked?.()) return;
     close();
     if (input.value && matchingFields(input.value).some(f => f.id === id)) {
       input.value = "";
@@ -222,7 +225,7 @@ export function mountFilterBar(o) {
   // Open a field's editor; a new field gets a pending chip first.
   function editField(id) {
     const f = fieldById(id);
-    if (!f) return;
+    if (!f || o.blocked?.()) return;
     if (!o.conds().some(c => c.field === id) && pending?.field !== id) {
       close(true);
       pending = { field: id, op: f.kind === "range" ? "between" : "is", values: f.kind === "range" ? [null, null] : [] };

@@ -16361,6 +16361,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     bar: $("fbBar"), input: $("searchInv"), searchBox: $("searchInv").closest(".inv-search"), addBtn: $("fbAddBtn"),
     t, esc, registry: _cselOpen,
     active: () => !!_fbScope(),
+    blocked: () => isReportOpen(),   // the "Improvements & suggestions" card covers the left of the field
     fields: _fbFieldDefs,
     conds: () => _fbConds(),
     setConds: _fbSetConds,
