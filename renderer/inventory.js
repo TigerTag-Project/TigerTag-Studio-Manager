@@ -162,7 +162,7 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
 import { sdcpWireLive } from './printers/elegoo/sdcp.js';
 import { elgFanStep } from './printers/elegoo/widget_control.js';
 import { jobBar, jobBarFill } from './printers/job-bar.js';
-import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, reportDragState, syncReports, refreshSquadCard, reportCall } from './report/index.js';
+import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, reportDragState, syncReports, markTeamNotifsRead, refreshSquadCard, reportCall } from './report/index.js';
 import { initSupportTools } from './ai/support-tools.js';
 import { initScreenTools } from './ai/screen-tools.js';
 
@@ -9458,6 +9458,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   // Common handler called when a named-instance user session becomes active.
   // uid must equal user.uid and be the current active account.
   async function handleSignedIn(user, uid) {
+    _dropRequestNotifs();   // the previous account's request notices (a reply, the author wrote) do not follow into this one
     unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribeTigerSpools(); unsubscribeTigerTouchs(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists(); unsubscribeContainerOverrides();
     // CRITICAL — drop the previous account's racks immediately. `state.racks`
     // is derived per-account state that (unlike the inventory/racks SNAPSHOTS,
@@ -43331,7 +43332,7 @@ import { initScreenTools } from './ai/screen-tools.js';
          // A reply on one of my requests is a local notice (the server only notifies
          // a change of status): without this it chimed but left the bell unlit. The
          // passive nudges (avatar, community links…) stay out of the count.
-         + (state.localNotifications || []).filter(n => String(n.id).startsWith("req-reply-")).length;
+         + (state.localNotifications || []).filter(n => /^req-reply-/.test(String(n.id)) || (/^req-author-/.test(String(n.id)) && !n.read)).length;   // the author's notices stay in the centre once read, but stop counting
   }
 
   // Upsert a local (per-install, non-Firestore) notification keyed by id, and
@@ -43345,7 +43346,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     renderNotifCenter();
     // Ring for a freshly-arrived local notice (paxx firmware, app update), but
     // not for passive startup nudges (avatar / community links).
-    if (isNew && !_PASSIVE_NOTIF_IDS.has(notif.id)) _notifChime();
+    if (isNew && !notif.quiet && !_PASSIVE_NOTIF_IDS.has(notif.id)) _notifChime();   // quiet: an old notice put back
   }
   // ── Paxx firmware release notification ────────────────────────────────────
   // Raises a clickable local notification when at least one Snapmaker in the
@@ -43484,6 +43485,15 @@ import { initScreenTools } from './ai/screen-tools.js';
     const i = list.findIndex(n => n.id === id);
     if (i < 0) return;
     list.splice(i, 1);
+    renderNotifBadge();
+    renderNotifCenter();
+  }
+  // The notices about requests belong to ONE account (a reply on its request, the author wrote on one
+  // the team can answer): they leave with it, so the next account never sees them.
+  function _dropRequestNotifs() {
+    const list = state.localNotifications;
+    if (!list || !list.some(n => /^req-(reply|author)-/.test(String(n.id)))) return;
+    state.localNotifications = list.filter(n => !/^req-(reply|author)-/.test(String(n.id)));
     renderNotifBadge();
     renderNotifCenter();
   }
@@ -43677,6 +43687,15 @@ import { initScreenTools } from './ai/screen-tools.js';
     // Local notices (app update, firmware, nudges, a reply on my request): current state, so "today".
     for (const n of locals) {
       if (n.action === "lowstock") { stock.push({ key: n.id, img: n.img, title: n.title, text: n.text, at: Date.now() }); continue; }
+      // TigerMasters / admins: the author of an open request wrote (report/index.js) — the card of a new
+      // request (`request_new` below): same kind, art and button, with the time of that message.
+      if (/^req-author-/.test(n.id)) {
+        items.push({ kind: "requests", at: n.at || Date.now(), html: card({ kind: "requests", accent: NOTIF_ACCENT.report, fresh: !n.read || _notifFresh.has(n.id),
+          attrs: `data-local-id="${esc(n.id)}"`, art: icon("suggestion", " notif-ic--req notif-ic--req-open"),
+          title: n.title, text: n.text, when: n.at ? timeAgo(n.at) : "",
+          act: { id: "teamReport", arg: String(n.id).replace(/^req-author-/, ""), icon: "chat", label: t("notifActDiscussion") } }) });
+        continue;
+      }
       const isCommunity = !!COMMUNITY[n.action], isFw = n.action === "paxx" || n.action === "ffgfw";
       const clickable = isCommunity || n.action === "avatar" || isFw || n.action === "report";
       const art = n.img ? `<img src="${esc(n.img)}" alt="" onerror="this.style.display='none'">`
@@ -44011,7 +44030,8 @@ import { initScreenTools } from './ai/screen-tools.js';
     // slide-in, which isn't part of _closeAllSidePanels).
     _closeAllSidePanels();
     closeFriends();
-    _notifFresh = new Set((state.notifications || []).filter(n => !n.read).map(n => n.id));   // their dot stays while open
+    const authorUnread = (state.localNotifications || []).filter(n => /^req-author-/.test(String(n.id)) && !n.read);   // the team's notices: unread until now
+    _notifFresh = new Set([...(state.notifications || []).filter(n => !n.read).map(n => n.id), ...authorUnread.map(n => n.id)]);   // their dot stays while open
     renderNotifCenter();
     $("notifPanel").classList.add("open");
     // No backdrop — keep the rest of the UI clickable while the panel is open,
@@ -44019,6 +44039,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     // overlay either). Closes via the ✕ / its » close tab.
     _setTab($("notifCloseTab"), true, $("notifPanel").offsetWidth, $("notifPanel"));
     _markNotifsRead();
+    if (authorUnread.length) { authorUnread.forEach(n => { n.read = true; }); markTeamNotifsRead(); }   // read now, and kept
     renderNotifBadge();
   }
   // XP history side card (the TigerSquad "History" tab): what the account won and

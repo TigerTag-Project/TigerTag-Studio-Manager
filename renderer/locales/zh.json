@@ -958,6 +958,7 @@
   "notifReq_declined": "请求 #{{n}} 暂不处理",
   "notifReq_cancelled": "请求 #{{n}} 已关闭",
   "notifReqReply": "请求 #{{n}} 收到了回复",
+  "notifReqAuthor": "请求 #{{n}} 的作者发来了消息",
   "reportTitlePhBug": "一句话：哪里出问题了？",
   "reportTitlePhIdea": "一句话：你想要什么？",
   "reportBodyPhBug": "你做了什么？预期是什么？实际发生了什么？",

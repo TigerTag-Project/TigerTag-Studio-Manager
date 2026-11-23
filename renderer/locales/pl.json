@@ -973,6 +973,7 @@
   "notifReq_declined": "Zgłoszenie #{{n}} na razie nie zostanie zrealizowane",
   "notifReq_cancelled": "Zgłoszenie #{{n}} zamknięte",
   "notifReqReply": "Zgłoszenie #{{n}} dostało odpowiedź",
+  "notifReqAuthor": "Autor zgłoszenia #{{n}} wysłał wiadomość",
   "reportTitlePhBug": "W jednym zdaniu: co nie działa?",
   "reportTitlePhIdea": "W jednym zdaniu: czego byś chciał?",
   "reportBodyPhBug": "Co zrobiłeś, czego się spodziewałeś i co się stało zamiast tego?",

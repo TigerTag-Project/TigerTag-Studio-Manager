@@ -963,6 +963,7 @@
   "notifReq_declined": "Anfrage #{{n}} wird vorerst nicht umgesetzt",
   "notifReq_cancelled": "Anfrage #{{n}} ist geschlossen",
   "notifReqReply": "Anfrage #{{n}} hat eine Antwort bekommen",
+  "notifReqAuthor": "Der Autor der Anfrage #{{n}} hat eine Nachricht geschickt",
   "reportTitlePhBug": "In einem Satz: was läuft schief?",
   "reportTitlePhIdea": "In einem Satz: was würdest du dir wünschen?",
   "reportBodyPhBug": "Was hast du gemacht, was hast du erwartet, und was ist stattdessen passiert?",
