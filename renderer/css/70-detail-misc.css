@@ -1264,6 +1264,10 @@
   .fb-chip .cv-color-chip-x { width: 28px; }
   /* The field list opens under the whole pill, at its width. */
   .inv-search > .csel-pop.fb-pop { left: 0; right: auto; min-width: 260px; cursor: default; }
+  /* The search bar's lists belong to the page, not above the side cards: a
+     side card (z-index 101+) opened over the bar must cover them. The shared
+     `.csel-pop` stands at 600 for dropdowns inside cards and windows. */
+  .inv-search .csel-pop { z-index: 100; }
   /* A chip being created: dashed until it holds a value. */
   .fb-chip.is-pending { border-style: dashed; background: transparent; }
   .csel-pop.fb-pop { min-width: 230px; max-width: 300px; }
