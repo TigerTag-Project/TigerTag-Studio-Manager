@@ -9,6 +9,8 @@
 
 ## Fixed
 
+- Printers board and camera wall: outside Arrange, a plan whose cards all fit on screen no longer scrolls. Since the wheel scrolls the plans (#323), it slid every camera or machine off screen into the empty margin kept for arranging. The wall is sized to its cards and re-fitted when a card changes size (a stream arriving), and both scrollers are locked when everything fits; resizing the window lays them out again. `renderer/inventory.js` (`_layoutCamWall`, `_fitCamWall`, `_watchCamWall`, `layoutPrintersPlan`).
+- Printers board and camera wall: the Arrange / zoom bar has its own row above the plan instead of floating over it, so it no longer covers the top of a card on a narrow window. `renderer/css/40-printers.css` (`.pv-plan-bar`).
 - Tiger Scale / Tiger Touch live screen: "Screenshot" opened its window BEHIND the live view (both overlays at the same level, the live one added to the page later). `showScreenshot` now moves its overlay to the end of the page before opening it, so it stands above whichever window asked. File: `renderer/IoT/tigertouch/panel.js`.
 
 - Search bar: the filter's field list (and the bar's other lists) no longer shows above a side card opened over the bar (Report, etc.) — the bar's lists stand at z-index 100, under the side cards (101+), instead of the shared dropdown's 600. File: `renderer/css/70-detail-misc.css`.

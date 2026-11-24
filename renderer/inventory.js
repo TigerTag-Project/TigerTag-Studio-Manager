@@ -31460,6 +31460,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       try { localStorage.setItem("tigertag.camwall.arrange", _camArrange ? "1" : "0"); } catch {}
       if (!_camArrange) { _camSel.clear(); wall.querySelectorAll(".cam-wall-card").forEach(el => el.classList.remove("is-plan-selected")); }
       applyArrange();
+      _layoutCamWall(wall);
     });
     host.querySelector("#cwZoomOut")?.addEventListener("click", () => stepZoom(-1));
     host.querySelector("#cwZoomIn") ?.addEventListener("click", () => stepZoom(+1));
@@ -31543,6 +31544,13 @@ import { initScreenTools } from './ai/screen-tools.js';
      that just came online — flows below the arrangement rather than landing on
      top of it, and is GIVEN that spot for good: left computed, it would drift
      every time a neighbour changed size. */
+  /* The window can grow or shrink under a locked wall or board: lay it out
+     again so the scroll lock follows what fits. */
+  window.addEventListener("resize", () => {
+    const w = document.querySelector("#invPrinterView .cam-wall--plan");
+    if (w) _layoutCamWall(w);
+    else if (document.querySelector("#invPrinterView .printers-grid--plan")) layoutPrintersPlan();
+  });
   function _layoutCamWall(container) {
     if (!container) return;
     const orphans = [];
@@ -31594,9 +31602,58 @@ import { initScreenTools } from './ai/screen-tools.js';
       right  = Math.max(right,  x + el.offsetWidth);
       bottom = Math.max(bottom, y + el.offsetHeight);
     });
-    container.style.width  = (right  + 240) + "px";
-    container.style.height = (bottom + 240) + "px";
+    /* Arranging keeps a wide empty margin to drag cards into. Watching does
+       not: the wall is sized to its cards, so a wall that fits on screen has
+       nothing to scroll — the empty tail used to let the wheel carry every
+       camera off screen. The transform scales the box, so the size is written
+       in unscaled units for the scaled result to just cover the cards. */
+    _fitCamWall(container, right, bottom);
+    _watchCamWall(container);
+  }
+  /* Size the wall to its cards and lock its scroller when they all fit. Run
+     after every layout, and again whenever a card changes size on its own (a
+     stream arriving swaps the placeholder for a 16:9 picture): a size measured
+     before that left the wall taller than its cards, so the wheel still slid
+     them away although every camera was on screen. */
+  function _fitCamWall(container, right, bottom) {
+    if (right == null) {
+      right = bottom = 0;
+      Array.from(container.children).forEach(el => {
+        if (!el.dataset.camKey || el.classList.contains("cam-wall-card--fs")) return;
+        right  = Math.max(right,  el.offsetLeft + el.offsetWidth);
+        bottom = Math.max(bottom, el.offsetTop  + el.offsetHeight);
+      });
+    }
+    const pad = _camArrange ? 240 : 12;
+    container.style.width  = (right  + pad) + "px";
+    container.style.height = (bottom + pad) + "px";
+    container.style.minHeight = _camArrange ? "" : "0";
     container.style.transform = `scale(${_camZoom})`;
+    /* Nothing past the edges, nothing to scroll: the scroller is locked so the
+       wheel cannot slide the wall off screen (it holds no hidden card). The
+       test is on the cards themselves, not on the margin around them, and a
+       locked wall is given exactly the visible area. */
+    const sc = container.parentElement;
+    if (sc && !_camArrange) {
+      const fits = right * _camZoom <= sc.clientWidth + 1 && bottom * _camZoom <= sc.clientHeight + 1;
+      sc.style.overflow = fits ? "hidden" : "";
+      if (fits) {
+        container.style.width  = Math.floor(sc.clientWidth  / _camZoom) + "px";
+        container.style.height = Math.floor(sc.clientHeight / _camZoom) + "px";
+        sc.scrollTop = sc.scrollLeft = 0;
+      }
+    } else if (sc) sc.style.overflow = "";
+  }
+  let _camWallRO = null;
+  function _watchCamWall(container) {
+    if (typeof ResizeObserver === "undefined") return;
+    if (!_camWallRO) _camWallRO = new ResizeObserver(entries => {
+      const wall = entries[0]?.target?.closest?.(".cam-wall--plan");
+      if (wall && wall.isConnected && !_camResizing.size && !_camHeld.size) _fitCamWall(wall);
+    });
+    Array.from(container.children).forEach(el => {
+      if (el.dataset.camKey && !el._camFitWatched) { el._camFitWatched = true; _camWallRO.observe(el); }
+    });
   }
   const _camHeld = new Set();
   const _camSel  = new Set();
@@ -32554,6 +32611,14 @@ import { initScreenTools } from './ai/screen-tools.js';
     container.style.width  = Math.max(availW, Math.ceil((right  + 240) * _printerZoom)) + "px";
     container.style.height = Math.max(availH, Math.ceil((bottom + 200) * _printerZoom)) + "px";
     container.style.minWidth = "";
+    /* Every machine on screen and not arranging: nothing to scroll to, so the
+       scroller is locked — the empty board past the cards let the wheel carry
+       them off screen. Arranging keeps the free board to drop onto. */
+    if (box) {
+      const fits = !_printerArrange && right * _printerZoom <= availW + 1 && bottom * _printerZoom <= availH + 1;
+      box.style.overflow = fits ? "hidden" : "";
+      if (fits) { box.scrollTop = box.scrollLeft = 0; container.style.width = availW + "px"; container.style.height = availH + "px"; }
+    }
     // Last, because it rings where the cards ENDED UP.
     _drawClusterHulls(container);
   }

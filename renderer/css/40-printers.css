@@ -60,23 +60,21 @@
   .printers-scroll.is-panning { cursor: grabbing; user-select: none; }
   /* Same row as Storage's: the arrange toggle first — it is an action you take
      while placing machines — then the zoom. */
-  /* The controls float OVER the board, top right, instead of sitting on a strip
-     above it. That strip cost a full row of height on every screen for two
-     controls used occasionally — and the board is the thing you came to look at.
-     Floating also puts them where the eye already goes when it wants a control,
-     the same corner every map application uses.
+  /* The controls sit on their OWN row above the board, right-aligned, the
+     same corner every map application uses. They used to float over the board
+     to save that row, but a floating bar covers whatever card is placed under
+     it: on a window narrow enough for the top row to reach the right edge, the
+     zoom and "Stop all cameras" sat on the top of a camera feed. A row of its
+     own costs a little height and never hides a card.
 
-     Anchored to the VIEW, not to the board. Sticky inside the scroller only
-     holds vertically — pan sideways and the controls sail off with the content —
-     so they are placed against the view itself, which does not scroll. */
+     The row is outside the scroller, so panning sideways never carries the
+     controls away, and the scroller's visible area (what the fit and the
+     scroll lock measure) starts below it on its own. The view's 18 px gap is
+     trimmed to 8 px for this row only. */
   .pv-plan-bar {
-    position: absolute; top: 8px; right: 10px; z-index: 60;
-    display: flex; align-items: center; gap: 8px;
-    pointer-events: none;
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+    flex: none; padding: 0 10px; margin-bottom: -10px;
   }
-  /* Only the controls themselves take the pointer; the strip between them must
-     not swallow a rubber band started near the top of the board. */
-  .pv-plan-bar > * { pointer-events: auto; }
 
 
   /* Connect / Disconnect button in the printer side-card header.
@@ -276,7 +274,6 @@
      bay and a shelf bay hold the same object, so neither may look like a
      different size. Change these only alongside the rack. */
   #invPrinterView {
-    /* The board's controls hover over it, so it is their frame of reference. */
     position: relative;
     --pcs-size: 64px; --pcs-gap: 6px;
     /* ONE width for everything on the board. Derived, not chosen: it is exactly
