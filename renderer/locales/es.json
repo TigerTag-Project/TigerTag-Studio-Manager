@@ -1884,6 +1884,13 @@
   "encOverwriteAccept": "Entiendo, sobrescribir",
   "camWallEmptyTitle": "No hay cámaras en línea",
   "camWallEmptySub": "Añade una impresora con cámara para ver transmisiones en vivo aquí.",
+  "camWindowTitle": "Muro de cámaras",
+  "camWindowCount": {
+    "one": "{{n}} cámara",
+    "other": "{{n}} cámaras"
+  },
+  "camWindowOffline": "Cámara sin conexión",
+  "camWindowUnknown": "Tipo de cámara desconocido",
   "tutoStepXOfY": "Paso {{n}} de {{total}}",
   "tutoPrev": "Anterior",
   "tutoNext": "Siguiente",

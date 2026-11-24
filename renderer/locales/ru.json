@@ -1894,6 +1894,15 @@
   "encOverwriteAccept": "Понимаю, перезаписать",
   "camWallEmptyTitle": "Нет камер онлайн",
   "camWallEmptySub": "Добавьте принтер с камерой, чтобы видеть трансляции здесь.",
+  "camWindowTitle": "Стена камер",
+  "camWindowCount": {
+    "one": "{{n}} камера",
+    "few": "{{n}} камеры",
+    "many": "{{n}} камер",
+    "other": "{{n}} камеры"
+  },
+  "camWindowOffline": "Камера не в сети",
+  "camWindowUnknown": "Неизвестный тип камеры",
   "tutoStepXOfY": "Шаг {{n}} из {{total}}",
   "tutoPrev": "Назад",
   "tutoNext": "Далее",

@@ -433,7 +433,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Detached camera wall window ──────────────────────────────────────────
   // Opens (or focuses) a standalone window displaying all online printer cameras.
   // cameras: CamDescriptor[] — built by inventory.js _serializeCamerasForDetach()
-  openCamWindow: (cameras) => ipcRenderer.invoke('cam:open-detached', cameras),
+  openCamWindow: (cameras, strings) => ipcRenderer.invoke('cam:open-detached', cameras, strings),
   // Show native Save dialog and stream a timelapse video from the printer to disk.
   downloadTimelapse: (url, filename) => ipcRenderer.invoke('timelapse:download', url, filename),
   // Show native Save dialog and download an image (e.g. a QR code) to disk.

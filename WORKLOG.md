@@ -9,6 +9,7 @@
 
 ## Fixed
 
+- Detached camera wall window: it now follows the user's language (window title, heading, camera count, "No cameras online", "Camera offline", "Unknown camera type"); it has no locales of its own, so the main window hands these texts over with every camera list. Files: `main.js` (`cam:open-detached`), `preload.js` (`openCamWindow`), `renderer/cam/cam-preload.js`, `renderer/cam/cam.js` (`applyStrings`, `tr`), `renderer/inventory.js` (`_camWindowStrings`), `renderer/CODEMAP.md`, `CODEMAP-main.md`, `renderer/locales/*.json`. i18n: `camWindowTitle`, `camWindowCount`, `camWindowOffline`, `camWindowUnknown`; reuses `camWallEmptyTitle`.
 - Tiger Scale / Tiger Touch live screen: "Screenshot" opened its window BEHIND the live view (both overlays at the same level, the live one added to the page later). `showScreenshot` now moves its overlay to the end of the page before opening it, so it stands above whichever window asked. File: `renderer/IoT/tigertouch/panel.js`.
 
 - Search bar: the filter's field list (and the bar's other lists) no longer shows above a side card opened over the bar (Report, etc.) — the bar's lists stand at z-index 100, under the side cards (101+), instead of the shared dropdown's 600. File: `renderer/css/70-detail-misc.css`.

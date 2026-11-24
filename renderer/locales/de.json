@@ -1884,6 +1884,13 @@
   "encOverwriteAccept": "Verstanden, überschreiben",
   "camWallEmptyTitle": "Keine Kameras online",
   "camWallEmptySub": "Fügen Sie einen Drucker mit Kamera hinzu, um Live-Übertragungen hier zu sehen.",
+  "camWindowTitle": "Kamerawand",
+  "camWindowCount": {
+    "one": "{{n}} Kamera",
+    "other": "{{n}} Kameras"
+  },
+  "camWindowOffline": "Kamera offline",
+  "camWindowUnknown": "Unbekannter Kameratyp",
   "tutoStepXOfY": "Schritt {{n}} von {{total}}",
   "tutoPrev": "Zurück",
   "tutoNext": "Weiter",

@@ -3050,10 +3050,10 @@ ipcMain.on('shell:open-external', (_evt, url) => {
 // The window uses its own preload (cam-preload.js) — no Firebase, no inventory.
 // webSecurity:false lets the window reach local-network camera URLs (192.168.x.x)
 // without CORS errors from the localhost origin.
-ipcMain.handle('cam:open-detached', (_evt, cameras) => {
+ipcMain.handle('cam:open-detached', (_evt, cameras, strings) => {
   if (_camWindow && !_camWindow.isDestroyed()) {
     _camWindow.focus();
-    _camWindow.webContents.send('cam:update', cameras);
+    _camWindow.webContents.send('cam:update', cameras, strings);
     return;
   }
   _camWindow = new BrowserWindow({
@@ -3061,7 +3061,7 @@ ipcMain.handle('cam:open-detached', (_evt, cameras) => {
     height:    720,
     minWidth:  640,
     minHeight: 360,
-    title:     'Camera Wall — Tiger Studio',
+    title:     (strings && strings.title ? strings.title : 'Camera Wall') + ' — Tiger Studio',
     hasShadow: true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
@@ -3073,7 +3073,7 @@ ipcMain.handle('cam:open-detached', (_evt, cameras) => {
   });
   _camWindow.loadURL(`http://localhost:${_devPort}/renderer/cam/cam.html`);
   _camWindow.webContents.once('did-finish-load', () => {
-    _camWindow?.webContents.send('cam:init', cameras);
+    _camWindow?.webContents.send('cam:init', cameras, strings);
   });
   _camWindow.on('closed', () => { _camWindow = null; });
 });
