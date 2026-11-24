@@ -376,8 +376,11 @@ function printerOptions(sel) {
   if (!opts.some(o => o[0] === sel)) { const pr = printerFor(sel); opts.push([sel, pr.name, pr.kind === "p15" ? thumbOf("p15") : pr.ql || isQl(pr.name) ? thumbOf("ql", pr.model || pr.name) : ""]); }
   return opts;
 }
-// A label fits the P15 when one of its sides is no wider than the roll.
-const fitsP15 = tpl => Math.min(tpl.w, tpl.h) <= P15_MAX_MM;
+// A label fits the P15 when its short side is no wider than the roll and its
+// long side no longer than one of the roll's 30 mm labels: a 40 × 12 label is
+// narrow enough but runs past the end of the label it is printed on.
+const P15_LABEL_MM = 30;
+const fitsP15 = tpl => Math.min(tpl.w, tpl.h) <= P15_MAX_MM && Math.max(tpl.w, tpl.h) <= P15_LABEL_MM;
 // A label fits a printer's roll: the P15's 15 mm roll; a Brother QL's roll as
 // picked in the card — a continuous roll by its width, a die-cut one by its label,
 // either way round (5 % leeway: the job is scaled to the printable area). Any
