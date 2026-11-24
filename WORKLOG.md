@@ -2,6 +2,7 @@
 
 ## Added
 
+- Tile views in select mode: a "Select All" key beside "Select" ticks every spool the current filter shows (pressed again, unticks them), the list header's master box, which the tiles had no equivalent of. `renderer/inventory.html` (`#btnSelectAll`), `renderer/inventory.js` (`_syncSelAllHeader`), `renderer/css/70-detail-misc.css` (`.inv-select-all`). i18n: reuses `ctxSelectAll`.
 - Requests (#331, Ptitlouis6012): each request shows the repository it went to (a tag in its line and in an open conversation's header); "All requests" and "My requests" get a search field, Status / Repository / Type filters and a reset key. i18n: `reportSearchPh`, `reportFltRepo`, `reportFltRepoAll`, `reportFltKind`, `reportFltKindAll`, `reportFltNoMatch`, `reportFltReset`. Files: `renderer/report/index.js`, `renderer/report/report.css`, `renderer/locales/*.json`.
 - Requests (#333, Ptitlouis6012): TigerMasters and admins get a notification when the author of an open request writes in it (checked at sign-in and every 30 min while visible, only for those accounts); request notices now belong to one account and leave with it. Keys `tigertag.reportTeamSeen.<uid>`, `tigertag.reportTeamNotifs.<uid>`. i18n: `notifReqAuthor`. Files: `renderer/report/index.js`, `renderer/inventory.js`, `renderer/CODEMAP.md`, `renderer/locales/*.json`.
 
