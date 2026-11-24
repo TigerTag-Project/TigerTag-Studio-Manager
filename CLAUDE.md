@@ -193,7 +193,7 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.catalogBackoff` | `{until, n}`: automatic `product/get` asks paused after a 5xx / timeout, 30 min doubling up to 8 h |
 | `tigertag.nfc.lastUrl` | last link written to a chip by the NFC tools, offered again |
 | `tigertag.nfc.contact` | the NFC tools' contact card as last typed `{name, phone, email, org, url}` |
-| `tigertag.label` | the label card's last choices `{template, slots, dpi, kind}` (`renderer/labels`) |
+| `tigertag.label` | the label card's last choices `{template, slots, dpi, kind, page, sheetGap, sheetMargin}` (`renderer/labels`); `page` is the sheet Print uses: `"label"` (a page of the label's size), `"a4-tl"` or `"a4-c"` (an A4 with the labels from its top-left corner or on a centred grid, for drivers that know only A4); `sheetGap` is the space in mm between copies on an A4 sheet, `sheetMargin` the space kept free along its edges |
 | `tigertag.containers` | `{at, items}`: the empty-spool list last read from the server (GitHub mirror, else the API), merged over the bundled file; used only while `CONTAINERS_FROM_SERVER` is on |
 | `tigertag.trophies.<id>` | the trophy ids already celebrated on this device for that account (`renderer/quests/trophies.js`) |
 | `tigertag.trophyAlbum.<id>` | that account's album `{at, earned: {id: {at, event, ctx}}}`: painted at once, then only trophies with a later `earnedAt` are read (+ a COUNT catches one taken back) |

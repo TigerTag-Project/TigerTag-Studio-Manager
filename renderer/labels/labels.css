@@ -27,7 +27,29 @@
 
 /* The paper: white, whatever the theme — it is the label as printed. */
 /* A fixed box (the tallest preview fits it): switching templates moves nothing below. */
+/* A row of the card: a caption, then its field (the sheet, the copies, the spacing…). */
+.lbl-printer { display: flex; gap: 8px; align-items: center; }
+.lbl-printer .csel { flex: 1; min-width: 0; }
+.lbl-printer .csel .csel-btn { width: 100%; max-width: none; }
+.lbl-roll-label { flex: 0 0 auto; font-size: 12.5px; color: var(--muted); }
+.lbl-host { flex: 1; min-width: 0; }
 .lbl-preview { display: flex; justify-content: center; align-items: center; height: 232px; padding: 4px 0 8px; }
+/* An A4 sheet around the label when it prints on A4: the label sits where it will print. */
+.lbl-sheet { position: relative; flex: none; background: var(--on-dark); border-radius: 2px; box-shadow: 0 2px 10px rgba(0, 0, 0, .28); }
+.lbl-sheet .lbl-paper { box-shadow: 0 0 0 1px var(--border); }
+.lbl-sheet .lbl-paper--link:hover { transform: none; }
+.lbl-sheet .lbl-open-hint { white-space: nowrap; }
+.lbl-copy { position: absolute; display: block; box-shadow: 0 0 0 1px var(--border); pointer-events: none; }
+.lbl-copies.lbl-copies { flex: 0 0 72px; }
+.lbl-batch { margin: 0 0 8px; font-weight: 600; }
+/* The A4 preview's zoom (the storage plan's − 100 % + control): closer, the sheet
+   is dragged inside the preview, starting from its top-left corner. */
+.lbl-zoom-row { display: flex; justify-content: flex-end; }
+/* Moved by dragging, not by the wheel: the wheel stays the card's own scroll. */
+.lbl-preview.is-zoomed { display: block; height: 232px; overflow: hidden; padding: 8px; cursor: grab; touch-action: none; }
+.lbl-preview.is-zoomed.is-panning { cursor: grabbing; }
+.lbl-preview.is-zoomed .lbl-paper { pointer-events: none; }
+.lbl-preview.is-zoomed .lbl-sheet { margin: 0 auto; }
 .lbl-paper { position: relative; overflow: hidden; border-radius: 4px; background: var(--on-dark); box-shadow: 0 2px 10px rgba(0, 0, 0, .28); }
 .lbl-frame { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; transition: opacity .15s; }
 /* While the preview loads: the paper is blank and a spinner turns on it (spin: 70-detail-misc.css). */

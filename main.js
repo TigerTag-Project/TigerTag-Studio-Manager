@@ -4322,7 +4322,7 @@ async function _askLabelPath(format, fileName) {
   return canceled || !filePath ? null : filePath;
 }
 ipcMain.handle('label:render', async (_evt, opts = {}) => {
-  const { html, svg, wDots, hDots, mmW, mmH, dpi, format, fileName } = opts || {};
+  const { html, svg, wDots, hDots, mmW, mmH, dpi, format, fileName, page: sheet, sheets, labels } = opts || {};
   if (format === 'svg' && typeof svg !== 'string') return { ok: false, reason: 'bad label' };
   if (format !== 'svg' && (typeof html !== 'string' || !(wDots > 0 && hDots > 0 && mmW > 0 && mmH > 0))) return { ok: false, reason: 'bad label' };
   let filePath = null;
@@ -4337,8 +4337,32 @@ ipcMain.handle('label:render', async (_evt, opts = {}) => {
   });
   try {
     // PDF and print lay the page out at 96 CSS px per inch: scale the dots down to it.
-    const page = format === 'png' ? html
-      : html.replace('<body>', `<body><style>@page{size:${mmW}mm ${mmH}mm;margin:0}html,body{width:${mmW}mm;height:${mmH}mm;overflow:hidden}.lbl{transform:scale(${96 / (dpi || 203)});transform-origin:0 0}</style>`);
+    /* Printed on an A4 sheet (#263): some label printers' drivers know no page but
+       A4 and print a page of the label's own size blank. The label keeps its size
+       and sits in the sheet's top-left corner or in its centre. */
+    const a4 = format === 'print' && (sheet === 'a4-tl' || sheet === 'a4-c');
+    const pw = a4 ? 210 : mmW, ph = a4 ? 297 : mmH;
+    const at = !a4 ? '' : sheet === 'a4-c'
+      ? `position:absolute;left:${(210 - mmW) / 2}mm;top:${(297 - mmH) / 2}mm;`
+      : 'position:absolute;left:0;top:0;';
+    let page = format === 'png' ? html : html.replace('<body>', `<body><style>@page{size:${pw}mm ${ph}mm;margin:0}html,body{width:${pw}mm;height:${ph}mm;overflow:hidden;position:relative}.lbl{${at}transform:scale(${96 / (dpi || 203)});transform-origin:0 0}</style>`);
+    /* Several labels in one run (copies, or one per selected spool): `sheets` holds,
+       page by page, where each label goes [x mm, y mm, index in `labels`], laid out
+       by the label card. A page is an A4 sheet, or one label's size when not on A4.
+       `labels` are the different labels' pages (same template); without it, `html`. */
+    const pages = Array.isArray(labels) && labels.length > 0 && labels.length <= 1000 && labels.every(h => typeof h === 'string') ? labels : [html];
+    const okSheets = (format === 'print' || format === 'pdf') && Array.isArray(sheets) && sheets.length > 0 && sheets.length <= 1000
+      && sheets.every(s => Array.isArray(s) && s.length > 0 && s.length <= 1000
+        && s.every(p => Array.isArray(p) && (p.length === 2 || p.length === 3) && p.every(Number.isFinite) && (p[2] || 0) >= 0 && (p[2] || 0) < pages.length));
+    if (okSheets && format !== 'png') {
+      const b = page.indexOf('<body>') + 6, e = page.lastIndexOf('</body>');
+      const head = page.slice(0, b), one = page.slice(b, e);
+      const style = one.slice(0, one.indexOf('<div class="lbl">'));
+      const bodies = pages.map(h => h.slice(h.indexOf('<div class="lbl">'), h.lastIndexOf('</body>')));
+      page = head + style.replace('</style>', `html,body{height:auto;overflow:visible}.sh{position:relative;width:${pw}mm;height:${ph}mm;overflow:hidden;break-after:page}.sh:last-child{break-after:auto}</style>`)
+        + sheets.map(s => `<div class="sh">${s.map(([x, y, k]) => bodies[k || 0].replace('<div class="lbl">', `<div class="lbl" style="left:${x}mm;top:${y}mm">`)).join('')}</div>`).join('')
+        + page.slice(e);
+    }
     await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(page));
     if (format === 'png') {
       let img = await win.webContents.capturePage({ x: 0, y: 0, width: Math.ceil(wDots), height: Math.ceil(hDots) });
@@ -4359,7 +4383,7 @@ ipcMain.handle('label:render', async (_evt, opts = {}) => {
       return await new Promise((resolve) => {
         win.webContents.print({
           silent: false, printBackground: true, margins: { marginType: 'none' },
-          pageSize: { width: Math.round(mmW * 1000), height: Math.round(mmH * 1000) },
+          pageSize: a4 ? 'A4' : { width: Math.round(mmW * 1000), height: Math.round(mmH * 1000) },
         }, (ok, reason) => resolve({ ok, reason: ok ? undefined : reason }));
       });
     }
