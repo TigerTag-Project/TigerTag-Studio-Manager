@@ -191,6 +191,7 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.catalogSig` | fingerprint of the catalogue mirror at the last sync: the spools are reconciled with the API only when it changed (`_catalogSignature`, #309) |
 | `tigertag.catalogAsked.<id>` | `{spoolId: {k, at}}`: the mirror entry each spool of that account was last asked `product/get` for; not asked again while it holds (`_catalogAskBatch`) |
 | `tigertag.catalogBackoff` | `{until, n}`: automatic `product/get` asks paused after a 5xx / timeout, 30 min doubling up to 8 h |
+| `tigertag.scanMode` | where a barcode scanner's code opens its product: `"off"` \| `"search"` (search bar only) \| `"all"` (anywhere, default); the view row's scanner button cycles it (`_setScanMode`) |
 | `tigertag.nfc.lastUrl` | last link written to a chip by the NFC tools, offered again |
 | `tigertag.nfc.contact` | the NFC tools' contact card as last typed `{name, phone, email, org, url}` |
 | `tigertag.label` | the label card's last choices `{template, slots, dpi, kind}` (`renderer/labels`) |
