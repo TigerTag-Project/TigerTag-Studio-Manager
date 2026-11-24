@@ -157,3 +157,26 @@ html, body {
 }
 .cam-empty svg { opacity: .3; }
 .cam-empty p   { font-size: 13px; }
+
+/* ── Stop / show cameras (per card, and all at once in the titlebar) ── */
+.cam-tb-actions { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; }
+.cam-tb-btn {
+  font: 600 11px inherit; font-family: inherit; color: var(--text);
+  background: transparent; border: 1px solid var(--border); border-radius: 6px;
+  padding: 3px 9px; cursor: pointer;
+}
+.cam-tb-btn:hover { background: var(--border); }
+.cam-tb-btn[hidden], .cam-head-btn[hidden] { display: none; }
+.cam-head-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 22px; padding: 0; flex-shrink: 0;
+  color: var(--muted); background: transparent; border: 1px solid var(--border); border-radius: 5px; cursor: pointer;
+}
+.cam-head-btn:hover { color: var(--text); background: var(--border); }
+.cam-cut { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.cam-play {
+  width: 46px; height: 46px; border-radius: 50%; padding: 0; padding-left: 3px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text); background: var(--surface); border: 1px solid var(--border); cursor: pointer;
+}
+.cam-play:hover { color: var(--primary); }
