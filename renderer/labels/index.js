@@ -347,9 +347,88 @@ function render(body, cur) {
   const tplBtn = x => `<button type="button" class="lbl-tpl${x.id === p.template ? " is-active" : ""}" data-lbl-tpl="${x.id}" aria-pressed="${x.id === p.template}">
       <b>${esc(t("labelTpl_" + x.id))}</b><small>${x.w} × ${x.h} mm</small></button>`;
   const tpl = LABEL_TEMPLATES.find(x => x.id === p.template);
-  const slotSel = i => `<select class="lbl-slot" data-lbl-slot="${i}"${i >= tpl.slots ? " disabled" : ""}>
-      ${["none", ...LABEL_SLOTS].map(s => `<option value="${s}"${p.slots[i] === s ? " selected" : ""}>${esc(s === "none" ? t("labelSlotNone") : t(SLOT_LABEL[s]))}</option>`).join("")}
-    </select>`;
+  // The values, chosen on a giant drawing of the label: the spool's brand, series and
+  // colour as they print, a stand-in QR, and each values line where it prints, top
+  // to bottom, as a choice showing the value it prints for this spool. Drawn for every
+  // format, with lines only where the format prints values. The real preview above stays as it is.
+  const slotSel = i => {
+    const k = p.slots[i], has = k !== "none" && !!info.values[k];
+    return `<label class="lbl-giant-line${has ? "" : " is-empty"}"><select class="lbl-giant-sel" data-lbl-slot="${i}" aria-label="${esc(t("labelSlots"))} ${i + 1}">
+      ${["none", ...LABEL_SLOTS].map(s => `<option value="${s}"${k === s ? " selected" : ""}>${esc(s === "none" ? t("labelSlotNone") : t(SLOT_LABEL[s]) + (info.values[s] ? " : " + info.values[s] : ""))}</option>`).join("")}
+    </select><span class="lbl-giant-caret" aria-hidden="true">▾</span></label>`;
+  };
+  // A QR-looking pattern (fixed, not a code): only says where the QR goes.
+  const fakeQr = (() => {
+    let d = "";
+    for (let r = 0; r < 21; r++) for (let c = 0; c < 21; c++) {
+      const finder = (r < 7 || r > 13) && c < 7 || r < 7 && c > 13;
+      const on = finder ? (r % 7 === 0 || r % 7 === 6 || c % 7 === 0 || c % 7 === 6 || (r % 7 > 1 && r % 7 < 5 && c % 7 > 1 && c % 7 < 5)) && !(r > 13 && c > 13)
+        : (r * 7 + c * 13 + r * c) % 5 < 2;
+      if (on) d += `M${c} ${r}h1v1h-1z`;
+    }
+    return `<svg class="lbl-giant-qr" viewBox="0 0 21 21" aria-hidden="true" shape-rendering="crispEdges"><path d="${d}"/></svg>`;
+  })();
+  // Drawn from the format's own layout (LAYOUTS, in layout units): every part where
+  // it prints, sized in container units so the drawing keeps the label's shape at
+  // any card width. Each values line is a choice at its line, as tall as the line.
+  const giant = () => {
+    const L = LAYOUTS[tpl.id] || {}, LW = tpl.w * U, LH = tpl.h * U;
+    const X = u => `${(u / LW * 100).toFixed(3)}%`, Y = u => `${(u / LH * 100).toFixed(3)}%`, F = u => `${(u / LW * 100).toFixed(3)}cqw`;
+    const box = (cls, x, y, w, h, inner = "", extra = "") => `<div class="${cls}" style="left:${X(x)};top:${Y(y)};width:${X(w)};height:${Y(h)};${extra}">${inner}</div>`;
+    const bar = info.series || info.material || "";
+    // As on the printed label: a text never runs past the room it has (the pill, the
+    // QR, the edge); it shrinks to fit, and a brand too long to sit beside the pill on
+    // a vertical label drops below it, full width.
+    const fit = (txt, size, weight, maxW) => Math.max(1, Math.min(size, size * maxW / Math.max(1, textW(txt, size, weight))));
+    let parts = "", pill = null;
+    if (info.protocol) {
+      const pfs = L.pill ? L.pill[1] : tpl.id === "slim" ? 15 : 18, ph = L.pill ? L.pill[2] : tpl.id === "slim" ? 22 : 26;
+      const pw = Math.ceil(info.protocol.length * pfs * 0.62 + 16);
+      pill = { x: L.pill ? (LW - pw) / 2 : L.pillAt ? L.pillAt[0] : LW - 10 - pw, y: L.pill ? L.pill[0] : L.pillAt ? L.pillAt[1] : 8, w: pw, h: ph };
+      parts += box("lbl-giant-pill", pill.x, pill.y, pw, ph, esc(info.protocol), `font-size:${F(pfs)}`);
+    }
+    // How far right a text starting at x, between top and bottom, may run.
+    const room = (x, top, bottom) => {
+      let right = LW - 10;
+      if (L.qr && L.qr[0] > x && bottom > L.qr[1] - 2 && top < L.qr[1] + L.qr[2]) right = Math.min(right, L.qr[0] - 8);
+      if (pill && pill.x > x && bottom > pill.y - 2 && top < pill.y + pill.h + 2) right = Math.min(right, pill.x - 8);
+      return right - x;
+    };
+    const text = (txt, x, top, h, size, weight, maxW, cls = "lbl-giant-txt") => {
+      const w = Math.min(maxW, room(x, top, top + h));
+      parts += box(cls, x, top, w, h, esc(txt), `font-size:${F(fit(txt, size, weight, w))};font-weight:${weight}`);
+    };
+    if (L.stack) L.stack.forEach(([y, size, weight, key]) => text({ brand: info.brand, bar, name: info.name }[key] || "", 14, y - size * 0.85, size * 1.1, size, weight, LW));
+    if (L.brand && info.brand) {
+      const [bx, by, bw, bh] = L.brand, bfs = Math.round(bh * 0.8);
+      const beside = Math.min(bw, room(bx, by, by + bh));
+      if (pill && tpl.h > tpl.w && textW(info.brand, bfs, 700) > beside && L.bar) {
+        const top = pill.y + pill.h + 4, bottom = L.bar[1] - 5;
+        text(info.brand, bx, top, bottom - top, Math.min(bfs, Math.round((bottom - top) * 1.3)), 700, Math.min(bw, LW - bx - 10));
+      } else text(info.brand, bx, by, bh, bfs, 700, beside);
+    }
+    if (L.bar && bar) {
+      const [rx, ry, rw, rh, rfs, tdx] = L.bar;
+      if (L.barPlain) text(bar, rx + tdx, ry, rh, rfs, 700, rw - 2 * tdx);
+      else {
+        const size = fit(bar, rfs, 700, rw - 2 * tdx);
+        parts += box("lbl-giant-bar", rx, ry, rw, rh, esc(bar), `font-size:${F(size)};font-weight:700;padding-left:${X(tdx)}`);
+      }
+    }
+    if (L.name && info.name) { const [nx, ny, nfs, nw, nmax] = L.name; text(info.name, nx, ny - nfs * 0.85, nfs * 1.1, nfs, nw, nmax); }
+    if (L.hex && info.hexes?.length) { const [hx, hy, hfs] = L.hex; text(info.hexes.join(" "), hx, hy - hfs * 0.85, hfs * 1.1, hfs * 0.8, 400, LW - 10 - hx); }
+    if (L.rule) { const [x1, y1, x2] = L.rule; parts += box("lbl-giant-rule", x1, y1, x2 - x1, 1); }
+    if (L.qr) { const [qx, qy, qs] = L.qr; parts += box("lbl-giant-qrbox", qx, qy, qs, qs, fakeQr); }
+    if (L.slots) {
+      const S = L.slots, step = S.y[1] - S.y[0];
+      for (let i = 0; i < tpl.slots; i++) {
+        const top = S.y[i] - (S.stacked ? S.fs : S.fs * 0.95), h = step - 3;
+        const qr = L.qr && L.qr[0] > S.lx && top + h > L.qr[1] ? L.qr[0] - 8 : LW - 10;
+        parts += `<div class="lbl-giant-at" style="left:${X(S.lx - 4)};top:${Y(top)};width:${X(qr - S.lx + 4)};height:${Y(h)};font-size:${F(Math.min(S.fs, step * 0.55))}">${slotSel(i)}</div>`;
+      }
+    }
+    return `<div class="lbl-giant" style="aspect-ratio:${LW} / ${LH};max-width:${Math.round(420 * LW / LH)}px">${parts}</div>`;
+  };
   body.innerHTML = `
     <div class="panel-label">${esc(t("labelTemplate"))}</div>
     <div class="lbl-tpls">${LABEL_TEMPLATES.map(tplBtn).join("")}</div>
@@ -360,7 +439,7 @@ function render(body, cur) {
       ${link ? `<span class="lbl-open-hint"><span class="icon icon-arrow-up-right icon-12" aria-hidden="true"></span>${esc(t("labelOpenLink"))}</span></button>` : "</div>"}
     </div>
     ${link ? `<div class="lbl-linkrow"><button type="button" class="ghost sm" data-lbl-copy><span class="icon icon-copy icon-14"></span><span>${esc(t("labelCopyLink"))}</span></button>${link ? `<button type="button" class="ghost sm" data-lbl-share><span class="icon icon-send icon-14"></span><span>${esc(t("productShare"))}</span></button>` : ""}</div>` : ""}
-    <div class="panel-label">${esc(t("labelSlots"))}</div><div class="lbl-slots">${[0, 1, 2, 3].map(slotSel).join("")}</div>
+    ${tpl.slots ? `<div class="panel-label">${esc(t("labelSlots"))}</div><div class="lbl-giant-wrap">${giant()}</div>` : ""}
     <div class="lbl-dpi"><span>${esc(t("labelDpi"))}</span>${[203, 300].map(d => `<button type="button" class="lbl-seg-btn${p.dpi === d ? " is-active" : ""}" data-lbl-dpi="${d}" aria-pressed="${p.dpi === d}">${d} dpi</button>`).join("")}</div>
     <div class="lbl-actions">
       <button type="button" class="primary sm" data-lbl-out="print"><span class="icon icon-printer icon-14"></span><span>${esc(t("labelPrint"))}</span></button>

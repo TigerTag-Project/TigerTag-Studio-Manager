@@ -47,7 +47,26 @@
 .lbl-tpl b { font-size: 12px; line-height: 1.2; text-align: center; }
 .lbl-tpl small { font-size: 10.5px; color: var(--muted); }
 
-.lbl-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* The values, chosen on a giant drawing of the label (white paper, black print):
+   brand, series bar and colour as printed, a stand-in QR, and each values line a
+   highlighted choice where it prints. */
+.lbl-giant-wrap { display: flex; justify-content: center; }
+.lbl-giant { position: relative; width: 100%; container-type: inline-size; font-family: Arial, Helvetica, sans-serif; border-radius: 10px; background: var(--on-dark); color: var(--media-bg); box-shadow: 0 2px 10px rgba(0, 0, 0, .28); }
+.lbl-giant > div { position: absolute; box-sizing: border-box; }
+.lbl-giant-txt { display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1; }
+.lbl-giant-bar { display: flex; align-items: center; overflow: hidden; white-space: nowrap; background: var(--media-bg); color: var(--on-dark); line-height: 1; }
+.lbl-giant-pill { display: flex; align-items: center; justify-content: center; border: 2px solid var(--media-bg); border-radius: 999px; font-weight: 800; line-height: 1; }
+.lbl-giant-rule { border-top: 1px solid color-mix(in srgb, var(--media-bg) 25%, transparent); }
+.lbl-giant-qrbox { display: grid; place-items: center; }
+.lbl-giant-qr { width: 100%; height: 100%; fill: var(--media-bg); opacity: .25; }
+.lbl-giant-at { display: flex; }
+.lbl-giant-at .lbl-giant-line { flex: 1; }
+.lbl-giant-line { position: relative; display: flex; height: 100%; align-items: center; border: 1.5px dashed color-mix(in srgb, var(--primary) 70%, transparent); border-radius: 6px; background: color-mix(in srgb, var(--primary) 10%, transparent); transition: background .15s, border-color .15s; }
+.lbl-giant-line:hover, .lbl-giant-line:focus-within { border-style: solid; border-color: var(--primary); background: color-mix(in srgb, var(--primary) 18%, transparent); }
+.lbl-giant-line.is-empty .lbl-giant-sel { color: color-mix(in srgb, var(--media-bg) 45%, transparent); font-style: italic; }
+.lbl-giant-sel.lbl-giant-sel { appearance: none; width: 100%; height: 100%; min-height: 0; padding: 0 22px 0 6px; border: 0; border-radius: 6px; background: transparent; color: var(--media-bg); font: inherit; font-size: max(11px, 1em); cursor: pointer; text-overflow: ellipsis; }
+.lbl-giant-sel option { color: var(--text); background: var(--surface); font-style: normal; }
+.lbl-giant-caret { position: absolute; right: 8px; pointer-events: none; color: var(--primary); font-size: 12px; }
 /* The QR's link, copied: under the preview, which opens it on a click. */
 .lbl-linkrow { display: flex; justify-content: center; gap: 8px; margin: -4px 0 8px; }
 .lbl-linkrow .icon { background-color: currentColor; }
