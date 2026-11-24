@@ -4378,6 +4378,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   $("btnSelectMode")?.addEventListener("click", _toggleSelectMode);
   $("bulkExit")?.addEventListener("click", _exitSelectMode);
   $("bulkTags")?.addEventListener("click", _openBulkTags);
+  $("btnSelectAll")?.addEventListener("click", () => _toggleSelectAllVisible());
   setupHoldToConfirm($("bulkDelete"), 1500, () => { _bulkCtx().del().catch(e => reportError("bulk.delete", e)); }, { hint: true });
   // Bulk ★ Favorite / ❤ Love (materials selection; also the only bulk actions in a friend view).
   $("bulkFavorite")?.addEventListener("click", () => _bulkApplyFlag("favorite").catch(e => reportError("bulk.favorite", e)));
@@ -14216,6 +14217,8 @@ import { initScreenTools } from './ai/screen-tools.js';
       el.classList.toggle("is-some", some);
       el.setAttribute("aria-checked", all ? "true" : some ? "mixed" : "false");
     });
+    const allBtn = $("btnSelectAll");
+    if (allBtn) { allBtn.classList.toggle("active", all); allBtn.setAttribute("aria-pressed", String(all)); }
   }
 
   // Printer selection (button-triggered checkboxes in printer grid + table).

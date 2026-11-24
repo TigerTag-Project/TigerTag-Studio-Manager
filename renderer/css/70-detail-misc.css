@@ -569,6 +569,9 @@
   .inv-select-btn.active { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-text); }
   .inv-select-btn .icon  { background: currentColor; }
   .inv-select-btn.hidden { display: none !important; }   /* friend view */
+  /* "Select all" (the filtered tiles) shows only while select mode is on. */
+  body.sel-btn-view .inv-select-btn.inv-select-all { display: none; }
+  body.sel-btn-view.bulk-select-mode .inv-select-btn.inv-select-all { display: inline-flex; }
 
   /* Checkbox affordance — hidden until select mode; the checked look is driven
      by .row-selected / .group-all-selected on the row / card. */
