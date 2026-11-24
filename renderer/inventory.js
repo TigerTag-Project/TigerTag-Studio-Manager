@@ -29996,8 +29996,12 @@ import { initScreenTools } from './ai/screen-tools.js';
      with a key to bring it back instead of a second copy of every feed. The
      connections keep running — the detached window draws the frames they produce. */
   let _camDetached = false;
+  /* While the wall is cut, the cameras turned back on one at a time with their
+     own play key — the rest stay on their placeholder. */
+  const _camWallOn = new Set();
   function _camWallStopAll() {
     _camWallCut = true;
+    _camWallOn.clear();
     const keep = _activePrinter ? _printerKey(_activePrinter) : null;
     for (const p of state.printers || []) {
       const key = _printerKey(p);
@@ -30011,8 +30015,17 @@ import { initScreenTools } from './ai/screen-tools.js';
     }
     renderPrintersView(true);
   }
+  function _camWallPlayOne(key) {
+    const p = (state.printers || []).find(v => _printerKey(v) === key);
+    if (!p) return;
+    _camWallOn.add(key);
+    _camKick(p);
+    questBump("cameraOpen");
+    renderPrintersView(true);
+  }
   function _camWallPlayAll() {
     _camWallCut = false;
+    _camWallOn.clear();
     for (const p of state.printers || []) _camKick(p);
     questBump("cameraOpen");
     renderPrintersView(true);
@@ -31207,9 +31220,11 @@ import { initScreenTools } from './ai/screen-tools.js';
        is absent; there is nothing of it to preserve. */
     const _offlinePlaced = _camOrdered.filter(p =>
       !_onlinePrinters.includes(p) && _camWallPos(p));
-    /* "Stop all cameras" on the wall: the same cards, each on its placeholder. */
-    const _cutHtml = `<div class="cam-wall-offline cam-wall-cut"><span class="icon icon-eye-off icon-24"></span></div>`;
-    if (_camWallCut) _camHtmlMap.forEach((_, k) => _camHtmlMap.set(k, _cutHtml));
+    /* "Stop all cameras" on the wall: the same cards, each on its placeholder,
+       which carries the card's own play key to bring that one camera back. */
+    const _cutHtml = k => `<div class="cam-wall-offline cam-wall-cut"><button type="button" class="cam-play" data-cw-play="${esc(k)}" aria-label="${esc(t("boardCamPlay"))}"><span class="icon icon-play icon-18"></span></button></div>`;
+    const _isCut = k => _camWallCut && !_camWallOn.has(k);
+    if (_camWallCut) _camHtmlMap.forEach((_, k) => { if (_isCut(k)) _camHtmlMap.set(k, _cutHtml(k)); });
     const _wallPrinters = [..._onlinePrinters, ..._offlinePlaced];
 
     // ── Step 1b: The wall is in its own window → a notice and a key to bring it back
@@ -31264,7 +31279,7 @@ import { initScreenTools } from './ai/screen-tools.js';
                       _wallPrinters.every(p => {
                         const card = existingWall.querySelector(`[data-brand="${p.brand}"][data-id="${p.id}"]`);
                         return !!card && card.classList.contains("cam-wall-card--offline") === !_camHtmlMap.has(`${p.brand}:${p.id}`)
-                                      && card.classList.contains("cam-wall-card--cut") === (_camWallCut && _camHtmlMap.has(`${p.brand}:${p.id}`));
+                                      && card.classList.contains("cam-wall-card--cut") === (_isCut(`${p.brand}:${p.id}`) && _camHtmlMap.has(`${p.brand}:${p.id}`));
                       });
       if (sameSet) {
         _wallPrinters.forEach((p, idx) => {
@@ -31305,7 +31320,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       const sizeCls = csize === "sm" ? " cam-wall-card--sm" : csize === "2x" ? " cam-wall-card--2x" : csize === "fs" ? " cam-wall-card--fs" : "";
       // style.order is set explicitly so DnD can reorder via CSS without moving DOM nodes.
       return `
-        <div class="cam-wall-card${sizeCls}${_camHtmlMap.has(ckey) ? (_camWallCut ? " cam-wall-card--cut" : "") : " cam-wall-card--offline"}" data-brand="${esc(p.brand)}" data-id="${esc(p.id)}" data-cam-key="${esc(ckey)}">
+        <div class="cam-wall-card${sizeCls}${_camHtmlMap.has(ckey) ? (_isCut(ckey) ? " cam-wall-card--cut" : "") : " cam-wall-card--offline"}" data-brand="${esc(p.brand)}" data-id="${esc(p.id)}" data-cam-key="${esc(ckey)}">
           <div class="cam-wall-card-head">
             <span class="printer-brand-pill" style="--brand-accent:${esc(meta.accent)}">${esc(meta.label)}</span>
             <span class="cam-wall-card-name">${esc(p.printerName || "(unnamed)")}</span>
@@ -31376,6 +31391,10 @@ import { initScreenTools } from './ai/screen-tools.js';
     wireCamWallPlan(host);
     host.querySelector("#cwCamStopAll")?.addEventListener("click", _camWallStopAll);
     host.querySelector("#cwCamPlayAll")?.addEventListener("click", _camWallPlayAll);
+    host.querySelectorAll("[data-cw-play]").forEach(btn => {
+      btn.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
+      btn.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); _camWallPlayOne(btn.dataset.cwPlay); });
+    });
   }
 
   /* Everything that makes the wall a board: move a card, sweep a selection, pan
