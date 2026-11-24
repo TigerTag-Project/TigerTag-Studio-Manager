@@ -569,10 +569,12 @@ async function exportLabel(format, items, msg) {
   const fileName = items.length > 1 ? `tigertag-labels-${items.length}-${lbl.mmW}x${lbl.mmH}` : `tigertag-${kind}-${id}-${lbl.mmW}x${lbl.mmH}`;
   const svg = format === "svg" ? lbl.svg : undefined;   // the label itself, sized in millimetres
   try {
-    // Print uses the sheet chosen in the card; PDF / PNG / SVG keep the label's size.
-    const page = format === "print" ? pageFor(prefs()) : "label";
-    const run = format === "print" ? runOf(items) : items.map((_, k) => k);
-    const sheets = format === "print" ? sheetsFor(items) : format === "pdf" && items.length > 1 ? run.map(k => [[0, 0, k]]) : undefined;
+    // Print and PDF use the sheet chosen in the card (on the label's own size a PDF
+    // holds one label per page); PNG / SVG keep the label's size.
+    const sheeted = format === "print" || (format === "pdf" && pageFor(prefs()) !== "label");
+    const page = sheeted ? pageFor(prefs()) : "label";
+    const run = sheeted ? runOf(items) : items.map((_, k) => k);
+    const sheets = sheeted ? sheetsFor(items) : format === "pdf" && items.length > 1 ? run.map(k => [[0, 0, k]]) : undefined;
     const labels = items.length > 1 ? items.map(x => x.lbl.html) : undefined;
     const res = await window.electronAPI?.renderLabel?.({ ...lbl, svg, format, fileName, page, sheets, labels });
     if (!res?.ok && res?.reason !== "cancelled" && format !== "print") throw new Error(res?.reason || "render failed");

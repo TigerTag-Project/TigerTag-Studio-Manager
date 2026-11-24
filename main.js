@@ -4340,7 +4340,7 @@ ipcMain.handle('label:render', async (_evt, opts = {}) => {
     /* Printed on an A4 sheet (#263): some label printers' drivers know no page but
        A4 and print a page of the label's own size blank. The label keeps its size
        and sits in the sheet's top-left corner or in its centre. */
-    const a4 = format === 'print' && (sheet === 'a4-tl' || sheet === 'a4-c');
+    const a4 = (format === 'print' || format === 'pdf') && (sheet === 'a4-tl' || sheet === 'a4-c');
     const pw = a4 ? 210 : mmW, ph = a4 ? 297 : mmH;
     const at = !a4 ? '' : sheet === 'a4-c'
       ? `position:absolute;left:${(210 - mmW) / 2}mm;top:${(297 - mmH) / 2}mm;`
@@ -4363,6 +4363,9 @@ ipcMain.handle('label:render', async (_evt, opts = {}) => {
         + sheets.map(s => `<div class="sh">${s.map(([x, y, k]) => bodies[k || 0].replace('<div class="lbl">', `<div class="lbl" style="left:${x}mm;top:${y}mm">`)).join('')}</div>`).join('')
         + page.slice(e);
     }
+    /* A title, or the print queue and the PDF are named after the whole data: URL. */
+    const title = String(fileName || 'TigerTag label').replace(/[<>&"]/g, '');
+    page = page.includes('<title>') ? page : page.replace('<head>', `<head><title>${title}</title>`);
     await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(page));
     if (format === 'png') {
       let img = await win.webContents.capturePage({ x: 0, y: 0, width: Math.ceil(wDots), height: Math.ceil(hDots) });
@@ -4373,7 +4376,7 @@ ipcMain.handle('label:render', async (_evt, opts = {}) => {
     }
     if (format === 'pdf') {
       const pdf = await win.webContents.printToPDF({
-        pageSize: { width: mmW / 25.4, height: mmH / 25.4 },
+        pageSize: a4 ? 'A4' : { width: mmW / 25.4, height: mmH / 25.4 },
         margins: { top: 0, bottom: 0, left: 0, right: 0 }, printBackground: true,
       });
       fs.writeFileSync(filePath, Buffer.from(pdf));
