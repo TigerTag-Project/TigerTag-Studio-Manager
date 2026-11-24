@@ -16273,7 +16273,16 @@ import { initScreenTools } from './ai/screen-tools.js';
     return true;
   };
   $("searchInv").addEventListener("keydown", e => {
-    if (e.key === "Enter" && _qrLinkEntered(e.target, _qrTypedReader(e.target))) e.preventDefault();
+    if (e.key !== "Enter") return;
+    if (_qrLinkEntered(e.target, _qrTypedReader(e.target))) { e.preventDefault(); return; }
+    // Scanner mode "search" or "all": a code scanned or pasted into the search
+    // bar and closed by Enter opens its product, as a scan outside any field
+    // does (`_onCodeScanned`). "off" keeps it a plain search.
+    const v = e.target.value.trim();
+    if (_scanMode !== "off" && v.length >= SCAN_MIN_LEN && !v.includes(" ") && _catCodeish(v)) {
+      e.preventDefault();
+      _onCodeScanned(v).catch(err => console.warn("[scan]", err?.message));
+    }
   });
   $("searchInv").addEventListener("input", e => {
     const v = e.target.value;
@@ -16306,6 +16315,134 @@ import { initScreenTools } from './ai/screen-tools.js';
     _onFilterChange();
     inp.focus();
   });
+
+  /* ── Barcode scanner, anywhere in the app ──────────────────────────────────
+     A USB barcode / QR scanner is a keyboard: it types the code in a burst and
+     ends it with Enter (some models: Tab). Typed into the search bar it is
+     already a search (`_catCodeish`, exact match first); typed while NO field
+     has the focus it used to go nowhere. A burst of quick keys outside any
+     editable field, closed by Enter/Tab, is now taken as a scan and handled by
+     `_onCodeScanned`. A field that has the focus keeps every key: a code
+     scanned INTO a field is meant for that field. */
+  /* Where a scan is acted on, chosen with the view row's scanner button:
+     "all" — anywhere (outside a field, and the search bar), the default;
+     "search" — only a code scanned or pasted into the search bar;
+     "off" — nowhere: the search bar is a plain search again.
+     Saved on this computer: localStorage `tigertag.scanMode`. */
+  const SCAN_MODES = ["off", "search", "all"];
+  const SCAN_MODE_LABEL = { off: "scanModeOff", search: "scanModeSearch", all: "scanModeAll" };
+  let _scanMode = "all";
+  try { const m = localStorage.getItem("tigertag.scanMode"); if (SCAN_MODES.includes(m)) _scanMode = m; } catch (_) {}
+  function _paintScanMode() {
+    const btn = $("btnScanMode"), lbl = $("btnScanModeLabel");
+    if (!btn || !lbl) return;
+    btn.classList.toggle("active", _scanMode === "all");
+    btn.classList.toggle("is-off", _scanMode === "off");
+    lbl.dataset.i18n = SCAN_MODE_LABEL[_scanMode];
+    lbl.textContent = t(lbl.dataset.i18n);
+  }
+  function _setScanMode(mode) {
+    if (!SCAN_MODES.includes(mode)) return;
+    _scanMode = mode;
+    try { localStorage.setItem("tigertag.scanMode", mode); } catch (_) {}
+    _paintScanMode();
+  }
+  $("btnScanMode")?.addEventListener("click", () => {
+    _setScanMode(SCAN_MODES[(SCAN_MODES.indexOf(_scanMode) + 1) % SCAN_MODES.length]);
+    _flashMessage(t(SCAN_MODE_LABEL[_scanMode]));
+  });
+  _paintScanMode();
+  const SCAN_MAX_GAP_MS = 45;   // a scanner types a character every 5-30 ms; people take 80+
+  const SCAN_MIN_LEN = 6;       // shorter than any EAN-8 / SKU — see _catCodeish
+  let _scanBuf = "", _scanLastAt = 0;
+  // A digit is read from the KEY pressed, not the character it produced: a
+  // scanner set to the US layout on a French (AZERTY) computer presses the
+  // digit keys without Shift, which type "&é\"'(-è_çà" there — every EAN
+  // would come out as punctuation. `e.code` names the physical key whatever
+  // the layout, so the digits are right either way. Other characters keep
+  // `e.key` (correct when the scanner's layout matches the computer's).
+  const _scanChar = e => {
+    const m = /^(?:Digit|Numpad)(\d)$/.exec(e.code || "");
+    if (m) return m[1];
+    return e.key.length === 1 ? e.key : "";
+  };
+  const _isEditable = el => !!el && (el.isContentEditable
+    || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+  document.addEventListener("keydown", e => {
+    if (_scanMode !== "all" || e.ctrlKey || e.metaKey || e.altKey || _isEditable(e.target)) { _scanBuf = ""; return; }
+    const now = performance.now();
+    if (now - _scanLastAt > SCAN_MAX_GAP_MS) _scanBuf = "";
+    _scanLastAt = now;
+    if (e.key === "Enter" || e.key === "Tab") {
+      const code = _scanBuf.trim();
+      _scanBuf = "";
+      if (code.length < SCAN_MIN_LEN) return;
+      // The burst is a scan: the Enter must not also press the focused button.
+      e.preventDefault();
+      e.stopPropagation();
+      _onCodeScanned(code).catch(err => console.warn("[scan]", err?.message));
+      return;
+    }
+    _scanBuf += _scanChar(e);
+  }, true);
+
+  // The catalogue products a scanned code names exactly: barcode, SKU or
+  // catalogue id. A QR code usually carries a link: the codes are looked for
+  // inside it too (every run of 8-14 digits, then the last path segment).
+  async function _catalogProductsForCode(code) {
+    if (!_catalogIndex.length) _catalogLoadCache();
+    if (!_catalogIndex.length) await _catalogLoadBundled();
+    const exact = raw => _catalogIndex.filter(e =>
+      [e.it.barcode, e.it.sku, e.it.id].some(v => String(v || "").toLowerCase() === raw)).map(e => e.it);
+    const raw = code.toLowerCase();
+    let hits = exact(raw);
+    if (hits.length || !/^https?:\/\//.test(raw)) return { hits, query: code };
+    const tries = [...(raw.match(/\d{8,14}/g) || [])];
+    const last = raw.replace(/[?#].*$/, "").split("/").filter(Boolean).pop();
+    if (last) tries.push(decodeURIComponent(last));
+    for (const tr of tries) {
+      hits = exact(tr);
+      if (hits.length) return { hits, query: tr };
+    }
+    return { hits: [], query: code };
+  }
+
+  /* A scan opens the product it names, ready to add: the Catalogue view,
+     searched on that code, with the product selected — so its card (stock
+     already held, "+ Inventory", wishlist, cart) is the one the Catalogue gives.
+     A spool QR link (qr.tigertag.io) opens that spool, as in the search bar.
+     A code the catalogue does not know is still searched (the inventory may
+     hold it), and said so. */
+  async function _onCodeScanned(code) {
+    const link = /qr\.tigertag\.io\//i.test(code) ? parseQrLink(code) : null;
+    if (link?.kind === "spool") { _spoolLinkArrived(link); return; }
+    const { hits, query } = await _catalogProductsForCode(code);
+    const inp = $("searchInv");
+    const showSearch = () => {
+      if (inp) inp.value = query;
+      state.search = query;
+      state.locateUid = null;
+      _refreshSearchClearVisibility(query);
+      _onFilterChange();
+    };
+    // The card of a product scanned before would now describe the wrong box.
+    if (hits.length !== 1 && $("productCardPanel")?.classList.contains("open")) closeProductCard();
+    if (!hits.length) {
+      showSearch();
+      _flashMessage(t("scanUnknownCode", { code: query }));
+      return;
+    }
+    if (!_isCatalogMode(state.viewMode)) setViewMode("catalogGrid");
+    showSearch();
+    if (hits.length > 1) return;        // several products share the code: the view lists them
+    const it = hits[0];
+    // Select it outright (not _catViewSelect, which toggles): scanning the same
+    // box twice must keep its card open, not close it.
+    _catViewSelectedId = String(it.id);
+    requestAnimationFrame(() => _catViewPaintSelection());
+    _catViewProductCard(it).catch(e => console.warn("[scan] product card:", e?.message));
+  }
+
   // Does the current search leave nothing on screen? Read from the SAME signal each
   // view already computes rather than re-deriving the predicate, so this can never
   // drift from what the user is actually looking at.

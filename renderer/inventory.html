@@ -363,6 +363,13 @@
                reads as a headline figure, like the stat tiles above. Shown only
                in those views, via `body.catalog-filters`. -->
           <div class="cv-count" id="catalogViewStatus"></div>
+          <!-- Barcode scanner mode: where a USB scanner's code opens its product —
+               off, the search bar only, or anywhere in the app. Each click moves to the
+               next mode; saved on this computer (`tigertag.scanMode`, `_setScanMode`). -->
+          <button id="btnScanMode" class="inv-select-btn inv-scan-btn" type="button" data-i18n-aria="scanModeAria">
+            <span class="icon icon-qr icon-13" aria-hidden="true"></span>
+            <span id="btnScanModeLabel" data-i18n="scanModeAll">Scanner: everywhere</span>
+          </button>
           <!-- Multi-select toggle → checkboxes + bulk-delete bar (own inventory only). -->
           <button id="btnSelectMode" class="inv-select-btn js-select-toggle" type="button" title="Select multiple">
             <span class="icon icon-check icon-13"></span>
