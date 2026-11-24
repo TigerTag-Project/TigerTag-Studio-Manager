@@ -100,7 +100,8 @@ import { renderPrusaCamBanner, renderPrusaCamWallBanner, prusaCamStopAll } from 
 import { openPrusaAddFlow } from './printers/prusa/add-flow.js';
 import { initExtCam, extCamSubscribe, extCamUnsubscribe, openExtCamAddFlow, openExtCamEditor,
          extCamBoardObj, extCamMaxZ, extCamBoardSave, extCamBoardCardsHtml, wireExtCamBoard,
-         EXTCAM_BRAND, extCamWallItems, extCamProtoLabel, extCamWallHtml, wireExtCamWall, extCamWallSave, extCamList, extCamForDetach, extCamEmbedHtml } from './ext-cam/ext-cam.js';
+         EXTCAM_BRAND, extCamWallItems, extCamProtoLabel, extCamWallHtml, wireExtCamWall, extCamWallSave, extCamList, extCamForDetach, extCamEmbedHtml,
+         extCamBoardLive, extCamBoardPauseAll, extCamBoardIdle, extCamBoardResumeAll } from './ext-cam/ext-cam.js';
 // Self-contained printer plugins (renderer/printers/<id>/plugin.js) — see docs/PRINTER-PLUGINS.md.
 import { printerPlugin, printerPlugins, printerPluginIds, mergePluginStrings } from './printers/plugins.js';
 import { betaBadgeInlineHtml } from './printers/beta-badge.js';
@@ -14420,6 +14421,7 @@ import { initScreenTools } from './ai/screen-tools.js';
        stream is billed in RTC minutes while the channel is joined, so leave it —
        and forget it was asked for, or coming back would restart it unasked — as
        soon as the board is no longer on screen. */
+    if (mode === "printer" && prevMode !== "printer") _camAutoHeld = false;   // the board reopened: automatic start applies again
     if (prevMode === "printer" && mode !== "printer") {
       for (const k of [..._camPlaying]) if (k.startsWith("anycubic:")) _camPlaying.delete(k);
       try { acuReleaseCloudCameras(); } catch (_) {}
@@ -14538,7 +14540,24 @@ import { initScreenTools } from './ai/screen-tools.js';
   }
   // Detach (top, cam view) → pop the camera wall into its own window.
   $("camWallDetachTop")?.addEventListener("click", () => {
-    try { window.electronAPI?.openCamWindow(_serializeCamerasForDetach()); } catch (_) {}
+    try {
+      Promise.resolve(window.electronAPI?.openCamWindow(_serializeCamerasForDetach()))
+        .then(() => {
+          _camDetached = true;
+          /* The detached window runs its own Creality sessions: close the main
+             window's, which nothing shows now (the wall reopens them when it comes back). */
+          for (const p of state.printers || []) {
+            if (p.brand === "creality" && p.ip) { try { stopCreCam(p.ip); } catch (_) {} }
+          }
+          renderPrintersView(true);
+        })
+        .catch(() => {});
+    } catch (_) {}
+  });
+  window.electronAPI?.onCamWindowClosed?.(() => {
+    if (!_camDetached) return;
+    _camDetached = false;
+    renderPrintersView(true);
   });
   $("btnViewTable").addEventListener("click", () => setViewMode("table"));
   $("btnViewGrid").addEventListener("click",  () => setViewMode("grid"));
@@ -29801,6 +29820,10 @@ import { initScreenTools } from './ai/screen-tools.js';
      "I want to look now" is not a setting, and a board reopened tomorrow should
      be quiet again. */
   const _camPlaying = new Set();
+  /* Set by "Stop all cameras" (#272) so the automatic start does not put the
+     feeds straight back; lifted when the board is opened again from another
+     view. A play key still starts its own camera meanwhile. */
+  let _camAutoHeld = false;
   /* THE BOARD'S OWN BANNER. FlashForge holds ONE stream at a time, and its panel
      banner opens that stream itself — several cards, or a card and an open
      panel, would fight over it. The camera wall already solved this: its banner
@@ -29872,6 +29895,7 @@ import { initScreenTools } from './ai/screen-tools.js';
      machines are left alone, so nothing retries in a loop. */
   function _autoStartCams() {
     if (!HAS_NATIVE) return;
+    if (_camAutoHeld) return;   // "Stop all cameras" was pressed: no restart behind the user's back
     for (const p of state.printers || []) {
       if (p.camAutoStart !== true) continue;
       const key = _printerKey(p);
@@ -29906,6 +29930,120 @@ import { initScreenTools } from './ai/screen-tools.js';
       placed = true;
     });
     if (placed) _wireCamWidgets(root);
+    _syncCamStopBtn();
+  }
+
+  /* "Stop all cameras" (#272): every feed the board is showing — the machines'
+     played cameras and the external camera cards — goes back to its play key at
+     once. The machine open in the side panel keeps its stream, since the panel
+     is still showing it. */
+  const _boardCamsLive = () => _camPlaying.size > 0 || extCamBoardLive();
+  /* Machines whose camera could be shown on the board but is not playing. */
+  const _camPlayable = p => {
+    const online = _isPrinterOnline(p);
+    return (!!((online || _camSourceId(p)) && _boardCamHtml(p)) || (online && _camStartable(p)));
+  };
+  const _boardCamsIdle = () =>
+    (state.printers || []).some(p => !_camPlaying.has(_printerKey(p)) && _camPlayable(p)) || extCamBoardIdle();
+  /* Each key shows only while it has something to do. A play key starts a feed
+     without redrawing the board, so both are re-checked in place. */
+  function _syncCamStopBtn() {
+    const b = document.getElementById("pvCamStopAll");
+    if (b) b.hidden = !_boardCamsLive();
+    const a = document.getElementById("pvCamPlayAll");
+    if (a) a.hidden = !_boardCamsIdle();
+  }
+  /* "Show all cameras": the mirror of the stop key — every machine whose camera
+     can be shown is played exactly as if its own play key had been pressed
+     (same set, same kick), and the cut external cameras come back. */
+  function _camPlayAllBoard() {
+    for (const p of state.printers || []) {
+      const key = _printerKey(p);
+      if (_camPlaying.has(key) || !_camPlayable(p)) continue;
+      _camPlaying.add(key);
+      _camKick(p);
+    }
+    extCamBoardResumeAll();
+    questBump("cameraOpen");
+    renderPrintersView(true);
+  }
+  document.addEventListener("xc-board-play", _syncCamStopBtn);
+  function _camStopAllBoard() {
+    const keep = _activePrinter ? _printerKey(_activePrinter) : null;
+    for (const key of [..._camPlaying]) {
+      _camPlaying.delete(key);
+      if (key === keep) continue;
+      const p = state.printers.find(v => _printerKey(v) === key);
+      if (!p || _camSourceId(p)) continue;   // an external camera stops when its card is gone
+      try {
+        if (p.brand === "bambulab")   bambuStopCam(bambuKey(p));
+        if (p.brand === "creality"   && p.ip) stopCreCam(p.ip);
+        if (p.brand === "flashforge") ffgMuxStop(ffgKey(p));
+        if (p.brand === "anycubic")   acuReleaseCamera(p);
+      } catch (e) { console.warn("[board-cam] stop failed for", key, e?.message || e); }
+    }
+    extCamBoardPauseAll();
+    _camAutoHeld = true;
+    renderPrintersView(true);
+  }
+
+  /* The camera wall's own "Stop all / Show all cameras" (the board keys' twins).
+     Cut, every card keeps its place and size but shows the eye-off placeholder,
+     and the streams the wall alone was holding are closed. Session-only, like
+     the board's: reopening Studio shows the wall live again. */
+  let _camWallCut = false;
+  /* The wall is shown in its own window ("Detach"): the main window shows a notice
+     with a key to bring it back instead of a second copy of every feed. The
+     connections keep running — the detached window draws the frames they produce. */
+  let _camDetached = false;
+  /* While the wall is cut, the cameras turned back on one at a time with their
+     own play key — the rest stay on their placeholder. */
+  const _camWallOn = new Set();
+  /* The cameras cut one at a time with their own key, the wall staying live. */
+  const _camWallOff = new Set();
+  /* Close the feed the wall alone was holding for this printer. */
+  function _camWallRelease(p) {
+    const key = _printerKey(p);
+    const keep = _activePrinter ? _printerKey(_activePrinter) : null;
+    if (key === keep || _camPlaying.has(key) || _camSourceId(p)) return;   // still shown elsewhere
+    try {
+      if (p.brand === "bambulab")   bambuStopCam(bambuKey(p));
+      if (p.brand === "creality"   && p.ip) stopCreCam(p.ip);
+      if (p.brand === "flashforge") ffgMuxStop(ffgKey(p));
+      if (p.brand === "anycubic")   acuReleaseCamera(p);
+    } catch (e) { console.warn("[cam-wall] stop failed for", key, e?.message || e); }
+  }
+  function _camWallStopOne(key) {
+    const p = (state.printers || []).find(v => _printerKey(v) === key);
+    if (!p) return;
+    _camWallOn.delete(key);
+    _camWallOff.add(key);
+    _camWallRelease(p);
+    renderPrintersView(true);
+  }
+  function _camWallStopAll() {
+    _camWallCut = true;
+    _camWallOn.clear();
+    _camWallOff.clear();
+    for (const p of state.printers || []) _camWallRelease(p);
+    renderPrintersView(true);
+  }
+  function _camWallPlayOne(key) {
+    const p = (state.printers || []).find(v => _printerKey(v) === key);
+    if (!p) return;
+    _camWallOff.delete(key);
+    if (_camWallCut) _camWallOn.add(key);
+    _camKick(p);
+    questBump("cameraOpen");
+    renderPrintersView(true);
+  }
+  function _camWallPlayAll() {
+    _camWallCut = false;
+    _camWallOn.clear();
+    _camWallOff.clear();
+    for (const p of state.printers || []) _camKick(p);
+    questBump("cameraOpen");
+    renderPrintersView(true);
   }
 
   function _camShow(key) {
@@ -29915,6 +30053,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (!p || !root) return;
     _camKick(p);
     questBump("cameraOpen", 1, p);
+    _syncCamStopBtn();
     const thumb = root.querySelector(`.printer-card[data-printer-key="${CSS.escape(key)}"] .printer-card-thumb`);
     if (thumb) {
       const html = _boardCamHtml(p);
@@ -30642,6 +30781,14 @@ import { initScreenTools } from './ai/screen-tools.js';
                  value="${Math.round(_printerZoom * 100)}" aria-label="${esc(t("rackPlanZoom"))}"><span class="pct">%</span>
           <button type="button" id="pvZoomIn" aria-label="${esc(t("rackPlanZoomIn"))}">+</button>
         </div>
+        <button type="button" class="rv-plan-btn" id="pvCamPlayAll"${_boardCamsIdle() ? "" : " hidden"}>
+          <span class="icon icon-play icon-14"></span>
+          <span>${esc(t("boardCamPlayAll"))}</span>
+        </button>
+        <button type="button" class="rv-plan-btn" id="pvCamStopAll"${_boardCamsLive() ? "" : " hidden"}>
+          <span class="icon icon-eye-off icon-14"></span>
+          <span>${esc(t("boardCamStopAll"))}</span>
+        </button>
       </div>
       <div class="printers-scroll">
         <div class="printers-grid printers-grid--plan">${cards}</div>
@@ -30673,6 +30820,8 @@ import { initScreenTools } from './ai/screen-tools.js';
     wireExtCamBoard(host.querySelector(".printers-grid"));
     wirePlanPan(host.querySelector(".printers-scroll"), ".printer-card");
     wirePrinterZoom(host);
+    host.querySelector("#pvCamStopAll")?.addEventListener("click", _camStopAllBoard);
+    host.querySelector("#pvCamPlayAll")?.addEventListener("click", _camPlayAllBoard);
     wirePrinterArrange(host);
     wirePrinterCardMenus(host);
     wirePlanClusterMenu(host);
@@ -31086,7 +31235,32 @@ import { initScreenTools } from './ai/screen-tools.js';
        is absent; there is nothing of it to preserve. */
     const _offlinePlaced = _camOrdered.filter(p =>
       !_onlinePrinters.includes(p) && _camWallPos(p));
+    /* "Stop all cameras" on the wall: the same cards, each on its placeholder,
+       which carries the card's own play key to bring that one camera back. */
+    const _cutHtml = k => `<div class="cam-wall-offline cam-wall-cut"><button type="button" class="cam-play" data-cw-play="${esc(k)}" aria-label="${esc(t("boardCamPlay"))}"><span class="icon icon-play icon-18"></span></button></div>`;
+    const _isCut = k => (_camWallCut && !_camWallOn.has(k)) || _camWallOff.has(k);
+    _camHtmlMap.forEach((_, k) => { if (_isCut(k)) _camHtmlMap.set(k, _cutHtml(k)); });
     const _wallPrinters = [..._onlinePrinters, ..._offlinePlaced];
+
+    // ── Step 1b: The wall is in its own window → a notice and a key to bring it back
+    if (_camDetached) {
+      host.innerHTML = `
+        <div class="printers-empty-card cam-wall-detached">
+          <span class="icon icon-eye-off icon-32"></span>
+          <div class="printers-empty-title">${esc(t("camWallDetachedTitle"))}</div>
+          <div class="printers-empty-sub">${esc(t("camWallDetachedSub"))}</div>
+          <button type="button" class="rv-plan-btn" id="cwReattach">
+            <span class="icon icon-eye-on icon-14"></span>
+            <span>${esc(t("camWallReattach"))}</span>
+          </button>
+        </div>`;
+      host.querySelector("#cwReattach")?.addEventListener("click", () => {
+        Promise.resolve(window.electronAPI?.closeCamWindow?.()).catch(() => {});
+        _camDetached = false;
+        renderPrintersView(true);
+      });
+      return;
+    }
 
     // ── Step 2: Empty state ────────────────────────────────────────────────────
     if (!_wallPrinters.length) {
@@ -31119,7 +31293,8 @@ import { initScreenTools } from './ai/screen-tools.js';
                       [...newKeys].every(k => existingKeys.has(k)) &&
                       _wallPrinters.every(p => {
                         const card = existingWall.querySelector(`[data-brand="${p.brand}"][data-id="${p.id}"]`);
-                        return !!card && card.classList.contains("cam-wall-card--offline") === !_camHtmlMap.has(`${p.brand}:${p.id}`);
+                        return !!card && card.classList.contains("cam-wall-card--offline") === !_camHtmlMap.has(`${p.brand}:${p.id}`)
+                                      && card.classList.contains("cam-wall-card--cut") === (_isCut(`${p.brand}:${p.id}`) && _camHtmlMap.has(`${p.brand}:${p.id}`));
                       });
       if (sameSet) {
         _wallPrinters.forEach((p, idx) => {
@@ -31160,11 +31335,12 @@ import { initScreenTools } from './ai/screen-tools.js';
       const sizeCls = csize === "sm" ? " cam-wall-card--sm" : csize === "2x" ? " cam-wall-card--2x" : csize === "fs" ? " cam-wall-card--fs" : "";
       // style.order is set explicitly so DnD can reorder via CSS without moving DOM nodes.
       return `
-        <div class="cam-wall-card${sizeCls}${_camHtmlMap.has(ckey) ? "" : " cam-wall-card--offline"}" data-brand="${esc(p.brand)}" data-id="${esc(p.id)}" data-cam-key="${esc(ckey)}">
+        <div class="cam-wall-card${sizeCls}${_camHtmlMap.has(ckey) ? (_isCut(ckey) ? " cam-wall-card--cut" : "") : " cam-wall-card--offline"}" data-brand="${esc(p.brand)}" data-id="${esc(p.id)}" data-cam-key="${esc(ckey)}">
           <div class="cam-wall-card-head">
             <span class="printer-brand-pill" style="--brand-accent:${esc(meta.accent)}">${esc(meta.label)}</span>
             <span class="cam-wall-card-name">${esc(p.printerName || "(unnamed)")}</span>
-            <div class="cam-size-btns">${_camFsBtn(csize)}</div>
+            <div class="cam-size-btns">${_camHtmlMap.has(ckey) && !_isCut(ckey) && !_camDetached
+              ? `<button type="button" class="cam-size-btn" data-cw-stop="${esc(ckey)}" aria-label="${esc(t("camWallStopOne"))}"><span class="icon icon-eye-off icon-12"></span></button>` : ""}${_camFsBtn(csize)}</div>
           </div>
           ${camHtml}
           <span class="cam-resize" data-cam-resize aria-hidden="true"></span>
@@ -31190,6 +31366,14 @@ import { initScreenTools } from './ai/screen-tools.js';
                  value="${Math.round(_camZoom * 100)}" aria-label="${esc(t("rackPlanZoom"))}"><span class="pct">%</span>
           <button type="button" id="cwZoomIn" aria-label="${esc(t("rackPlanZoomIn"))}">+</button>
         </div>
+        <button type="button" class="rv-plan-btn" id="cwCamPlayAll"${(_camWallCut || _camWallOff.size) && _onlinePrinters.length ? "" : " hidden"}>
+          <span class="icon icon-play icon-14"></span>
+          <span>${esc(t("boardCamPlayAll"))}</span>
+        </button>
+        <button type="button" class="rv-plan-btn" id="cwCamStopAll"${!_camWallCut && _onlinePrinters.length ? "" : " hidden"}>
+          <span class="icon icon-eye-off icon-14"></span>
+          <span>${esc(t("boardCamStopAll"))}</span>
+        </button>
       </div>
       <div class="printers-scroll cam-scroll">
         <div class="cam-wall cam-wall--plan">${camCards.join("")}</div>
@@ -31221,6 +31405,16 @@ import { initScreenTools } from './ai/screen-tools.js';
     _layoutCamWall(host.querySelector(".cam-wall"));
     wireExtCamWall(host.querySelector(".cam-wall"));
     wireCamWallPlan(host);
+    host.querySelector("#cwCamStopAll")?.addEventListener("click", _camWallStopAll);
+    host.querySelector("#cwCamPlayAll")?.addEventListener("click", _camWallPlayAll);
+    host.querySelectorAll("[data-cw-stop]").forEach(btn => {
+      btn.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
+      btn.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); _camWallStopOne(btn.dataset.cwStop); });
+    });
+    host.querySelectorAll("[data-cw-play]").forEach(btn => {
+      btn.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
+      btn.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); _camWallPlayOne(btn.dataset.cwPlay); });
+    });
   }
 
   /* Everything that makes the wall a board: move a card, sweep a selection, pan

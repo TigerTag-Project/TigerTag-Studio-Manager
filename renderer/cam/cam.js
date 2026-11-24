@@ -26,6 +26,58 @@ const _crePeers = new Map();
 //    client over a BroadcastChannel — the acuKeys we currently want frames for
 const _acuBcKeys = new Set();
 
+// ── Cameras cut on this wall (the main window's "Stop all" / per-card keys,
+//    mirrored here). A cut card keeps its place and shows a play key; its feed
+//    stops where this window owns it (Creality, external cameras) and is simply
+//    no longer drawn where the main window relays it (Bambu, FlashForge, Anycubic).
+let _cams = [];
+const _off = new Set();
+const camKey = cam => `${cam.brand}:${cam.id}`;
+
+const ICON_PLAY = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+const ICON_OFF  = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c5 0 9 4.5 10 7a13 13 0 0 1-3.2 4.3M6.6 6.6A13 13 0 0 0 2 12c1 2.5 5 7 10 7a9.8 9.8 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+
+function startFeed(cam) {
+  if (cam.camType === 'webrtc' && cam.ip) startCrePeer(cam.id, cam.ip);
+  if (cam.camType === 'acu_bc' && cam.acuKey) { _acuBcKeys.add(cam.acuKey); _acuBcWantPing(); }
+  if (cam.camType === 'extcam') startExt(cam);
+}
+function stopFeed(cam) {
+  if (cam.camType === 'webrtc') stopCrePeer(cam.id);
+  if (cam.camType === 'acu_bc' && cam.acuKey) _acuBcKeys.delete(cam.acuKey);
+  if (cam.camType === 'extcam') stopExt(extKey(cam));
+}
+function cutBody(cam) {
+  return `<div class="cam-cut"><button type="button" class="cam-play" data-cam-play="${esc(camKey(cam))}" aria-label="Show this camera">${ICON_PLAY}</button></div>`;
+}
+function paintCard(cam) {
+  const card = document.querySelector(`.cam-card[data-cam-key="${CSS.escape(camKey(cam))}"]`);
+  if (!card) return;
+  const off = _off.has(camKey(cam));
+  card.classList.toggle('cam-card--off', off);
+  card.querySelector('.cam-card-body').innerHTML = off ? cutBody(cam) : buildFeed(cam);
+  card.querySelector('[data-cam-stop]')?.toggleAttribute('hidden', off);
+}
+function paintBar() {
+  const all = _cams.length, cut = _cams.filter(c => _off.has(camKey(c))).length;
+  document.getElementById('camStopAll')?.toggleAttribute('hidden', !all || cut === all);
+  document.getElementById('camPlayAll')?.toggleAttribute('hidden', !cut);
+}
+function setOff(cam, off) {
+  const k = camKey(cam);
+  if (off === _off.has(k)) return;
+  if (off) { _off.add(k); stopFeed(cam); paintCard(cam); }
+  else     { _off.delete(k); paintCard(cam); startFeed(cam); }
+  paintBar();
+}
+document.addEventListener('click', e => {
+  const play = e.target.closest('[data-cam-play]'), stop = e.target.closest('[data-cam-stop]');
+  const key = (play || stop)?.dataset.camPlay || (play || stop)?.dataset.camStop;
+  if (key) { const cam = _cams.find(c => camKey(c) === key); if (cam) setOff(cam, !!stop); return; }
+  if (e.target.closest('#camStopAll')) _cams.forEach(c => setOff(c, true));
+  if (e.target.closest('#camPlayAll')) _cams.forEach(c => setOff(c, false));
+});
+
 // ── Build UI ─────────────────────────────────────────────────────────────────
 
 function esc(s) {
@@ -49,8 +101,11 @@ function buildWall(cameras) {
         <p>No cameras online</p>
       </div>`;
     count.textContent = '';
+    _cams = [];
+    paintBar();
     return;
   }
+  _cams = cameras;
 
   count.textContent = `${cameras.length} camera${cameras.length > 1 ? 's' : ''}`;
 
@@ -63,23 +118,26 @@ function buildWall(cameras) {
   // Wire up live feeds after DOM insertion.
   _acuBcKeys.clear();
   cameras.forEach(cam => {
+    if (_off.has(camKey(cam))) return;
     if (cam.camType === 'webrtc' && cam.ip) startCrePeer(cam.id, cam.ip);
     if (cam.camType === 'acu_bc' && cam.acuKey) _acuBcKeys.add(cam.acuKey);
     if (cam.camType === 'extcam') startExt(cam);
   });
   _acuBcWantPing(); // ask the main window to start relaying frames now
+  paintBar();
 }
 
 function buildCard(cam) {
   const brandColor = brandAccent(cam.brand);
   return `
-    <div class="cam-card" data-cam-id="${esc(cam.id)}" data-cam-type="${esc(cam.camType)}">
+    <div class="cam-card${_off.has(camKey(cam)) ? ' cam-card--off' : ''}" data-cam-id="${esc(cam.id)}" data-cam-key="${esc(camKey(cam))}" data-cam-type="${esc(cam.camType)}">
       <div class="cam-card-head">
         <span class="cam-card-brand" style="background:${brandColor}22;color:${brandColor}">${esc(cam.brand)}</span>
         <span class="cam-card-name">${esc(cam.name)}</span>
+        <button type="button" class="cam-head-btn" data-cam-stop="${esc(camKey(cam))}" aria-label="Stop this camera"${_off.has(camKey(cam)) ? ' hidden' : ''}>${ICON_OFF}</button>
       </div>
       <div class="cam-card-body">
-        ${buildFeed(cam)}
+        ${_off.has(camKey(cam)) ? cutBody(cam) : buildFeed(cam)}
       </div>
     </div>`;
 }
@@ -429,6 +487,14 @@ function startExt(cam) {
   wireExtFeed();
   _ext.set(key, { kind: 'ff', last: null });
   window.extCam.start({ key, url: e.url, username: e.username || '', password: e.password || '' });
+}
+
+function stopExt(key) {
+  const r = _ext.get(key);
+  if (!r) return;
+  if (r.kind === 'ff') { try { window.extCam?.stop(key); } catch (_) {} if (r.last) URL.revokeObjectURL(r.last); }
+  else { clearTimeout(r.retry); try { r.pc?.close(); } catch (_) {} }
+  _ext.delete(key);
 }
 
 function _stopAllExt() {
