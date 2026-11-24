@@ -111,13 +111,13 @@ L4388-4448   App lifecycle (whenReady, window-all-closed, activate)
 | 3536-3608 | Elegoo MQTT 1883 bridge (`elegoo:connect` / `disconnect` / `publish`) | — |
 | 3609-3663 | Shared `ffmpeg` binary detection (Bambu RTSP + Anycubic FLV cameras) — each candidate is PROBED, not just stat'ed | — |
 
-## Camera captures — photo/video from printer camera sources, filed per printer under Pictures/Tiger Studio/Captures (cam:* IPC) (L4494-4686)
+## Camera captures — photo/video from printer camera sources, filed per printer under Pictures/Tiger Studio/Captures (cam:* IPC) (L4518-4710)
 
-## Demo mode — printer simulator (L4687-4695)
+## Demo mode — printer simulator (L4711-4719)
 
 Registers `services/demo` (`demo:faces`, `demo:allocate`, `demo:sync`, `demo:state`, `demo:set`) with the detected ffmpeg; stops every face on `will-quit`. The simulator itself lives in `services/demo/` — see `docs/DEMO-MODE.md`.
 
-## Bambu Lab — MQTT + JPEG-TCP/RTSP cameras (L4696-5063)
+## Bambu Lab — MQTT + JPEG-TCP/RTSP cameras (L4720-5087)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -126,7 +126,7 @@ Registers `services/demo` (`demo:faces`, `demo:allocate`, `demo:sync`, `demo:sta
 | 3873-3990 | RTSP camera via ffmpeg, port 322 (`bambulab:cam-start-rtsp` / `cam-stop-rtsp`) — 30 fps + low-latency flags; the spawn is guarded (it throws synchronously on a bad CPU type) | — |
 | 4215-4282 | Prusa Buddy3D camera — plain RTSP `rtsp://<camera-ip>/live` via the same ffmpeg pipeline, 15 fps (`prusa:cam-start-rtsp` / `prusa:cam-stop-rtsp`, frames on `prusa:cam-frame`) | — |
 
-## Bambu Lab cloud — REST + shared cloud MQTT (L5064-5953)
+## Bambu Lab cloud — REST + shared cloud MQTT (L5088-5977)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -134,7 +134,7 @@ Registers `services/demo` (`demo:faces`, `demo:allocate`, `demo:sync`, `demo:sta
 | 4084-4207 | Auth: `cloud-send-code`, `cloud-login` (code / password, `verifyCode` + `tfa` branches), `cloud-tfa` (token arrives in a COOKIE), `cloud-uid` (token is NOT a JWT), `cloud-bind` (machines + their LAN access codes), `cloud-device-version` | — |
 | 4208-4377 | ONE cloud-MQTT client per ACCOUNT: `cloud-connect` (us→eu fallback), `cloud-subscribe` (+ `pushall`), `cloud-publish`, `cloud-unsubscribe`, `cloud-disconnect`. Telemetry is emitted on the LAN `bambulab:message` channel — same payload, same parser | `_bblCloudOpen`, `_bblCloudPushAll` |
 
-## Anycubic LAN — MQTT, provisioning, FLV camera (L5756-6080)
+## Anycubic LAN — MQTT, provisioning, FLV camera (L5780-6104)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -143,7 +143,7 @@ Registers `services/demo` (`demo:faces`, `demo:allocate`, `demo:sync`, `demo:sta
 | 5756-5821 | Slicer on-disk credential reader (`anycubic:read-slicer-config`) — keyless deobfuscation | `_acuDeobfuscate`, `_acuConfCandidates` |
 | 5822-5886 | LAN scan: TCP probe (`anycubic:tcp-probe`), FLV liveness (`anycubic:flv-probe`, accepts 200/206), `/info` (`anycubic:http-info`) | — |
 
-## Anycubic cloud — REST + cloud MQTT (L6081-6564)
+## Anycubic cloud — REST + cloud MQTT (L6105-6588)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -153,7 +153,7 @@ Registers `services/demo` (`demo:faces`, `demo:allocate`, `demo:sync`, `demo:sta
 | 4175-4211 | Cloud-uploaded files (§9c): `cloud-files-list` (POST `/work/index/files`), `cloud-file-delete` (POST `/work/index/delFiles`); print reuses `cloud-send-order` order 1 | — |
 | 4212-4385 | Shared cloud-MQTT client (one per user): `cloud-connect` / `subscribe` / `publish` / `unsubscribe`; RSA-encrypted token login | `_buildCloudLogin`, `_routeCloudMessage`, `_ensureCloudClient` |
 
-## App lifecycle (L6302-6370)
+## App lifecycle (L6326-6394)
 
 | L | What |
 |---|---|

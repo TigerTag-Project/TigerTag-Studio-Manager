@@ -722,6 +722,10 @@
   .bulk-bar.is-catalog #bulkLike { display: inline-flex; }
   .bulk-bar.is-catalog #bulkTags,
   .bulk-bar.is-catalog #bulkDelete { display: none; }
+  #bulkLabels { display: none; }
+  .bulk-bar.is-materials #bulkLabels { display: inline-flex; }
+  .bulk-bar.is-pricing #bulkLabels,
+  .bulk-bar.is-friendview #bulkLabels { display: none; }
   #bulkList { display: none; }
   .bulk-bar.is-materials #bulkList,
   .bulk-bar.is-products #bulkList,
