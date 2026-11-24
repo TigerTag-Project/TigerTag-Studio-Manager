@@ -1590,6 +1590,7 @@
   "boardCamPlay": "Показать трансляцию",
   "boardCamPlayAll": "Показать все камеры",
   "boardCamStopAll": "Выключить все камеры",
+  "camWallStopOne": "Остановить эту камеру",
   "boardUnitsTitle": "Хранение филамента",
   "boardWidgets": "Виджеты",
   "unitsSplit": "Разделить блоки",

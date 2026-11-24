@@ -1575,6 +1575,7 @@
   "boardCamPlay": "显示画面",
   "boardCamPlayAll": "显示所有摄像头",
   "boardCamStopAll": "关闭所有摄像头",
+  "camWallStopOne": "停止此摄像头",
   "boardUnitsTitle": "耗材存储",
   "boardWidgets": "小组件",
   "unitsSplit": "拆分单元",

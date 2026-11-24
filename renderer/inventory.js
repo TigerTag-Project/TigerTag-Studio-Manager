@@ -29999,26 +29999,40 @@ import { initScreenTools } from './ai/screen-tools.js';
   /* While the wall is cut, the cameras turned back on one at a time with their
      own play key — the rest stay on their placeholder. */
   const _camWallOn = new Set();
+  /* The cameras cut one at a time with their own key, the wall staying live. */
+  const _camWallOff = new Set();
+  /* Close the feed the wall alone was holding for this printer. */
+  function _camWallRelease(p) {
+    const key = _printerKey(p);
+    const keep = _activePrinter ? _printerKey(_activePrinter) : null;
+    if (key === keep || _camPlaying.has(key) || _camSourceId(p)) return;   // still shown elsewhere
+    try {
+      if (p.brand === "bambulab")   bambuStopCam(bambuKey(p));
+      if (p.brand === "creality"   && p.ip) stopCreCam(p.ip);
+      if (p.brand === "flashforge") ffgMuxStop(ffgKey(p));
+      if (p.brand === "anycubic")   acuReleaseCamera(p);
+    } catch (e) { console.warn("[cam-wall] stop failed for", key, e?.message || e); }
+  }
+  function _camWallStopOne(key) {
+    const p = (state.printers || []).find(v => _printerKey(v) === key);
+    if (!p) return;
+    _camWallOn.delete(key);
+    _camWallOff.add(key);
+    _camWallRelease(p);
+    renderPrintersView(true);
+  }
   function _camWallStopAll() {
     _camWallCut = true;
     _camWallOn.clear();
-    const keep = _activePrinter ? _printerKey(_activePrinter) : null;
-    for (const p of state.printers || []) {
-      const key = _printerKey(p);
-      if (key === keep || _camPlaying.has(key) || _camSourceId(p)) continue;   // still shown elsewhere
-      try {
-        if (p.brand === "bambulab")   bambuStopCam(bambuKey(p));
-        if (p.brand === "creality"   && p.ip) stopCreCam(p.ip);
-        if (p.brand === "flashforge") ffgMuxStop(ffgKey(p));
-        if (p.brand === "anycubic")   acuReleaseCamera(p);
-      } catch (e) { console.warn("[cam-wall] stop failed for", key, e?.message || e); }
-    }
+    _camWallOff.clear();
+    for (const p of state.printers || []) _camWallRelease(p);
     renderPrintersView(true);
   }
   function _camWallPlayOne(key) {
     const p = (state.printers || []).find(v => _printerKey(v) === key);
     if (!p) return;
-    _camWallOn.add(key);
+    _camWallOff.delete(key);
+    if (_camWallCut) _camWallOn.add(key);
     _camKick(p);
     questBump("cameraOpen");
     renderPrintersView(true);
@@ -30026,6 +30040,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _camWallPlayAll() {
     _camWallCut = false;
     _camWallOn.clear();
+    _camWallOff.clear();
     for (const p of state.printers || []) _camKick(p);
     questBump("cameraOpen");
     renderPrintersView(true);
@@ -31223,8 +31238,8 @@ import { initScreenTools } from './ai/screen-tools.js';
     /* "Stop all cameras" on the wall: the same cards, each on its placeholder,
        which carries the card's own play key to bring that one camera back. */
     const _cutHtml = k => `<div class="cam-wall-offline cam-wall-cut"><button type="button" class="cam-play" data-cw-play="${esc(k)}" aria-label="${esc(t("boardCamPlay"))}"><span class="icon icon-play icon-18"></span></button></div>`;
-    const _isCut = k => _camWallCut && !_camWallOn.has(k);
-    if (_camWallCut) _camHtmlMap.forEach((_, k) => { if (_isCut(k)) _camHtmlMap.set(k, _cutHtml(k)); });
+    const _isCut = k => (_camWallCut && !_camWallOn.has(k)) || _camWallOff.has(k);
+    _camHtmlMap.forEach((_, k) => { if (_isCut(k)) _camHtmlMap.set(k, _cutHtml(k)); });
     const _wallPrinters = [..._onlinePrinters, ..._offlinePlaced];
 
     // ── Step 1b: The wall is in its own window → a notice and a key to bring it back
@@ -31324,7 +31339,8 @@ import { initScreenTools } from './ai/screen-tools.js';
           <div class="cam-wall-card-head">
             <span class="printer-brand-pill" style="--brand-accent:${esc(meta.accent)}">${esc(meta.label)}</span>
             <span class="cam-wall-card-name">${esc(p.printerName || "(unnamed)")}</span>
-            <div class="cam-size-btns">${_camFsBtn(csize)}</div>
+            <div class="cam-size-btns">${_camHtmlMap.has(ckey) && !_isCut(ckey) && !_camDetached
+              ? `<button type="button" class="cam-size-btn" data-cw-stop="${esc(ckey)}" aria-label="${esc(t("camWallStopOne"))}"><span class="icon icon-eye-off icon-12"></span></button>` : ""}${_camFsBtn(csize)}</div>
           </div>
           ${camHtml}
           <span class="cam-resize" data-cam-resize aria-hidden="true"></span>
@@ -31350,7 +31366,7 @@ import { initScreenTools } from './ai/screen-tools.js';
                  value="${Math.round(_camZoom * 100)}" aria-label="${esc(t("rackPlanZoom"))}"><span class="pct">%</span>
           <button type="button" id="cwZoomIn" aria-label="${esc(t("rackPlanZoomIn"))}">+</button>
         </div>
-        <button type="button" class="rv-plan-btn" id="cwCamPlayAll"${_camWallCut && _onlinePrinters.length ? "" : " hidden"}>
+        <button type="button" class="rv-plan-btn" id="cwCamPlayAll"${(_camWallCut || _camWallOff.size) && _onlinePrinters.length ? "" : " hidden"}>
           <span class="icon icon-play icon-14"></span>
           <span>${esc(t("boardCamPlayAll"))}</span>
         </button>
@@ -31391,6 +31407,10 @@ import { initScreenTools } from './ai/screen-tools.js';
     wireCamWallPlan(host);
     host.querySelector("#cwCamStopAll")?.addEventListener("click", _camWallStopAll);
     host.querySelector("#cwCamPlayAll")?.addEventListener("click", _camWallPlayAll);
+    host.querySelectorAll("[data-cw-stop]").forEach(btn => {
+      btn.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
+      btn.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); _camWallStopOne(btn.dataset.cwStop); });
+    });
     host.querySelectorAll("[data-cw-play]").forEach(btn => {
       btn.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
       btn.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); _camWallPlayOne(btn.dataset.cwPlay); });

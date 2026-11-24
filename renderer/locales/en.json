@@ -1580,6 +1580,7 @@
   "boardCamPlay": "Show the feed",
   "boardCamPlayAll": "Show all cameras",
   "boardCamStopAll": "Stop all cameras",
+  "camWallStopOne": "Stop this camera",
   "boardUnitsTitle": "Filament storage",
   "boardWidgets": "Widgets",
   "unitsSplit": "Split units",
