@@ -193,7 +193,7 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.catalogBackoff` | `{until, n}`: automatic `product/get` asks paused after a 5xx / timeout, 30 min doubling up to 8 h |
 | `tigertag.nfc.lastUrl` | last link written to a chip by the NFC tools, offered again |
 | `tigertag.nfc.contact` | the NFC tools' contact card as last typed `{name, phone, email, org, url}` |
-| `tigertag.label` | the label card's last choices `{template, slots, dpi, kind}` (`renderer/labels`) |
+| `tigertag.label` | the label card's last choices `{template, slots, dpi, kind, printer, templateBy, qlRoll, qlHost}` (`renderer/labels`); `qlRoll` is the roll loaded in the Brother QL (`"62x0"` continuous, `"29x90"` die-cut…, `""` = ask the printer); `qlHost` is the address typed for an installed Brother QL `{"sys:<name>": host}`; `templateBy` is the format last picked for each printer, brought back when it is picked again (the P15 starts on its 25 × 12 template, a Brother QL on its 62 × 29 one); `printer` is where Print sends the label: `"dialog"`, `"p15"` (Marklife P15 over Bluetooth), `"sys:<name>"` (an installed printer, no dialog) or `"net:<address>"` (a Brother QL on the network) |
 | `tigertag.containers` | `{at, items}`: the empty-spool list last read from the server (GitHub mirror, else the API), merged over the bundled file; used only while `CONTAINERS_FROM_SERVER` is on |
 | `tigertag.trophies.<id>` | the trophy ids already celebrated on this device for that account (`renderer/quests/trophies.js`) |
 | `tigertag.trophyAlbum.<id>` | that account's album `{at, earned: {id: {at, event, ctx}}}`: painted at once, then only trophies with a later `earnedAt` are read (+ a COUNT catches one taken back) |

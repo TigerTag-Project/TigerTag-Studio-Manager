@@ -93,6 +93,10 @@ app.setName('Tiger Studio Manager');
 // 1024 MB is the right level for this workload.
 // Must run BEFORE app.whenReady().
 app.commandLine.appendSwitch('force-gpu-mem-available-mb', '1024');
+// Web Bluetooth (the Marklife P15 label printer, renderer/labels/p15.js): on by
+// default in Chromium on Windows and macOS, behind this runtime feature on Linux
+// (navigator.bluetooth is undefined there without it). Harmless where it is on.
+app.commandLine.appendSwitch('enable-blink-features', 'WebBluetooth');
 // Dev-drive (test harness): `npm run start:drive` opens Chromium's DevTools
 // protocol on 127.0.0.1 so scripts/devdrive.mjs can drive the renderer.
 // Opt-in AND dev-only: a packaged build never opens the port.
@@ -643,6 +647,39 @@ function createWindow() {
   });
   // A Windows shutdown / log-off must never be blocked by that hide.
   mainWindow.on('session-end', () => { _isQuitting = true; });
+
+  // Web Bluetooth (the Marklife P15, renderer/labels/p15.js): Chromium asks the
+  // app which device to use. The renderer asks for any device. A device whose
+  // advertised name is a Marklife one (P15, P7, LP15, Marklife…) is picked at
+  // once; meanwhile every device the scan lists is sent to the label card
+  // (`label:bt-devices`), where the user can pick the printer by hand when it
+  // advertises under another name (`label:bt-pick`, '' cancels). The event
+  // repeats while the scan runs, with the growing list. Nothing picked within
+  // 60 s → cancelled, and every name seen is logged.
+  const BT_PRINTER = /^(P15|P7|LP15|iSPACE_LP15|OUT_LPC|S15|S12|P1s|LPC74|M1)|marklife/i;
+  let _btPick = null;
+  const _btFinish = (deviceId) => {
+    const p = _btPick;
+    if (!p) return;
+    _btPick = null; clearTimeout(p.timer);
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send('label:bt-devices', null);
+    if (!deviceId) log.warn(`[label] Bluetooth scan ended without a printer; seen: ${[...p.seen.values()].map(n => n || '(no name)').join(', ') || 'nothing'}`);
+    p.callback(deviceId || '');
+  };
+  mainWindow.webContents.on('select-bluetooth-device', (event, devices, callback) => {
+    event.preventDefault();
+    if (!_btPick) _btPick = { callback, seen: new Map(), timer: setTimeout(() => _btFinish(''), 60000) };
+    else _btPick.callback = callback;
+    (devices || []).forEach(d => _btPick.seen.set(d.deviceId, d.deviceName || ''));
+    const hit = (devices || []).find(d => BT_PRINTER.test(d.deviceName || ''));
+    if (hit) { log.info(`[label] Bluetooth printer picked by name: ${hit.deviceName}`); _btFinish(hit.deviceId); return; }
+    mainWindow.webContents.send('label:bt-devices', [..._btPick.seen].map(([id, name]) => ({ id, name })));
+  });
+  ipcMain.removeHandler('label:bt-pick');   // createWindow can run again (macOS activate)
+  ipcMain.handle('label:bt-pick', (_evt, deviceId) => {
+    if (_btPick && deviceId) log.info(`[label] Bluetooth device picked by hand: ${_btPick.seen.get(deviceId) || deviceId}`);
+    _btFinish(typeof deviceId === 'string' ? deviceId : '');
+  });
 
   // Right-click context menu — native Cut/Copy/Paste/Select-all on any editable
   // field (text/number/url inputs, textareas, contenteditable), plus Copy on any
@@ -4302,7 +4339,8 @@ ipcMain.handle('db:downloadAndSaveLatestData', ()         => db.downloadAndSaveL
 //   png   — captured at exactly wDots × hDots (the printer's resolution)
 //   pdf   — one page of the label's size, the dots scaled to millimetres
 //   svg   — the page the renderer wrapped (`svg`), written as is
-//   print — the system print dialog, on a page of the label's size
+//   print — the system print dialog, on a page of the label's size (or, with a
+//           `deviceName`, silently on that installed printer)
 // png / pdf / svg go through a native Save dialog: { ok, path } or
 // { ok: false, reason: 'cancelled' }.
 // The renderer keeps the page self-contained (inline styles, the QR as inline
@@ -4321,8 +4359,99 @@ async function _askLabelPath(format, fileName) {
   });
   return canceled || !filePath ? null : filePath;
 }
+// The label page captured at exactly wDots × hDots (one CSS px = one dot), in a
+// hidden offscreen window: the PNG export and the direct printers' bitmap.
+async function _labelImage(html, wDots, hDots) {
+  const W = Math.ceil(wDots), H = Math.ceil(hDots);
+  const win = new BrowserWindow({
+    show: false, width: W, height: H, useContentSize: true,
+    webPreferences: { javascript: false, offscreen: true, sandbox: true },
+  });
+  try {
+    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    let img = await win.webContents.capturePage({ x: 0, y: 0, width: W, height: H });
+    if (img.getSize().width !== W) img = img.resize({ width: W, height: H, quality: 'best' });
+    return img;
+  } finally {
+    if (!win.isDestroyed()) win.destroy();
+  }
+}
+const _isLabelPage = o => o && typeof o.html === 'string' && o.wDots > 0 && o.hDots > 0;
+
+// ── Label printers without the system dialog (services/label-printers.js) ────
+//   label:printers   — what can print a label: the printers installed on this
+//                      computer (their driver, printed silently) and the
+//                      network label printers announced over mDNS (a Brother QL
+//                      is printed directly on its raw port, no driver)
+//   label:bitmap     — the label as a 1-bit bitmap, optionally turned a quarter
+//                      turn (the Marklife P15, renderer/labels/p15.js)
+//   label:print-ql   — the label sent to a Brother QL at host:port
+//   label:ql-roll    — the roll a Brother QL holds, read over SNMP
+//   label:ql-state   — a Brother QL's state line (READY / ERROR…) over SNMP
+// `label:render` with format 'print' and a `deviceName` prints silently on that
+// installed printer.
+const labelPrinters = require('./services/label-printers');
+// Windows: the network address behind each installed printer's port (a Standard
+// TCP/IP port, or a WSD one), so an installed Brother QL can be printed on its raw
+// port even when it announces nothing over mDNS (the QL-580N does not).
+function _printerHosts() {
+  if (process.platform !== 'win32') return Promise.resolve({});
+  const ps = "Get-Printer | ForEach-Object { $pt = Get-PrinterPort -Name $_.PortName -ErrorAction SilentlyContinue; [pscustomobject]@{ n = $_.Name; p = $_.PortName; h = $pt.PrinterHostAddress } } | ConvertTo-Json -Compress";
+  return new Promise(res => require('child_process').execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps],
+    { timeout: 6000, windowsHide: true }, (err, stdout) => {
+      const out = {};
+      try {
+        const rows = [].concat(JSON.parse(String(stdout || '').trim() || '[]'));
+        for (const r of rows) {
+          // An IP address or a host name (Brother's own ports name the printer: BRN0080…).
+          const h = String(r.h || '').trim();
+          const ip = /^[\w.-]+$/.test(h) ? h : (String(r.p || '').match(/\d+\.\d+\.\d+\.\d+/) || [])[0];
+          if (r.n && ip) out[r.n] = ip;
+        }
+      } catch (_) {}
+      res(out);
+    }));
+}
+ipcMain.handle('label:printers', async () => {
+  const [installed, network, hosts] = await Promise.all([
+    mainWindow?.webContents.getPrintersAsync().catch(() => []) ?? [],
+    labelPrinters.discoverNetworkPrinters().catch(() => []),
+    _printerHosts().catch(() => ({})),
+  ]);
+  return {
+    installed: (installed || []).map(p => ({ id: `sys:${p.name}`, name: p.displayName || p.name, deviceName: p.name, isDefault: !!p.isDefault, host: hosts[p.name] || '' })),
+    network,
+  };
+});
+ipcMain.handle('label:bitmap', async (_evt, opts = {}) => {
+  if (!_isLabelPage(opts)) return { ok: false, reason: 'bad label' };
+  try {
+    const img = await _labelImage(opts.html, opts.wDots, opts.hDots);
+    return { ok: true, ...labelPrinters.toBitmap(img, { rotate: !!opts.rotate }) };
+  } catch (e) { return { ok: false, reason: e.message }; }
+});
+// The roll a Brother QL holds, as it names it over SNMP ("62x29"), or null.
+ipcMain.handle('label:ql-roll', async (_evt, host) =>
+  (typeof host === 'string' && /^[\w.-]+$/.test(host)) ? labelPrinters.qlRollOf(host).catch(() => null) : null);
+// A Brother QL's state line over SNMP ("READY", "ERROR"…), or null.
+ipcMain.handle('label:ql-state', async (_evt, host) =>
+  (typeof host === 'string' && /^[\w.-]+$/.test(host)) ? labelPrinters.qlState(host).catch(() => null) : null);
+ipcMain.handle('label:print-ql', async (_evt, opts = {}) => {
+  const { host, port, model, roll } = opts || {};
+  if (!_isLabelPage(opts) || typeof host !== 'string' || !host) return { ok: false, reason: 'bad label' };
+  try {
+    const img = await _labelImage(opts.html, opts.wDots, opts.hDots);
+    const res = await labelPrinters.printQl({ host, port: Number(port) || 9100, model, image: img, roll });
+    if (!res.ok) log.warn(`[label] Brother ${model || ''} at ${host}: ${res.reason}`);
+    return res;
+  } catch (e) {
+    log.warn(`[label] Brother ${model || ''} at ${host} failed: ${e.message}`);
+    return { ok: false, reason: e.message };
+  }
+});
+
 ipcMain.handle('label:render', async (_evt, opts = {}) => {
-  const { html, svg, wDots, hDots, mmW, mmH, dpi, format, fileName } = opts || {};
+  const { html, svg, wDots, hDots, mmW, mmH, dpi, format, fileName, deviceName } = opts || {};
   if (format === 'svg' && typeof svg !== 'string') return { ok: false, reason: 'bad label' };
   if (format !== 'svg' && (typeof html !== 'string' || !(wDots > 0 && hDots > 0 && mmW > 0 && mmH > 0))) return { ok: false, reason: 'bad label' };
   let filePath = null;
@@ -4331,22 +4460,18 @@ ipcMain.handle('label:render', async (_evt, opts = {}) => {
     if (!filePath) return { ok: false, reason: 'cancelled' };
   }
   if (format === 'svg') { fs.writeFileSync(filePath, Buffer.from(svg, 'utf8')); return { ok: true, path: filePath }; }
+  if (format === 'png') {
+    try { fs.writeFileSync(filePath, (await _labelImage(html, wDots, hDots)).toPNG()); return { ok: true, path: filePath }; }
+    catch (e) { log.warn(`[label] png ${fileName || ''} failed: ${e.message}`); return { ok: false, reason: e.message }; }
+  }
   const win = new BrowserWindow({
     show: false, width: Math.ceil(wDots), height: Math.ceil(hDots), useContentSize: true,
-    webPreferences: { javascript: false, offscreen: format === 'png', sandbox: true },
+    webPreferences: { javascript: false, sandbox: true },
   });
   try {
     // PDF and print lay the page out at 96 CSS px per inch: scale the dots down to it.
-    const page = format === 'png' ? html
-      : html.replace('<body>', `<body><style>@page{size:${mmW}mm ${mmH}mm;margin:0}html,body{width:${mmW}mm;height:${mmH}mm;overflow:hidden}.lbl{transform:scale(${96 / (dpi || 203)});transform-origin:0 0}</style>`);
+    const page = html.replace('<body>', `<body><style>@page{size:${mmW}mm ${mmH}mm;margin:0}html,body{width:${mmW}mm;height:${mmH}mm;overflow:hidden}.lbl{transform:scale(${96 / (dpi || 203)});transform-origin:0 0}</style>`);
     await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(page));
-    if (format === 'png') {
-      let img = await win.webContents.capturePage({ x: 0, y: 0, width: Math.ceil(wDots), height: Math.ceil(hDots) });
-      const sz = img.getSize();
-      if (sz.width !== Math.ceil(wDots)) img = img.resize({ width: Math.ceil(wDots), height: Math.ceil(hDots), quality: 'best' });
-      fs.writeFileSync(filePath, img.toPNG());
-      return { ok: true, path: filePath };
-    }
     if (format === 'pdf') {
       const pdf = await win.webContents.printToPDF({
         pageSize: { width: mmW / 25.4, height: mmH / 25.4 },
@@ -4357,8 +4482,11 @@ ipcMain.handle('label:render', async (_evt, opts = {}) => {
     }
     if (format === 'print') {
       return await new Promise((resolve) => {
+        // With a deviceName (an installed printer picked in the label card): straight
+        // to that printer through its driver, no dialog.
         win.webContents.print({
-          silent: false, printBackground: true, margins: { marginType: 'none' },
+          silent: typeof deviceName === 'string' && !!deviceName, ...(deviceName ? { deviceName } : {}),
+          printBackground: true, margins: { marginType: 'none' },
           pageSize: { width: Math.round(mmW * 1000), height: Math.round(mmH * 1000) },
         }, (ok, reason) => resolve({ ok, reason: ok ? undefined : reason }));
       });

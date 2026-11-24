@@ -10,7 +10,7 @@
  * A label carries the brand, the series on a black bar, the colour name,
  * its hex code(s), up to four value slots, the protocol pill and the QR
  * code — never a value that goes stale (remaining weight, note, rack, owner).
- * Eight templates (LABEL_TEMPLATES / LAYOUTS), each one SVG laid out in tenths
+ * Eleven templates (LABEL_TEMPLATES / LAYOUTS), each one SVG laid out in tenths
  * of a millimetre and scaled to PRINTER DOTS (one CSS px of the page is one dot);
  * every QR module covers a whole number of dots. The QR is one lowercase
  * byte-mode segment, ECC M (29 × 29 for every link).
@@ -35,6 +35,7 @@
  */
 
 import { spoolLink, productLink } from "../qr-link.js";
+import { p15Connect, p15Connected, p15Print, P15_MAX_MM } from "./p15.js";
 export { spoolLink, productLink };
 
 let ctx = null;
@@ -43,7 +44,7 @@ let current = null;   // { row } — the spool the card is for
 const $ = id => document.getElementById(id);
 const PREFS_KEY = "tigertag.label";
 
-// The nine templates (width × height in mm), laid out like the common spool
+// The eleven templates (width × height in mm), laid out like the common spool
 // label sizes. `slots`: how many value slots the layout prints (0 = none).
 // "qrOnly" prints the QR and its pill alone (same as the Hub's lib/labels).
 export const LABEL_TEMPLATES = [
@@ -56,14 +57,43 @@ export const LABEL_TEMPLATES = [
   { id: "verticalBold",    w: 30, h: 40, slots: 0 },
   { id: "verticalCompact", w: 25, h: 40, slots: 0 },
   { id: "qrOnly",          w: 25, h: 30, slots: 0 },
+  { id: "p15",             w: 25, h: 12, slots: 0 },   // fits the Marklife P15's 12 × 30 mm labels with a margin
+  { id: "ql62x29",         w: 58, h: 23, slots: 4 },   // the printable area of the Brother QL's DK-11209 62 × 29 mm labels
 ];
 // The values a slot can show; all are print constants of the filament.
 export const LABEL_SLOTS = ["nozzle", "bed", "dry", "td", "diameter"];
-const DEFAULT_PREFS = { template: "classic", slots: ["nozzle", "bed", "dry", "td"], dpi: 203, kind: "spool" };
+// `templateBy`: the format last picked with each printer, brought back when that
+// printer is picked again.
+// `printer`: where Print sends the label — "dialog" (the system print dialog),
+// "p15" (a Marklife P15 over Bluetooth), "sys:<name>" (an installed printer,
+// silently through its driver) or "net:<address>" (a Brother QL on the network).
+// `qlRoll`: the roll loaded in the Brother QL ("62x0" continuous, "29x90" die-cut…,
+// services/label-printers.js QL_MEDIA), "" = ask the printer.
+// `qlHost`: { "sys:<name>": address } — the network address typed for an installed
+// Brother QL, printed directly on its raw port (none found on its Windows port).
+const DEFAULT_PREFS = { template: "classic", slots: ["nozzle", "bed", "dry", "td"], dpi: 203, kind: "spool", printer: "dialog", qlRoll: "", qlHost: {} };
+// The Brother DK rolls offered in the card (QL_MEDIA keys), continuous first.
+const QL_ROLLS = ["62x0", "29x0", "38x0", "50x0", "54x0", "12x0", "102x0", "29x90", "62x29", "62x100", "17x54", "17x87", "23x23", "29x42", "38x90", "39x48", "52x29", "102x51", "102x152"];
 
 export function initLabels(c) {
   ctx = c;
   $("labelClose")?.addEventListener("click", closeLabelCard);
+  // While Studio looks for the P15, every Bluetooth device the scan sees is listed
+  // in the card: the printer can be picked by hand when its name is not a Marklife one.
+  window.electronAPI?.onLabelBtDevices?.(list => drawBtDevices(list));
+}
+
+// The Bluetooth devices seen by the running scan (main.js select-bluetooth-device),
+// drawn into the open card's .lbl-bt; null hides the list (the scan is over).
+function drawBtDevices(list) {
+  document.querySelectorAll(".lbl-bt").forEach(box => {
+    if (!list) { box.hidden = true; box.innerHTML = ""; return; }
+    const { t, esc } = ctx;
+    box.hidden = false;
+    box.innerHTML = `<p class="lbl-hint">${esc(t("labelBtPick"))}</p>
+      <div class="lbl-bt-list">${list.map(d => `<button type="button" class="ghost sm" data-lbl-bt="${esc(d.id)}">${esc(d.name || t("labelBtNoName"))}</button>`).join("")}</div>
+      <button type="button" class="ghost sm" data-lbl-bt="">${esc(t("btnCancel"))}</button>`;
+  });
 }
 
 export function labelCardOpen() { return !!$("labelPanel")?.classList.contains("open"); }
@@ -74,6 +104,12 @@ function prefs() {
   const out = { ...DEFAULT_PREFS, ...p };
   if (!LABEL_TEMPLATES.some(x => x.id === out.template)) out.template = DEFAULT_PREFS.template;
   if (![203, 300].includes(Number(out.dpi))) out.dpi = 203;
+  if (typeof out.printer !== "string" || !out.printer) out.printer = "dialog";
+  if (!QL_ROLLS.includes(out.qlRoll)) out.qlRoll = "";
+  out.qlHost = out.qlHost && typeof out.qlHost === "object" ? out.qlHost : {};
+  // `templateBy`: { printer id: template id } — the format last picked for each printer.
+  const by = out.templateBy && typeof out.templateBy === "object" ? out.templateBy : {};
+  out.templateBy = Object.fromEntries(Object.entries(by).filter(([, v]) => LABEL_TEMPLATES.some(x => x.id === v)));
   out.slots = Array.from({ length: 4 }, (_, i) => (LABEL_SLOTS.includes(out.slots?.[i]) || out.slots?.[i] === "none") ? out.slots[i] : DEFAULT_PREFS.slots[i]);
   return out;
 }
@@ -113,6 +149,10 @@ const LAYOUTS = {
   verticalCompact: { brand: [12, 8, 226, 50], bar: [12, 66, 226, 36, 24, 4, 28], name: [12, 136, 36, 400, 226], hex: [12, 186, 20, 20], rule: [12, 190, 238], qr: [31, 204, 188] },
   // `pill: [y, fontSize, height]` centres the pill instead of placing it top right.
   qrOnly:   { pill: [10, 22, 32], qr: [25, 71, 200] },
+  // `pillAt: [x, y]` places the pill there (under the name) instead of top right.
+  ql62x29:  { brand: [10, 6, 400, 40], bar: [10, 48, 400, 34, 30, 4, 26], name: [10, 106, 26, 600, 410], hex: [418, 72, 20, 20],
+              slots: { y: [146, 169, 192, 215], lx: 10, vx: 120, fs: 18, vw: 300 }, qr: [446, 96, 124] },
+  p15:      { brand: [129, 6, 110, 26], bar: [129, 29, 110, 34, 19, 0, 14], barPlain: true, name: [129, 79, 18, 600, 110], pillAt: [129, 90], qr: [11, 8, 104] },
 };
 
 // Estimated width of a line of Arial (bold runs wider).
@@ -149,7 +189,7 @@ export function buildLabel(info, link, { template = "classic", slots = [], dpi =
   const LW = tpl.w * U, LH = tpl.h * U;             // the label in layout units
   // The bar prints the series alone ("PLA Rainbow"); the material when there is none.
   const barText = info.series || info.material || "";
-  const slim = tpl.id === "slim";
+  const slim = tpl.id === "slim" || tpl.id === "p15";   // the narrow ones: a smaller pill
 
   // The QR in dots: whole dots a module, the nearest to filling its box (the same
   // boxes as the common spool labels): rounded up when that stays within 6 % of the
@@ -170,7 +210,7 @@ export function buildLabel(info, link, { template = "classic", slots = [], dpi =
   // The protocol pill, top right — or centred where the layout gives it a row (L.pill).
   const pfs = L.pill ? L.pill[1] : slim ? 15 : 18, ph = L.pill ? L.pill[2] : slim ? 22 : 26;
   const pw = info.protocol ? Math.ceil(info.protocol.length * pfs * 0.62 + 16) : 0;
-  const px = L.pill ? (LW - pw) / 2 : LW - 10 - pw, py = L.pill ? L.pill[0] : 8;
+  const px = L.pill ? (LW - pw) / 2 : L.pillAt ? L.pillAt[0] : LW - 10 - pw, py = L.pill ? L.pill[0] : L.pillAt ? L.pillAt[1] : 8;
   const pill = info.protocol ? `<rect x="${px}" y="${py}" width="${pw}" height="${ph}" rx="${ph / 2}" fill="#fff" stroke="#000" stroke-width="2"/>`
     + `<text x="${px + pw / 2}" y="${py + ph / 2 + pfs * 0.36}" font-size="${pfs}" font-weight="800" text-anchor="middle">${ctx.esc(info.protocol)}</text>` : "";
   // How far right a line starting at x, with this baseline and size, may run: up to
@@ -180,7 +220,7 @@ export function buildLabel(info, link, { template = "classic", slots = [], dpi =
     const top = y - size * 0.8, bottom = y + size * 0.2;
     let right = LW - 10;
     if (Q && Q.x > x && bottom > Q.y - 2 && top < Q.y + Q.s) right = Math.min(right, Q.x - 8);
-    if (pw && top < 8 + ph + 2) right = Math.min(right, LW - 10 - pw - 8);
+    if (pw && px > x && bottom > py - 2 && top < py + ph + 2) right = Math.min(right, px - 8);
     return right - x;
   };
 
@@ -218,7 +258,16 @@ export function buildLabel(info, link, { template = "classic", slots = [], dpi =
       g += svgText(info.brand, bx, dropBottom, Math.min(bfs, Math.round((dropBottom - dropTop) * 1.3)), 700, dropW);
     } else g += svgText(info.brand, bx, bY, bfs, 700, beside);
     const [rx, ry, rw, rh, rfs, tdx, tdy] = L.bar;
-    if (barText) g += `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="#000"/>` + svgText(barText, rx + tdx, ry + tdy, rfs, 700, rw - 2 * tdx, "#fff");
+    // `barPlain`: the series as bold black text, no black band — white text that
+    // small fills in on a 203 dpi thermal head (the P15).
+    // It takes two lines rather than shrink when it is long ("PETG Standard HS");
+    // one that fits on a line sits midway between the brand and the name.
+    if (barText && L.barPlain) {
+      const one = textW(barText, rfs * 0.8, 700) <= rw - 2 * tdx;
+      g += one ? svgText(barText, rx + tdx, ry + rh / 2 + rfs * 0.35, rfs, 700, rw - 2 * tdx)
+        : svgLines(barText, rx + tdx, ry + tdy, rfs, 700, rw - 2 * tdx, rfs * 0.95, 2);
+    }
+    else if (barText) g += `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="#000"/>` + svgText(barText, rx + tdx, ry + tdy, rfs, 700, rw - 2 * tdx, "#fff");
     let hexBox = null;
     if (L.hex) {
       // Every colour's hex code, flowed into the room the template leaves: as many
@@ -272,6 +321,103 @@ export function buildLabel(info, link, { template = "classic", slots = [], dpi =
   return { html, svg, wDots: W, hDots: H, mmW: tpl.w, mmH: tpl.h, dpi, template: tpl.id, hasQr: !!m };
 }
 const SLOT_LABEL = { nozzle: "lbNozzle", bed: "lbBed", dry: "addProductDrying", td: "labelSlotTd", diameter: "detDiameter" };
+
+// ── Printers ─────────────────────────────────────────────────────────────────
+// What Print can send a label to, besides the system dialog: a Marklife P15
+// (Bluetooth, renderer/labels/p15.js), the printers installed on this computer
+// (silently, through their driver) and the Brother QL printers announced on the
+// network (their raw port, no driver). Searched once when the card first opens,
+// again on the search button; the last answer is kept for the session.
+let found = { installed: [], network: [] }, searched = false, searching = null;
+function searchPrinters() {
+  if (!window.electronAPI?.listLabelPrinters) return Promise.resolve(found);
+  if (!searching) {
+    searching = window.electronAPI.listLabelPrinters()
+      .then(r => { found = { installed: r?.installed || [], network: (r?.network || []).filter(n => n.ql) }; })
+      .catch(() => {})
+      .finally(() => { searched = true; searching = null; });
+  }
+  return searching;
+}
+// The chosen printer: { id, kind: "dialog" | "p15" | "sys" | "net", name, dpi?, … }.
+// One no longer found (switched off) stays listed under its last name, so the
+// choice survives a restart until a search answers.
+function printerFor(id) {
+  if (id === "p15") return { id, kind: "p15", name: "Marklife P15", dpi: 203 };
+  if (id.startsWith("sys:")) {
+    const p = found.installed.find(x => x.id === id);
+    const name = p?.name || id.slice(4);
+    // An installed Brother QL goes straight to its raw port when its address is
+    // known (its Windows port, or typed in the card): same path as a network QL.
+    const ql = /\bQL-?\d/i.test(name);
+    const host = ql ? (String(prefs().qlHost[id] || "").trim() || p?.host || "") : "";
+    if (host) return { id, kind: "net", ql: true, sys: true, name, host, port: 9100, model: name.replace(/^Brother\s+/i, ""), dpi: 300, deviceName: p?.deviceName || id.slice(4) };
+    return { id, kind: "sys", ql, name, deviceName: p?.deviceName || id.slice(4) };
+  }
+  if (id.startsWith("net:")) {
+    const p = found.network.find(x => x.id === id);
+    return { id, kind: "net", name: p?.model || p?.name || id.slice(4), host: p?.host || id.slice(4), port: p?.port || 9100, model: p?.model || "", dpi: 300 };
+  }
+  return { id: "dialog", kind: "dialog", name: "" };
+}
+// The printers' pictures, shown in the Printer list (assets/img/label_printers).
+// A QL-5xx is drawn as the QL-580N, any other QL as the QL-800.
+const PRINTER_THUMB = { p15: "marklife_p15.png", ql5: "brother_ql580n.png", ql: "brother_ql800.png" };
+const thumbOf = (key, name = "") => {
+  const k = key === "ql" && /\bQL-?5\d\d/i.test(name) ? "ql5" : key;
+  return PRINTER_THUMB[k] ? `../assets/img/label_printers/${PRINTER_THUMB[k]}` : "";
+};
+function printerOptions(sel) {
+  const { t } = ctx;
+  const isQl = name => /\bQL-?\d/i.test(name || "");
+  const opts = [["dialog", t("labelPrinterDialog"), ""], ["p15", t("labelPrinterP15") + (p15Connected() ? " · " + t("labelPrinterConnected") : ""), thumbOf("p15")]];
+  found.network.forEach(p => opts.push([p.id, `${p.model || p.name} · ${t("labelPrinterNetwork")}`, isQl(p.model || p.name) ? thumbOf("ql", p.model || p.name) : ""]));
+  found.installed.forEach(p => opts.push([p.id, `${p.name} · ${t("labelPrinterInstalled")}`, isQl(p.name) ? thumbOf("ql", p.name) : ""]));
+  if (!opts.some(o => o[0] === sel)) { const pr = printerFor(sel); opts.push([sel, pr.name, pr.kind === "p15" ? thumbOf("p15") : pr.ql || isQl(pr.name) ? thumbOf("ql", pr.model || pr.name) : ""]); }
+  return opts;
+}
+// A label fits the P15 when its short side is no wider than the roll and its
+// long side no longer than one of the roll's 30 mm labels: a 40 × 12 label is
+// narrow enough but runs past the end of the label it is printed on.
+const P15_LABEL_MM = 30;
+const fitsP15 = tpl => Math.min(tpl.w, tpl.h) <= P15_MAX_MM && Math.max(tpl.w, tpl.h) <= P15_LABEL_MM;
+// A label fits a printer's roll: the P15's 15 mm roll; a Brother QL's roll as
+// picked in the card — a continuous roll by its width, a die-cut one by its label,
+// either way round (5 % leeway: the job is scaled to the printable area). Any
+// other printer, or a QL whose roll is not known, takes every size.
+function fitsPrinter(printer, tpl, roll = prefs().qlRoll) {
+  if (!tpl) return false;
+  if (printer.kind === "p15") return fitsP15(tpl);
+  if (printer.kind !== "net" || !roll) return true;
+  const [w, l] = roll.split("x").map(Number), k = 1.05;
+  const short = Math.min(tpl.w, tpl.h), long = Math.max(tpl.w, tpl.h);
+  if (!l) return short <= w * k;
+  return (tpl.w <= w * k && tpl.h <= l * k) || (tpl.h <= w * k && tpl.w <= l * k) || (short <= Math.min(w, l) * k && long <= Math.max(w, l) * k);
+}
+// The template to fall back to when the current one does not fit: the printer's
+// own (P15, Brother 62 × 29), else the first one that fits.
+// A Brother QL is asked once a session which roll it holds (SNMP, main.js
+// label:ql-roll); its answer becomes the card's roll, and its template follows.
+const rollAsked = new Set();
+function askRoll(printer, body, cur) {
+  if (printer.kind !== "net" || rollAsked.has(printer.host) || !window.electronAPI?.labelQlRoll) return;
+  rollAsked.add(printer.host);
+  window.electronAPI.labelQlRoll(printer.host).then(key => {
+    const q = prefs();
+    if (!key || key === q.qlRoll || q.printer !== printer.id) return;
+    q.qlRoll = key;
+    q.template = key === "62x29" ? "ql62x29" : fittingTemplate(printer, q.template, key);
+    savePrefs(q);
+    if (body.isConnected) render(body, cur);
+  }).catch(() => {});
+}
+function fittingTemplate(printer, current, roll) {
+  const cur = LABEL_TEMPLATES.find(x => x.id === current);
+  if (fitsPrinter(printer, cur, roll)) return current;
+  const own = LABEL_TEMPLATES.find(x => x.id === (printer.kind === "p15" ? "p15" : "ql62x29"));
+  if (fitsPrinter(printer, own, roll)) return own.id;
+  return (LABEL_TEMPLATES.find(x => fitsPrinter(printer, x, roll)) || cur || LABEL_TEMPLATES[0]).id;
+}
 
 // ── The card ─────────────────────────────────────────────────────────────────
 // `row` is a normalized spool row; ctx.labelInfo(row) gives the printed texts.
@@ -340,11 +486,18 @@ function render(body, cur) {
   const link = linkFor(row, kind);
   // A Filament Label is a catalogue product: it always carries the TigerQR+ pill.
   const info = { ...ctx.labelInfo(row), ...(kind === "product" ? { protocol: "TigerQR+" } : {}) };
-  const lbl = buildLabel(info, link, p);
+  // A direct printer prints at its own resolution (P15 203 dpi, Brother QL 300 dpi).
+  const printer = printerFor(p.printer);
+  const lbl = buildLabel(info, link, { ...p, dpi: printer.dpi || p.dpi });
+  const tplNow = LABEL_TEMPLATES.find(x => x.id === p.template);
+  const noFit = !fitsPrinter(printer, tplNow, p.qlRoll);
+  askRoll(printer, body, cur);
+  watchQlState(printer, body);
   // Preview: the very page that is printed, scaled to the card.
   const boxW = 340, scale = Math.min(boxW / lbl.wDots, 220 / lbl.hDots);
   const seg = (id, on, label) => `<button type="button" class="lbl-seg-btn${on ? " is-active" : ""}" data-lbl-kind="${id}" aria-pressed="${on}">${esc(label)}</button>`;
-  const tplBtn = x => `<button type="button" class="lbl-tpl${x.id === p.template ? " is-active" : ""}" data-lbl-tpl="${x.id}" aria-pressed="${x.id === p.template}">
+  // A size the chosen printer's roll cannot take is greyed out and cannot be picked.
+  const tplBtn = x => `<button type="button" class="lbl-tpl${x.id === p.template ? " is-active" : ""}" data-lbl-tpl="${x.id}" aria-pressed="${x.id === p.template}"${fitsPrinter(printer, x, p.qlRoll) ? "" : " disabled"}>
       <b>${esc(t("labelTpl_" + x.id))}</b><small>${x.w} × ${x.h} mm</small></button>`;
   const tpl = LABEL_TEMPLATES.find(x => x.id === p.template);
   const slotSel = i => `<select class="lbl-slot" data-lbl-slot="${i}"${i >= tpl.slots ? " disabled" : ""}>
@@ -361,20 +514,42 @@ function render(body, cur) {
     </div>
     ${link ? `<div class="lbl-linkrow"><button type="button" class="ghost sm" data-lbl-copy><span class="icon icon-copy icon-14"></span><span>${esc(t("labelCopyLink"))}</span></button>${link ? `<button type="button" class="ghost sm" data-lbl-share><span class="icon icon-send icon-14"></span><span>${esc(t("productShare"))}</span></button>` : ""}</div>` : ""}
     <div class="panel-label">${esc(t("labelSlots"))}</div><div class="lbl-slots">${[0, 1, 2, 3].map(slotSel).join("")}</div>
-    <div class="lbl-dpi"><span>${esc(t("labelDpi"))}</span>${[203, 300].map(d => `<button type="button" class="lbl-seg-btn${p.dpi === d ? " is-active" : ""}" data-lbl-dpi="${d}" aria-pressed="${p.dpi === d}">${d} dpi</button>`).join("")}</div>
+    <div class="panel-label">${esc(t("labelPrinter"))}</div>
+    <div class="lbl-printer">
+      <select class="lbl-printer-sel" data-lbl-printer>${printerOptions(p.printer).map(([v, txt, img]) => `<option value="${esc(v)}"${img ? ` data-thumb="${esc(img)}"` : ""}${v === p.printer ? " selected" : ""}>${esc(txt)}</option>`).join("")}</select>
+      <button type="button" class="ghost sm lbl-printer-search${searching ? " is-busy" : ""}" data-lbl-search aria-label="${esc(t("labelPrinterSearch"))}"><span class="icon icon-refresh icon-14"></span></button>
+    </div>
+    ${printer.kind === "p15" ? `<div class="lbl-p15">
+      <span>${esc(p15Connected() ? t("labelPrinterConnected") + " : " + p15Connected() : t("labelBtNotConnected"))}</span>
+      ${p15Connected() ? "" : `<button type="button" class="ghost sm" data-lbl-connect><span class="icon icon-refresh icon-14"></span><span>${esc(t("labelBtConnect"))}</span></button>`}
+    </div><div class="lbl-bt" hidden></div>` : ""}
+    ${printer.ql && printer.id.startsWith("sys:") ? `<div class="lbl-printer"><span class="lbl-roll-label">${esc(t("labelQlAddress"))}</span>
+      <input type="text" class="lbl-host" data-lbl-host inputmode="decimal" spellcheck="false" placeholder="192.168.1.20" value="${esc(String(p.qlHost[printer.id] || found.installed.find(x => x.id === printer.id)?.host || ""))}"></div>` : ""}
+    ${printer.kind === "net" ? `<div class="lbl-printer"><span class="lbl-roll-label">${esc(t("labelQlRoll"))}</span>
+      <select class="lbl-roll-sel" data-lbl-roll>${["", ...QL_ROLLS].map(r => {
+        const [w, l] = r.split("x");
+        const txt = !r ? t("labelQlRollAuto") : l === "0" ? t("labelQlRollContinuous", { w }) : `${w} × ${l} mm`;
+        return `<option value="${r}"${r === p.qlRoll ? " selected" : ""}>${esc(txt)}</option>`;
+      }).join("")}</select></div>
+      <div class="lbl-printer lbl-ql"><span class="lbl-ql-state" data-lbl-ql-state></span></div>` : ""}
+    <p class="lbl-msg"></p>
+    ${noFit ? `<p class="lbl-hint">${esc(t(printer.kind === "p15" ? "labelP15NoFit" : "labelQlNoFit"))}</p>` : ""}
+    ${printer.dpi ? "" : `<div class="lbl-dpi"><span>${esc(t("labelDpi"))}</span>${[203, 300].map(d => `<button type="button" class="lbl-seg-btn${p.dpi === d ? " is-active" : ""}" data-lbl-dpi="${d}" aria-pressed="${p.dpi === d}">${d} dpi</button>`).join("")}</div>`}
     <div class="lbl-actions">
-      <button type="button" class="primary sm" data-lbl-out="print"><span class="icon icon-printer icon-14"></span><span>${esc(t("labelPrint"))}</span></button>
+      <button type="button" class="primary sm" data-lbl-out="print"${noFit ? " disabled" : ""}><span class="icon icon-printer icon-14"></span><span>${esc(t("labelPrint"))}</span></button>
       <button type="button" class="ghost sm" data-lbl-out="pdf"><span class="icon icon-download icon-14"></span><span>PDF</span></button>
       <button type="button" class="ghost sm" data-lbl-out="png"><span class="icon icon-download icon-14"></span><span>PNG</span></button>
       <button type="button" class="ghost sm" data-lbl-out="svg"><span class="icon icon-download icon-14"></span><span>SVG</span></button>
     </div>
-    <p class="lbl-msg"></p>`;
+`;
   // The preview draws inside its frame: a spinner on the paper until it has loaded.
   const frame = body.querySelector(".lbl-frame"), paper = body.querySelector(".lbl-paper");
   paper?.classList.add("is-loading");
   frame.addEventListener("load", () => paper?.classList.remove("is-loading"), { once: true });
   frame.srcdoc = lbl.html;
-  body.querySelectorAll(".lbl-slot").forEach(el => ctx.enhanceSelect?.(el));
+  body.querySelectorAll(".lbl-slot, .lbl-printer-sel, .lbl-roll-sel").forEach(el => ctx.enhanceSelect?.(el));
+  // The printers are searched once, the first time a card opens: redrawn when they answer.
+  if (!searched && !searching) searchPrinters().then(() => { if (body.isConnected) render(body, cur); });
   body.onclick = e => {
     const k = e.target.closest("[data-lbl-kind]"), tp = e.target.closest("[data-lbl-tpl]"),
           d = e.target.closest("[data-lbl-dpi]"), out = e.target.closest("[data-lbl-out]");
@@ -385,9 +560,24 @@ function render(body, cur) {
       savePrefs({ ...prefs(), kind: k.dataset.lblKind });
       setTimeout(() => render(body, cur), 200);
     }
-    else if (tp) { savePrefs({ ...prefs(), template: tp.dataset.lblTpl }); render(body, cur); }
+    else if (tp) {
+      // The format is remembered for the printer it was picked with.
+      const q = prefs();
+      savePrefs({ ...q, template: tp.dataset.lblTpl, templateBy: { ...q.templateBy, [q.printer]: tp.dataset.lblTpl } });
+      render(body, cur);
+    }
     else if (d) { savePrefs({ ...prefs(), dpi: Number(d.dataset.lblDpi) }); render(body, cur); }
-    else if (out) exportLabel(out.dataset.lblOut, lbl, row, kind, body.querySelector(".lbl-msg"));
+    else if (out) {
+      if (out.dataset.lblOut === "print" && printer.kind !== "dialog") printDirect(printer, lbl, row, kind, body, cur);
+      else exportLabel(out.dataset.lblOut, lbl, row, kind, body.querySelector(".lbl-msg"));
+    }
+    else if (e.target.closest("[data-lbl-bt]")) window.electronAPI?.pickLabelBtDevice?.(e.target.closest("[data-lbl-bt]").dataset.lblBt);
+    else if (e.target.closest("[data-lbl-connect]")) connectP15(body, cur);
+    else if (e.target.closest("[data-lbl-search]")) {
+      const b = e.target.closest("[data-lbl-search]");
+      b.classList.add("is-busy");
+      searchPrinters().then(() => { if (body.isConnected) render(body, cur); });
+    }
     // What the label's QR holds, shared in the sharer's language (ctx.shareProduct).
     else if (e.target.closest("[data-lbl-share]")) ctx.shareProduct?.(row, kind);
     // The QR's link, copied (the same link the preview opens).
@@ -398,14 +588,130 @@ function render(body, cur) {
     }
   };
   body.onchange = e => {
+    const roll = e.target.closest("[data-lbl-roll]");
+    if (roll) {
+      // A roll with its own template brings it (62 × 29 mm: the Brother template).
+      const q = { ...prefs(), qlRoll: roll.value };
+      if (roll.value === "62x29") q.template = "ql62x29";
+      else q.template = fittingTemplate(printerFor(q.printer), q.template, roll.value);
+      savePrefs(q); render(body, cur); return;
+    }
+    const hostEl = e.target.closest("[data-lbl-host]");
+    if (hostEl) {
+      const q = prefs(), v = hostEl.value.trim();
+      q.qlHost = { ...q.qlHost, [q.printer]: v };
+      if (!v) delete q.qlHost[q.printer];
+      savePrefs(q); render(body, cur); return;
+    }
+    const pr = e.target.closest("[data-lbl-printer]");
+    if (pr) {
+      // Each printer brings back the format last printed on it; the P15 starts on its
+      // own 25 × 12 mm template, and never keeps a label too wide for its roll.
+      const q = { ...prefs(), printer: pr.value };
+      const mine = q.templateBy[pr.value];
+      if (mine) q.template = mine;
+      else if (pr.value === "p15") q.template = "p15";
+      else if (printerFor(pr.value).kind === "net" || printerFor(pr.value).ql) q.template = "ql62x29";
+      q.template = fittingTemplate(printerFor(pr.value), q.template, q.qlRoll);
+      savePrefs(q); render(body, cur); return;
+    }
     const s = e.target.closest("[data-lbl-slot]");
     if (!s) return;
     const q = prefs(); q.slots[Number(s.dataset.lblSlot)] = s.value; savePrefs(q); render(body, cur);
   };
 }
 
+// What a failed P15 connection says: a printer not found or a computer without
+// Bluetooth is said plainly (and not reported); anything else is an error.
+const p15Error = e => Object.assign(new Error(e?.name === "NotFoundError" ? "notFound" : e?.message || "bluetooth"), { p15: true });
+const p15Known = e => e?.p15 && { notFound: "labelP15NotFound", noBluetooth: "labelBtUnavailable", needRoll: "labelQlNeedRoll" }[e.message];
+
+// The card's message, as a coloured pill: "busy" (blue: printing, searching),
+// "ok" (green: sent, connected) or "error" (red). Empty text hides it.
+function setMsg(msg, text, state = "error") {
+  if (!msg) return;
+  msg.textContent = text || "";
+  msg.classList.remove("is-busy", "is-ok", "is-error");
+  if (text) msg.classList.add("is-" + state);
+}
+
+// The P15's Connect button: the scan starts inside the click (Web Bluetooth needs it).
+async function connectP15(body, cur) {
+  const msg = body.querySelector(".lbl-msg");
+  const conn = p15Connect();
+  setMsg(msg, ctx.t("labelBtSearching"), "busy");
+  try {
+    await conn;
+    if (body.isConnected) render(body, cur);
+  } catch (err) {
+    const e = p15Error(err), known = p15Known(e);
+    setMsg(msg, ctx.t(known || "labelExportFailed"));
+    if (!known) ctx.reportError?.("label.connect.p15", e);
+  }
+}
+
+// The QL's state, read over SNMP every 5 s while its card is open: "In error"
+// when the printer says ERROR, "Ready" when it says READY, nothing otherwise.
+let qlStateTimer = null;
+function watchQlState(printer, body) {
+  clearTimeout(qlStateTimer);
+  if (printer.kind !== "net" || !window.electronAPI?.labelQlState) return;
+  const tick = async () => {
+    const el = body.querySelector("[data-lbl-ql-state]");
+    if (!el || !body.isConnected || !$("labelPanel")?.classList.contains("open")) return;
+    const st = await window.electronAPI.labelQlState(printer.host).catch(() => null);
+    if (!el.isConnected) return;
+    const err = /error/i.test(st || ""), ready = /ready/i.test(st || "");
+    el.textContent = err ? ctx.t("labelQlStateError") : ready ? ctx.t("labelQlStateReady") : "";
+    el.classList.toggle("is-error", err);
+    el.classList.toggle("is-ok", ready && !err);
+    qlStateTimer = setTimeout(tick, 5000);
+  };
+  tick();
+}
+
+// Print without the dialog. The P15's Bluetooth connection is asked for FIRST,
+// before anything is awaited: Web Bluetooth only opens inside the click.
+async function printDirect(printer, lbl, row, kind, body, cur) {
+  const msg = body.querySelector(".lbl-msg"), btn = body.querySelector('[data-lbl-out="print"]');
+  const say = (text, state) => setMsg(msg, text, state);
+  const conn = printer.kind === "p15" ? p15Connect() : null;
+  conn?.catch(() => {});   // reported below, once awaited
+  say(ctx.t("labelPrinting", { printer: printer.name }), "busy");
+  if (btn) btn.disabled = true;
+  try {
+    let res;
+    if (printer.kind === "p15") {
+      try { await conn; } catch (e) { throw p15Error(e); }
+      // The head runs across the roll: the label goes turned when its height is the short side.
+      const bm = await window.electronAPI.labelBitmap({ html: lbl.html, wDots: lbl.wDots, hDots: lbl.hDots, rotate: lbl.mmH <= lbl.mmW });
+      if (!bm?.ok) throw new Error(bm?.reason || "render failed");
+      await p15Print(bm);
+      res = { ok: true };
+    } else if (printer.kind === "net") {
+      res = await window.electronAPI.printLabelQl({ html: lbl.html, wDots: lbl.wDots, hDots: lbl.hDots, host: printer.host, port: printer.port, model: printer.model, roll: prefs().qlRoll });
+      // The printer does not say which roll it holds: asked for, nothing sent.
+      if (res?.needRoll) throw Object.assign(new Error("needRoll"), { p15: true });
+    } else {
+      res = await window.electronAPI.renderLabel({ ...lbl, format: "print", deviceName: printer.deviceName });
+    }
+    if (!res?.ok) throw new Error(res?.reason || "print failed");
+    say(ctx.t("labelPrinted", { printer: printer.name }), "ok");
+    ctx.onLabelOut?.({ row, kind, template: lbl.template, output: "print", dpi: lbl.dpi });
+  } catch (e) {
+    // Nothing to report for a printer switched off or a computer without Bluetooth: said plainly.
+    const known = p15Known(e);
+    say(ctx.t(known || "labelExportFailed"), "error");
+    if (!known) ctx.reportError?.("label.print." + printer.kind, e);
+  } finally {
+    if (btn) btn.disabled = false;
+    // "· connected" in the list once the P15 answered.
+    if (printer.kind === "p15") { const sel = body.querySelector("[data-lbl-printer]"); const o = sel?.querySelector('option[value="p15"]'); if (o) o.textContent = ctx.t("labelPrinterP15") + (p15Connected() ? " · " + ctx.t("labelPrinterConnected") : ""); }
+  }
+}
+
 async function exportLabel(format, lbl, row, kind, msg) {
-  if (msg) msg.textContent = "";
+  setMsg(msg, "");
   const id = kind === "product" ? productLink(row.idProduct).split("/").pop() : String(row.spoolId).replace(/^TigerData_/, "");
   const fileName = `tigertag-${kind}-${id}-${lbl.mmW}x${lbl.mmH}`;
   const svg = format === "svg" ? lbl.svg : undefined;   // the label itself, sized in millimetres
@@ -415,7 +721,7 @@ async function exportLabel(format, lbl, row, kind, msg) {
     // A label actually printed or saved (not a cancelled dialog): counted (print_label).
     if (res?.ok) ctx.onLabelOut?.({ row, kind, template: lbl.template, output: format, dpi: lbl.dpi });
   } catch (e) {
-    if (msg) msg.textContent = ctx.t("labelExportFailed");
+    setMsg(msg, ctx.t("labelExportFailed"));
     ctx.reportError?.("label." + format, e);
   }
 }

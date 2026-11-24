@@ -40,12 +40,13 @@
 .lbl-open-hint .icon { background-color: currentColor; }
 .lbl-paper--link:hover .lbl-open-hint, .lbl-paper--link:focus-visible .lbl-open-hint { opacity: 1; transform: translate(-50%, 0); }
 
-.lbl-tpls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }   /* nine templates, three rows of three */
+.lbl-tpls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }   /* ten templates, three per row */
 .lbl-tpl.lbl-tpl { height: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 9px 4px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; transition: border-color .15s, background .15s; }
 .lbl-tpl:hover { border-color: var(--primary); }
 .lbl-tpl.is-active { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--surface-2)); }
 .lbl-tpl b { font-size: 12px; line-height: 1.2; text-align: center; }
 .lbl-tpl small { font-size: 10.5px; color: var(--muted); }
+.lbl-tpl:disabled { opacity: .4; cursor: not-allowed; border-color: var(--border); }
 
 .lbl-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 /* The QR's link, copied: under the preview, which opens it on a click. */
@@ -55,5 +56,27 @@
 .lbl-actions .primary { flex: 1 1 100%; justify-content: center; }
 .lbl-actions .ghost { flex: 1; justify-content: center; }
 .lbl-actions .icon { background-color: currentColor; }
-.lbl-msg { margin: 0; min-height: 0; font-size: 12.5px; color: var(--danger-text); }
+.lbl-msg, .lbl-ql-state { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin: 0; padding: 5px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 600; line-height: 1.35; color: var(--danger-text); background: var(--danger-soft); }
+.lbl-msg::before, .lbl-ql-state::before { content: ""; flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.lbl-msg.is-busy { color: var(--info-text); background: var(--info-soft); }
+.lbl-msg.is-busy::before { animation: lbl-pulse 1s ease-in-out infinite; }
+.lbl-msg.is-ok, .lbl-ql-state.is-ok { color: var(--success-text); background: var(--success-soft); }
+@keyframes lbl-pulse { 50% { opacity: .3; } }
+/* Where Print sends the label (the system dialog, a P15, an installed or network
+   printer) and the button that searches for printers again. */
+.lbl-printer { display: flex; gap: 8px; align-items: center; }
+.lbl-printer .csel { flex: 1; min-width: 0; }
+.lbl-printer .csel .csel-btn { width: 100%; max-width: none; }
+.lbl-printer-search .icon { background-color: currentColor; }
+.lbl-roll-label { flex: 0 0 auto; font-size: 12.5px; color: var(--muted); }
+.lbl-host { flex: 1; min-width: 0; }
+.lbl-printer-search.is-busy .icon { animation: spin .8s linear infinite; }
 .lbl-msg:empty { display: none; }
+/* The P15: its connection state and Connect button; while it is searched, the
+   Bluetooth devices seen, to pick it by hand (main.js select-bluetooth-device). */
+.lbl-p15 { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.lbl-p15 .icon { background-color: currentColor; }
+.lbl-bt { display: flex; flex-direction: column; gap: 8px; }
+.lbl-bt-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 140px; overflow-y: auto; }
+.lbl-ql { justify-content: space-between; }
+.lbl-ql-state:empty { display: none; }
