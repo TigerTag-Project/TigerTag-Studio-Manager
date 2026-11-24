@@ -256,9 +256,17 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
 /** Stop only the camera stream (JPEG TCP + RTSP); keep the MQTT session alive. */
 export function bambuStopCam(key) {
   if (!_bambuConns.has(key)) return;
-  _bambuConns.get(key).camAskedAt = 0;   // a deliberate stop: the next start is never held back
+  const conn = _bambuConns.get(key);
+  conn.camAskedAt = 0;   // a deliberate stop: the next start is never held back
   window.bambulab?.camStop(key);
   window.bambulab?.camStopRtsp(key);
+  /* Forget the last frame too. bambuConnect() restarts the feed only when no frame
+     is held (lastCamUrl null): keeping it made "Show all cameras" after "Stop all"
+     a no-op — the cards showed that frozen frame as if live, and the detached
+     camera window, fed only by running streams, stayed on its loading dots. */
+  if (_camRafs.has(key)) { cancelAnimationFrame(_camRafs.get(key)); _camRafs.delete(key); }
+  if (conn.data?.lastCamUrl) URL.revokeObjectURL(conn.data.lastCamUrl);
+  if (conn.data) { conn.data.lastCamUrl = null; conn.data.lastCamBuf = null; }
 }
 
 export function bambuDisconnect(key) {

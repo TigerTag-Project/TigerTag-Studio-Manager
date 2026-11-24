@@ -77,6 +77,7 @@
   /* Only the controls themselves take the pointer; the strip between them must
      not swallow a rubber band started near the top of the board. */
   .pv-plan-bar > * { pointer-events: auto; }
+  .pv-plan-bar > [hidden] { display: none; }   /* "Stop all cameras" with nothing playing */
 
 
   /* Connect / Disconnect button in the printer side-card header.
@@ -3166,6 +3167,9 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
   .printer-card:hover .cam-play--card,
   .cam-play--card:focus-visible { opacity: 1; }
   .cam-play--card:active { transform: translate(-50%, -50%) scale(.94); }
+  /* On an external camera card cut by "Stop all cameras" the key is the only
+     thing in the frame, so it stays visible. */
+  .cam-play--card.cam-play--shown { opacity: 1; }
   /* The feed takes the photo's place: same box, filled rather than contained —
      a camera frame cropped to the card reads better than one letterboxed. */
   /* The feed goes straight into the photo box, with NO wrapper — exactly the

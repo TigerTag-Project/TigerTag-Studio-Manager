@@ -317,6 +317,20 @@ function wireCards(root) {
     const cam = _cams.find(c => c.id === card.dataset.id);
     const el = card.querySelector(".xc-media");
     if (!cam || !el) return;
+    if (_boardPaused.has(cam.id)) {
+      /* Cut with "Stop all cameras": no reader is attached, so the sweeper
+         closes the stream; the play key brings this one camera back. */
+      card.querySelector("[data-xc-play]")?.addEventListener("click", e => {
+        e.preventDefault(); e.stopPropagation();
+        _boardPaused.delete(cam.id);
+        e.currentTarget.remove();
+        card.dataset.state = "connecting";
+        watchLive(cam, el);
+        attachStream(cam, el);
+        document.dispatchEvent(new CustomEvent("xc-board-play"));   // the board re-shows its "Stop all cameras" key
+      });
+      return;
+    }
     watchLive(cam, el);
     attachStream(cam, el);
   });
@@ -402,13 +416,27 @@ export async function extCamBoardSave(cam, x, y, z) {
   catch (e) { console.warn("[ext-cam] board position save failed:", e?.code || e?.message); }
 }
 
+/* The board's external cameras cut by "Stop all cameras". Session-only, like
+   the printers' play keys: reopening Studio shows them live again. */
+const _boardPaused = new Set();
+const _boardCams = () => _cams.filter(c => !_api.linkedIds().has(c.id));
+/** True while at least one external camera card on the board is streaming. */
+export const extCamBoardLive = () => _boardCams().some(c => !_boardPaused.has(c.id));
+/** Cut every external camera card of the board; the caller redraws the board. */
+export function extCamBoardPauseAll() { _boardCams().forEach(c => _boardPaused.add(c.id)); }
+/** True while at least one external camera card on the board is cut. */
+export const extCamBoardIdle = () => _boardCams().some(c => _boardPaused.has(c.id));
+/** Bring every cut external camera card back; the caller redraws the board. */
+export function extCamBoardResumeAll() { _boardPaused.clear(); }
+
 function boardCardHtml(c) {
   const { esc, t } = ctx;
+  const paused = _boardPaused.has(c.id);
   const media = c.protocol === "webrtc"
     ? `<video class="xc-media" muted playsinline autoplay></video>`
     : `<img class="xc-media" alt="" draggable="false"/>`;
   return `
-    <div class="xc-board-card" data-board-id="${esc(BOARD_PREFIX + c.id)}" data-id="${esc(c.id)}" data-state="connecting">
+    <div class="xc-board-card" data-board-id="${esc(BOARD_PREFIX + c.id)}" data-id="${esc(c.id)}" data-state="${paused ? "paused" : "connecting"}">
       <div class="rp-rack-head printer-card-head">
         <div class="rp-rack-info">
           <div class="printer-card-name">
@@ -425,6 +453,7 @@ function boardCardHtml(c) {
         ${media}
         <div class="xc-overlay xc-overlay--connecting">${esc(t("extCamConnecting"))}</div>
         <div class="xc-overlay xc-overlay--error"><span class="icon icon-eye-off icon-24"></span>${esc(t("extCamNoSignal"))}</div>
+        ${paused ? `<button type="button" class="cam-play cam-play--card cam-play--shown" data-xc-play aria-label="${esc(t("boardCamPlay"))}"><span class="icon icon-play icon-18"></span></button>` : ""}
       </div>
     </div>`;
 }

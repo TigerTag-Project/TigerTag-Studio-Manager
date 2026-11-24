@@ -259,7 +259,7 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 
 - Per-brand camera widget architecture (`renderCamBanner` dispatch, brand-specific `widget_camera.js` modules) supporting MJPEG, WebRTC/RTSP and iframe transports (v1.4.7+).
 - Camera view as a free plan — each camera placed by hand on a pan/zoom surface and resized freely by a corner grip, with an Arrange mode carrying the storage plan's mesh, magnetism, alignment guides and sweep-selection; a placed camera keeps its spot and size while its machine is offline (v1.7.1 as a grid, free plan v2.25.0).
-- Detached Camera Wall — standalone window showing every camera simultaneously, zero-copy frame forwarding via `BroadcastChannel` (v1.8.2).
+- Detached Camera Wall — standalone window showing every camera simultaneously, zero-copy frame forwarding via `BroadcastChannel` (v1.8.2); while it is open, the main window's wall gives way to a notice with a "Bring the wall back" key, and closing either brings the wall back.
 - True fullscreen for a single camera via the Fullscreen API — fills the screen rather than the app window, and never recreates the card, so the live stream survives (v1.7.2 as a window-filling card, real fullscreen v2.25.0).
 - Shared MJPEG multiplexer (`cam_manager.js`) — one upstream connection serves every consumer (sidecard + cam wall) simultaneously, respecting single-client firmware limits (v1.7.2; FlashForge-specific precursor v1.7.1).
 - Creality single shared `RTCPeerConnection` across every surface that shows its camera (v1.8.2).

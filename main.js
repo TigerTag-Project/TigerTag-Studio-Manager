@@ -280,6 +280,15 @@ let mainWindow;
 let splashWindow = null; // lightweight launch splash, closed once renderer is ready
 let _mainRevealed = false; // guard so revealMainWindow() runs exactly once
 let _camWindow = null; // detached camera wall window (optional)
+// While the camera wall is detached, its window alone receives the camera frames: the
+// main window shows a notice instead of the wall, and sending it every frame as well
+// doubled the IPC and decoding load for nothing. Frames reach it again once the
+// detached window is closed.
+function _camToSender(sender) {
+  if (!sender || sender.isDestroyed()) return false;
+  const detached = _camWindow && !_camWindow.isDestroyed();
+  return !(detached && mainWindow && !mainWindow.isDestroyed() && sender === mainWindow.webContents);
+}
 
 // macOS: the red-button close should HIDE the main window (keeping the app +
 // its whole renderer state — Firebase session, inventory, cameras — alive),
@@ -3075,7 +3084,16 @@ ipcMain.handle('cam:open-detached', (_evt, cameras) => {
   _camWindow.webContents.once('did-finish-load', () => {
     _camWindow?.webContents.send('cam:init', cameras);
   });
-  _camWindow.on('closed', () => { _camWindow = null; });
+  // Tell the main window, so its wall comes back in place of the "open in its own window" notice.
+  _camWindow.on('closed', () => {
+    _camWindow = null;
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('cam:detached-closed');
+  });
+});
+
+// "Bring the wall back" in the main window: close the detached one (its 'closed' does the rest).
+ipcMain.handle('cam:close-detached', () => {
+  if (_camWindow && !_camWindow.isDestroyed()) _camWindow.close();
 });
 
 ipcMain.handle('update:check-now', async () => {
@@ -5168,7 +5186,7 @@ let _ffmpegBin = null;
             // Send the raw JPEG Buffer (no Base64): skips a synchronous encode
             // on the main thread, ~25% smaller IPC payload, and the renderer
             // wraps it directly in a Blob URL (no re-decode).
-            if (!event.sender.isDestroyed())
+            if (_camToSender(event.sender))
               event.sender.send('bambulab:cam-frame', key, payload);
             // Forward to detached cam window if open
             if (_camWindow && !_camWindow.isDestroyed())
@@ -5300,7 +5318,7 @@ let _ffmpegBin = null;
       // ffmpeg -f image2pipe -vcodec mjpeg outputs raw JPEG files concatenated.
       proc.stdout.on('data', _jpegSplitter(frame => {
         _camTaps.get(key)?.forEach(tap => tap(frame));   // the recordings of this camera
-        if (!event.sender.isDestroyed())
+        if (_camToSender(event.sender))
           event.sender.send('bambulab:cam-frame', key, frame);
         // Forward to detached cam window if open
         if (_camWindow && !_camWindow.isDestroyed())
@@ -6114,7 +6132,7 @@ let _ffmpegBin = null;
 
       // Parse raw stdout for JPEG frames: SOI (FF D8) → EOI (FF D9).
       proc.stdout.on('data', _jpegSplitter(frame => {
-        if (!event.sender.isDestroyed())
+        if (_camToSender(event.sender))
           event.sender.send('anycubic:cam-frame', key, frame.toString('base64'));
         // Forward to detached cam window if open
         if (_camWindow && !_camWindow.isDestroyed())
