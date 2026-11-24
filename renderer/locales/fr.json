@@ -1884,6 +1884,13 @@
   "encOverwriteAccept": "Je comprends, écraser",
   "camWallEmptyTitle": "Aucune caméra en ligne",
   "camWallEmptySub": "Ajoute une imprimante avec caméra pour voir les flux en direct ici.",
+  "camWindowTitle": "Mur des caméras",
+  "camWindowCount": {
+    "one": "{{n}} caméra",
+    "other": "{{n}} caméras"
+  },
+  "camWindowOffline": "Caméra hors ligne",
+  "camWindowUnknown": "Type de caméra inconnu",
   "tutoStepXOfY": "Étape {{n}} sur {{total}}",
   "tutoPrev": "Précédent",
   "tutoNext": "Suivant",

@@ -14538,7 +14538,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   }
   // Detach (top, cam view) → pop the camera wall into its own window.
   $("camWallDetachTop")?.addEventListener("click", () => {
-    try { window.electronAPI?.openCamWindow(_serializeCamerasForDetach()); } catch (_) {}
+    try { const _cams = _serializeCamerasForDetach(); window.electronAPI?.openCamWindow(_cams, _camWindowStrings(_cams.length)); } catch (_) {}
   });
   $("btnViewTable").addEventListener("click", () => setViewMode("table"));
   $("btnViewGrid").addEventListener("click",  () => setViewMode("grid"));
@@ -30944,6 +30944,18 @@ import { initScreenTools } from './ai/screen-tools.js';
 
   // ── Serialize online cameras for the detached cam window ────────────────
   // Returns an array of CamDescriptor objects understood by renderer/cam/cam.js.
+  /* The detached window has no i18n of its own (no locales, no `t`): it is
+     handed its texts, already in the user's language, with every camera list. */
+  function _camWindowStrings(n) {
+    return {
+      lang: state.lang,
+      title: t("camWindowTitle"),
+      count: n ? t("camWindowCount", { n }) : "",
+      empty: t("camWallEmptyTitle"),
+      offline: t("camWindowOffline"),
+      unknown: t("camWindowUnknown"),
+    };
+  }
   function _serializeCamerasForDetach() {
     // The cameras of the account WITH what a reader needs (address, login): they reach
     // the detached window over IPC only, and are never drawn there (renderer/cam/cam.js).

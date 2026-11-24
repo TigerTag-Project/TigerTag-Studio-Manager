@@ -36,6 +36,20 @@ function esc(s) {
     .replace(/>/g, '&gt;');
 }
 
+// ── Texts, in the user's language, handed over by the main window with every
+// camera list (this window has no locales of its own). English stands in until
+// they arrive.
+let S = {};
+const tr = (k, fallback) => (S && S[k]) || fallback;
+function applyStrings(strings) {
+  if (!strings) return;
+  S = strings;
+  if (S.lang) document.documentElement.lang = S.lang;
+  document.title = `${tr('title', 'Camera Wall')} — Tiger Studio`;
+  const h1 = document.querySelector('#camTitlebar h1');
+  if (h1) h1.textContent = tr('title', 'Camera Wall');
+}
+
 function buildWall(cameras) {
   const root  = document.getElementById('camRoot');
   const count = document.getElementById('camCount');
@@ -46,13 +60,13 @@ function buildWall(cameras) {
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.89L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
         </svg>
-        <p>No cameras online</p>
+        <p>${esc(tr('empty', 'No cameras online'))}</p>
       </div>`;
     count.textContent = '';
     return;
   }
 
-  count.textContent = `${cameras.length} camera${cameras.length > 1 ? 's' : ''}`;
+  count.textContent = tr('count', `${cameras.length} camera${cameras.length > 1 ? 's' : ''}`);
 
   // Stop any previous Creality peers before full rebuild.
   _stopAllCrePeers();
@@ -117,7 +131,7 @@ function buildFeed(cam) {
         <img class="cam-frame bbl-cam-img"
              data-bbl-key="${esc(cam.bblKey)}"
              src=""
-             alt="Bambu Lab camera"
+             alt=""
              draggable="false" />
         <div class="cam-loading-overlay">
           <span class="cam-loading-dots"><span></span><span></span><span></span></span>
@@ -129,7 +143,7 @@ function buildFeed(cam) {
         <img class="cam-frame acu-cam-img"
              data-acu-key="${esc(cam.acuKey)}"
              src=""
-             alt="Anycubic camera"
+             alt=""
              draggable="false" />
         <div class="cam-loading-overlay">
           <span class="cam-loading-dots"><span></span><span></span><span></span></span>
@@ -167,7 +181,7 @@ function buildFeed(cam) {
         <img class="cam-frame acu-bc-img"
              data-acu-key="${esc(cam.acuKey)}"
              src=""
-             alt="Anycubic camera"
+             alt=""
              draggable="false" />
         <div class="cam-loading-overlay">
           <span class="cam-loading-dots"><span></span><span></span><span></span></span>
@@ -189,7 +203,7 @@ function buildFeed(cam) {
     }
 
     default:
-      return `<div class="cam-loading-overlay"><p style="color:#888">Unknown camera type</p></div>`;
+      return `<div class="cam-loading-overlay"><p style="color:#888">${esc(tr('unknown', 'Unknown camera type'))}</p></div>`;
   }
 }
 
@@ -344,7 +358,7 @@ function extShowOffline(el) {
   if (!body) return;
   let o = body.querySelector('.cam-loading-overlay');
   if (!o) { o = document.createElement('div'); o.className = 'cam-loading-overlay'; body.append(o); }
-  o.innerHTML = '<p style="color:#888">Camera offline</p>';
+  o.innerHTML = `<p style="color:#888">${esc(tr('offline', 'Camera offline'))}</p>`;
 }
 
 let _extWired = false;
@@ -477,5 +491,5 @@ function brandAccent(brand) {
 
 // ── IPC listeners ────────────────────────────────────────────────────────────
 
-window.camAPI.onInit(cameras => buildWall(cameras));
-window.camAPI.onUpdate(cameras => buildWall(cameras));
+window.camAPI.onInit((cameras, strings) => { applyStrings(strings); buildWall(cameras); });
+window.camAPI.onUpdate((cameras, strings) => { applyStrings(strings); buildWall(cameras); });

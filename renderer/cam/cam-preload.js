@@ -10,11 +10,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('camAPI', {
   /** Called once after the window loads — receives the initial camera list. */
   onInit: (cb) =>
-    ipcRenderer.on('cam:init', (_, cameras) => cb(cameras)),
+    ipcRenderer.on('cam:init', (_, cameras, strings) => cb(cameras, strings)),
 
   /** Called when the main window pushes an updated camera list (online state changed). */
   onUpdate: (cb) =>
-    ipcRenderer.on('cam:update', (_, cameras) => cb(cameras)),
+    ipcRenderer.on('cam:update', (_, cameras, strings) => cb(cameras, strings)),
 
   /** Bambu Lab JPEG frames forwarded from the main process.
    *  cb(key: string, buf: Uint8Array) — raw JPEG bytes */

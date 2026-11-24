@@ -1884,6 +1884,13 @@
   "encOverwriteAccept": "I understand, overwrite",
   "camWallEmptyTitle": "No cameras online",
   "camWallEmptySub": "Add a printer with a camera to see live feeds here.",
+  "camWindowTitle": "Camera wall",
+  "camWindowCount": {
+    "one": "{{n}} camera",
+    "other": "{{n}} cameras"
+  },
+  "camWindowOffline": "Camera offline",
+  "camWindowUnknown": "Unknown camera type",
   "tutoStepXOfY": "Step {{n}} of {{total}}",
   "tutoPrev": "Previous",
   "tutoNext": "Next",

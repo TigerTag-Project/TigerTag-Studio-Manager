@@ -1884,6 +1884,13 @@
   "encOverwriteAccept": "Ik begrijp het, overschrijven",
   "camWallEmptyTitle": "Geen camera's online",
   "camWallEmptySub": "Voeg een printer met camera toe om hier livebeelden te zien.",
+  "camWindowTitle": "Camerawand",
+  "camWindowCount": {
+    "one": "{{n}} camera",
+    "other": "{{n}} camera’s"
+  },
+  "camWindowOffline": "Camera offline",
+  "camWindowUnknown": "Onbekend cameratype",
   "tutoStepXOfY": "Stap {{n}} van {{total}}",
   "tutoPrev": "Vorige",
   "tutoNext": "Volgende",

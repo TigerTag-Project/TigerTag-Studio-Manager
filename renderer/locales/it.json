@@ -1884,6 +1884,13 @@
   "encOverwriteAccept": "Capito, sovrascrivi",
   "camWallEmptyTitle": "Nessuna telecamera online",
   "camWallEmptySub": "Aggiungi una stampante con telecamera per vedere i flussi in diretta qui.",
+  "camWindowTitle": "Parete delle telecamere",
+  "camWindowCount": {
+    "one": "{{n}} telecamera",
+    "other": "{{n}} telecamere"
+  },
+  "camWindowOffline": "Telecamera offline",
+  "camWindowUnknown": "Tipo di telecamera sconosciuto",
   "tutoStepXOfY": "Passo {{n}} di {{total}}",
   "tutoPrev": "Indietro",
   "tutoNext": "Avanti",

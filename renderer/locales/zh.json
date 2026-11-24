@@ -1879,6 +1879,13 @@
   "encOverwriteAccept": "我了解，覆盖",
   "camWallEmptyTitle": "没有在线摄像头",
   "camWallEmptySub": "添加带摄像头的打印机即可在此处查看实时画面。",
+  "camWindowTitle": "摄像头墙",
+  "camWindowCount": {
+    "one": "{{n}} 个摄像头",
+    "other": "{{n}} 个摄像头"
+  },
+  "camWindowOffline": "摄像头离线",
+  "camWindowUnknown": "未知的摄像头类型",
   "tutoStepXOfY": "第 {{n}} 步，共 {{total}} 步",
   "tutoPrev": "上一步",
   "tutoNext": "下一步",

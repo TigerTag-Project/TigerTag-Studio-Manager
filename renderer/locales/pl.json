@@ -1894,6 +1894,15 @@
   "encOverwriteAccept": "Rozumiem, nadpisz",
   "camWallEmptyTitle": "Brak kamer online",
   "camWallEmptySub": "Dodaj drukarkę z kamerą, aby zobaczyć tutaj transmisje na żywo.",
+  "camWindowTitle": "Ściana kamer",
+  "camWindowCount": {
+    "one": "{{n}} kamera",
+    "few": "{{n}} kamery",
+    "many": "{{n}} kamer",
+    "other": "{{n}} kamery"
+  },
+  "camWindowOffline": "Kamera offline",
+  "camWindowUnknown": "Nieznany typ kamery",
   "tutoStepXOfY": "Krok {{n}} z {{total}}",
   "tutoPrev": "Wstecz",
   "tutoNext": "Dalej",
