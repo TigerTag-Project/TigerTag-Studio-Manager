@@ -1199,7 +1199,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     selectedSpools: new Set(), // spoolIds selected for bulk actions (materials views)
     selectedPrinters: new Set(), // "brand:id" keys selected for bulk actions (printer views) — separate from materials
     selectedCatalog: new Set(),  // catalogue product ids selected for bulk ★ / 🛒 / list (Search views)
-    selectedProducts: new Set(), // product keyHashes selected for bulk actions (Products table view) — separate again
+    selectedProducts: new Set(), // product keyHashes selected for bulk actions (Products table + Lists rows) — separate again
     td1sConnected: false,
     scanMode: false,        // true = "+ Scan" active, auto-add on unknown chip
     nfcReaderCount: 0,      // number of connected NFC readers
@@ -13941,10 +13941,10 @@ import { initScreenTools } from './ai/screen-tools.js';
     state.bulkSelect = true;
     document.body.classList.add("bulk-select-mode");
     document.querySelectorAll(".js-select-toggle").forEach(b => b.classList.add("active"));
-    // Printers / products have no grouping — just reveal the bar, no re-render
+    // Printers / products / lists have no grouping — just reveal the bar, no re-render
     // (printers' live camera thumbnails; products' always-on table checkboxes).
     // Materials ungroup.
-    if (_isPrinterMode(state.viewMode) || _isProductsMode(state.viewMode)) { _updateBulkBar(); return; }
+    if (_isPrinterMode(state.viewMode) || _isProductsMode(state.viewMode) || _isListsMode(state.viewMode)) { _updateBulkBar(); return; }
     // Catalogue: picking several replaces looking at one — drop the open card.
     if (_isCatalogMode(state.viewMode)) { if (_catViewSelectedId) closeProductCard(); _updateBulkBar(); return; }
     renderInventory();              // rebuild ungrouped so every spool is selectable
@@ -13964,9 +13964,9 @@ import { initScreenTools } from './ai/screen-tools.js';
     document.querySelectorAll(".js-select-toggle").forEach(b => b.classList.remove("active"));
     _clearSelection();
 
-    // Materials regroup on exit; printers / products have no grouping (skip the
+    // Materials regroup on exit; printers / products / lists have no grouping (skip the
     // re-render so live camera thumbnails / freshly-typed rows aren't rebuilt).
-    if (!_isPrinterMode(state.viewMode) && !_isProductsMode(state.viewMode) && !_isCatalogMode(state.viewMode)) renderInventory();
+    if (!_isPrinterMode(state.viewMode) && !_isProductsMode(state.viewMode) && !_isListsMode(state.viewMode) && !_isCatalogMode(state.viewMode)) renderInventory();
   }
   function _toggleSelectMode() { state.bulkSelect ? _exitSelectMode() : _enterSelectMode(); }
 
@@ -14110,6 +14110,13 @@ import { initScreenTools } from './ai/screen-tools.js';
       visibleKeys: () => Array.from(document.querySelectorAll("#invProductsView .pv-trow[data-hash]:not(.hidden)")).map(el => el.dataset.hash),
       paint: (hash, on) => document.querySelectorAll(`#invProductsView .pv-trow[data-hash="${CSS.escape(hash)}"]`).forEach(el => el.classList.toggle("row-selected", on)),
     };
+    // Lists (rows layout): also product keyHashes, but Delete only takes them OFF
+    // the list — the product records stay.
+    if (_isListsMode(state.viewMode)) return {
+      printers: false, products: true, list: true, set: state.selectedProducts, del: _bulkRemoveFromList,
+      visibleKeys: () => Array.from(document.querySelectorAll("#invListsView .lv-row[data-hash]")).map(el => el.dataset.hash),
+      paint: (hash, on) => document.querySelectorAll(`#invListsView .lv-row[data-hash="${CSS.escape(hash)}"]`).forEach(el => el.classList.toggle("row-selected", on)),
+    };
     // Search views: the selection is catalogue product ids. No delete — the
     // catalogue is not ours to delete from; only ★ / 🛒 / list apply.
     if (_isCatalogMode(state.viewMode)) return {
@@ -14132,7 +14139,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       document.querySelectorAll(`#invPrinterView [data-printer-key="${CSS.escape(k)}"]`).forEach(el => el.classList.remove("row-selected")));
     state.selectedPrinters.clear();
     state.selectedProducts.forEach(h =>
-      document.querySelectorAll(`#invProductsView .pv-trow[data-hash="${CSS.escape(h)}"]`).forEach(el => el.classList.remove("row-selected")));
+      document.querySelectorAll(`#invProductsView .pv-trow[data-hash="${CSS.escape(h)}"], #invListsView .lv-row[data-hash="${CSS.escape(h)}"]`).forEach(el => el.classList.remove("row-selected")));
     state.selectedProducts.clear();
     state.selectedCatalog.forEach(id =>
       $("catalogViewBody")?.querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach(el => el.classList.remove("row-selected")));
@@ -14168,6 +14175,11 @@ import { initScreenTools } from './ai/screen-tools.js';
     bar.classList.toggle("is-products", !!ctx.products);
     bar.classList.toggle("is-materials", !ctx.products && !ctx.printers && !ctx.catalog);
     bar.classList.toggle("is-catalog", !!ctx.catalog);
+    bar.classList.toggle("is-list", !!ctx.list);
+    // In a list the red button only takes the items off the list — say so.
+    const dl = bar.querySelector("#bulkDelete [data-i18n]");
+    const dlKey = ctx.list ? "listRemoveItem" : "bulkDelete";
+    if (dl && dl.dataset.i18n !== dlKey) { dl.dataset.i18n = dlKey; dl.textContent = t(dlKey); }
     const sc = $("bulkSelCount"); if (sc) sc.textContent = ctx.catalog && n ? t("bulkSelectedCount", { n }) : "";
     // Friend view: only ★/❤ (import) actions on the FRIEND's materials — tags /
     // price / delete hidden. Doesn't apply to the viewer's OWN favorites table
@@ -14324,6 +14336,14 @@ import { initScreenTools } from './ai/screen-tools.js';
     _exitSelectMode();
   }
 
+  // Take the selected products off the shown list (the records are kept).
+  async function _bulkRemoveFromList() {
+    const list = _selectedList();
+    if (state.friendView || !list || !state.selectedProducts.size) return;
+    await _removeFromList(list.id, [...state.selectedProducts]);
+    _exitSelectMode();
+  }
+
   // Hard-delete a set of spoolIds (+ their twin halves), chunked to Firestore's
   // 500-op batch limit. Mirrors markSpoolDeleted. Shared by bulk-select and the
   // group "reduce copies" action. Returns the number of docs deleted.
@@ -14375,7 +14395,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (prevMode && _seg(prevMode) !== _seg(mode)) _clearSearchFilters();
     // Selection is per-context (materials vs printers) — crossing contexts clears
     // it (never linked). Switching within a context (table↔grid) keeps it.
-    const _ctxOf = m => (m === "table" || m === "grid") ? "mat" : _isPrinterMode(m) ? "prn" : m === "favesTable" ? "prod" : _isCatalogMode(m) ? "cat" : "other";
+    const _ctxOf = m => (m === "table" || m === "grid") ? "mat" : _isPrinterMode(m) ? "prn" : m === "favesTable" ? "prod" : _isListsMode(m) ? "list" : _isCatalogMode(m) ? "cat" : "other";
     if (state.bulkSelect && _ctxOf(prevMode) !== _ctxOf(mode)) _exitSelectMode();
     // The header "Select" toggle shows where selection is button-triggered: the
     // GRID views (materials + printers). Both TABLES have an always-on checkbox
@@ -14605,7 +14625,13 @@ import { initScreenTools } from './ai/screen-tools.js';
       return;
     }
     if (e.target.closest("[data-listedit]")) { const cur = _selectedList(); if (cur) openCreateListModal(cur.id); return; }
+    // Header master checkbox → select / deselect every row shown.
+    if (e.target.closest(".sel-th")) { _toggleSelectAllVisible(); return; }
     const row = e.target.closest(".lv-row[data-hash], .lv-card[data-hash]");   // rows AND grid cards open the product side-card
+    // Checkbox → toggle this item (the first tick enters select mode); while
+    // selecting, a click anywhere else on the row toggles it too.
+    if (row && e.target.closest(".sel-cell")) { _selCellClickProduct(row.dataset.hash, e.shiftKey); return; }
+    if (row && state.bulkSelect) { _toggleProductSelected(row.dataset.hash, e.shiftKey); return; }
     if (row) { const p = _listProductsSrc()[row.dataset.hash]; if (p) openProductCard(p); return; }
   });
   // ── Amazon-style quantity selector (.qsel) — dropdown 1–9 + "10+"; "10+" opens a
@@ -19180,7 +19206,8 @@ import { initScreenTools } from './ai/screen-tools.js';
     const rm = ro ? "" : `<button type="button" class="lv-row-remove" data-listremove="${esc(p.id)}" aria-label="${esc(t("listRemoveItem"))}"><span class="hold-progress"></span><span class="icon icon-trash icon-13"></span></button>`;
     const grip = ro ? "" : `<span class="lv-grip" aria-hidden="true"><span class="icon icon-grip icon-16"></span></span>`;
     return `
-      <div class="lv-row" data-hash="${esc(p.id)}" data-key="${esc(p.key)}"${ro ? "" : ' draggable="true"'}>
+      <div class="lv-row${!ro && state.selectedProducts.has(p.id) ? " row-selected" : ""}" data-hash="${esc(p.id)}" data-key="${esc(p.key)}"${ro ? "" : ' draggable="true"'}>
+        ${ro ? "" : `<span class="sel-cell"><span class="sel-check" aria-hidden="true"></span></span>`}
         ${grip}
         <div class="lv-row-thumb">${_productThumbHTML(p)}</div>
         <div class="lv-row-body">
@@ -19190,6 +19217,18 @@ import { initScreenTools } from './ai/screen-tools.js';
         </div>
         <div class="lv-row-actions">${qtyCtl}${linkBtn}${rm}</div>
       </div>`;
+  }
+  // A selection belongs to ONE list of mine shown as rows: leaving it (another list,
+  // the grid, the list deleted) ends the selection, and an item no longer on the
+  // list leaves the set — "Remove" must never reach what the list doesn't show.
+  let _lvSelListId = null;   // the list whose rows carried checkboxes at the last render
+  function _lvSyncSelection(list, layout) {
+    const id = list && layout === "list" && !state.friendView ? list.id : null;
+    if (state.bulkSelect && id !== _lvSelListId) _exitSelectMode();
+    _lvSelListId = id;
+    if (!state.bulkSelect) return;
+    const on = new Set(_listItems(list).map(p => p.id));
+    [...state.selectedProducts].forEach(h => { if (!on.has(h)) state.selectedProducts.delete(h); });
   }
   function renderListsView() {
     const host = $("invListsView");
@@ -19201,6 +19240,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (state.listsLoading) { _showLoading(host); return; }
     const lists = _listsArray();
     if (!lists.length) {
+      _lvSyncSelection(null);
       host.innerHTML = ro
         ? `<div class="pv-empty"><span class="icon icon-list icon-24"></span><div>${esc(t("listFriendEmpty", { name: state.friendView?.displayName || "" }))}</div></div>`
         : `<div class="lv-first"><span class="icon icon-list icon-24"></span><div class="lv-first-txt">${esc(t("listNoneTitle"))}</div><div class="lv-first-sub">${esc(t("listNoneSub"))}</div><button type="button" class="primary lv-new-btn" data-listnew>${esc(t("listModalTitle"))}</button></div>`;
@@ -19211,6 +19251,11 @@ import { initScreenTools } from './ai/screen-tools.js';
     const items = _filteredProducts(_listItems(cur));
     // Per-view layout choice — rows (Amazon-style) or grid (cards). Persisted.
     const layout = localStorage.getItem("tigertag.listLayout") === "grid" ? "grid" : "list";
+    // Same list drawn again (a bulk action rebuilds it) → keep the scroll.
+    const keepScroll = _lvSelListId === cur.id && layout === "list" ? host.querySelector(".lv-rows")?.scrollTop : 0;
+    _lvSyncSelection(cur, layout);
+    const selAll = !ro && layout === "list" && items.length
+      ? `<span class="sel-th"><span class="sel-check sel-check--all" role="checkbox" tabindex="0" aria-label="${esc(t("bulkSelectMode"))}" aria-checked="false"></span></span>` : "";
     const layoutToggle = `<div class="lv-layout">
       <button type="button" class="lv-layout-btn${layout === "list" ? " is-active" : ""}" data-listlayout="list" aria-label="${esc(t("listLayoutRows"))}"><span class="icon icon-list icon-13"></span></button>
       <button type="button" class="lv-layout-btn${layout === "grid" ? " is-active" : ""}" data-listlayout="grid" aria-label="${esc(t("btnViewGrid"))}"><span class="icon icon-grid icon-13"></span></button>
@@ -19342,7 +19387,7 @@ import { initScreenTools } from './ai/screen-tools.js';
           <div class="lv-main-col">
             <div class="lv-head">
               <div class="lv-head-main">
-                <div class="lv-title-row"><div class="lv-title">${titleHTML}</div></div>
+                <div class="lv-title-row">${selAll}<div class="lv-title">${titleHTML}</div></div>
               </div>
               <div class="lv-head-right">${layoutToggle}</div>
             </div>
@@ -19351,6 +19396,8 @@ import { initScreenTools } from './ai/screen-tools.js';
           ${(infoCardHTML || summaryCardHTML || publicCardHTML) ? `<div class="lv-rail">${infoCardHTML}${summaryCardHTML}${publicCardHTML}</div>` : ""}
         </section>
       </div>`;
+    if (keepScroll) host.querySelector(".lv-rows").scrollTop = keepScroll;
+    if (state.bulkSelect) _afterSelectionChange();   // master checkbox, count, flags — and out when emptied
     // Removing an item from a list is hold-to-confirm (a misclick would silently
     // drop the product) — wire each remove button after every render. Reversible
     // action → 1200 ms.
@@ -20388,8 +20435,9 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _openBulkTags() {
     if (state.friendView) return;
     const isPrinter = _isPrinterMode(state.viewMode);
-    const isProduct = state.viewMode === "favesTable";
-    const set = _bulkCtx().set;
+    const ctx0 = _bulkCtx();
+    const isProduct = !!ctx0.products;
+    const set = ctx0.set;
     if (!set.size) return;
     const items = isPrinter
       ? [...set].map(k => (state.printers || []).find(p => `${p.brand}:${p.id}` === k)).filter(Boolean)
@@ -20505,7 +20553,15 @@ import { initScreenTools } from './ai/screen-tools.js';
   // flips in place and can be toggled again.
   async function _bulkApplyFlag(field) {   // field: "favorite" | "liked"
     const ctx = _bulkCtx();
-    if (ctx.printers || ctx.products) return;   // materials + catalogue
+    if (ctx.printers || (ctx.products && !ctx.list)) return;   // materials + catalogue + lists
+    if (ctx.list) {   // the selection IS product records — no row to resolve
+      const hashes = [...ctx.set].filter(h => state.products[h]);
+      const next = !hashes.every(h => !!state.products[h][field]);
+      for (const h of hashes) await _writeProductField(h, { [field]: next });
+      renderInventory();
+      _updateBulkBar();
+      return;
+    }
     const targets = ctx.catalog ? await _catSelectedRows() : _selectedProductRows();
     if (!targets?.length) return;
     const allOn = targets.every(row => !!(_getProduct(row) || {})[field]);
@@ -20528,12 +20584,13 @@ import { initScreenTools } from './ai/screen-tools.js';
     const favBtn = $("bulkFavorite"), likeBtn = $("bulkLike");
     if (!favBtn && !likeBtn) return;
     const ctx = _bulkCtx();
-    const materials = !ctx.products && !ctx.printers;
+    const flaggable = ctx.list || (!ctx.products && !ctx.printers);
     let favAll = false, likeAll = false;
-    if (materials && ctx.set.size) {
+    if (flaggable && ctx.set.size) {
       // Catalogue: an item not resolved yet counts as "not flagged".
       const rows = ctx.catalog ? [...ctx.set].map(id => _catBulkRows.get(id) || null) : _selectedProductRows();
-      const products = rows.map(row => (row && _getProduct(row)) || {});
+      const products = ctx.list ? [...ctx.set].map(h => state.products[h] || {})
+                                : rows.map(row => (row && _getProduct(row)) || {});
       favAll  = products.length > 0 && products.every(p => !!p.favorite);
       likeAll = products.length > 0 && products.every(p => !!p.liked);
     }

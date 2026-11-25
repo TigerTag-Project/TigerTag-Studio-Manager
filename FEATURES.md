@@ -136,6 +136,7 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 - Payment-summary card (subtotal, estimated VAT, total) in the Lists view (v2.9.0).
 - Downloadable high-res QR PNG for the public-list share card, saved via a native Save dialog (v2.9.0).
 - **Bulk "Add to a list"** — a whole selection of materials, favorites or catalogue products goes into a list in one go (v2.34.0).
+- **Multi-select in a list** — in the rows layout, tick items (shift-click for a range) to order, favourite, tag, price, add to another list or remove from the list all at once.
 - Add a friend's material to one of your own lists from friend-view — the "Add to a list" control (product card, grouped-spools side-card, spool detail panel) imports the friend's product into your account (picture, price, buy link, provenance) then adds it to your list (v2.11.0).
 
 ## Reorder & "To order" cart

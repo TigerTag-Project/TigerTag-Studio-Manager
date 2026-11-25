@@ -199,7 +199,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory render (L10354-16249)
+## Inventory render (L10354-16500)
 | L | What | Anchors |
 |---|---|---|
 | 5171-5385 | **`renderInventory()`** — welcome card, rack-view priority, table/grid dispatch | `renderInventory` |
@@ -242,7 +242,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 | 11958-12035 | Search-view card / row markup; table = chunked append (IntersectionObserver), grid = virtualised window (only visible rows ± 4, padding stands in for the rest) | `_catViewCardHTML`, `_catViewRowHTML`, `_catViewRenderChunk`, `_catViewGridRender` |
 | 12036-12081 | Search-view selection + action bar (select ≠ create) | `_catViewSelect`, `_catViewSyncBar` |
 | 11769-11924 | Duplicate spool as cloud doc | `duplicateSpoolAsCloud` |
-| ~9823-10003 | **Lists / wishlists — UI** — products view (favourites/order tab) + "Add to list" popover menu (one product or a bulk selection, written in one arrayUnion by _addManyToList) | `renderProductsView`, `renderListsView`, `_openAddToListMenu` |
+| ~9823-10003 | **Lists / wishlists — UI** — products view (favourites/order tab) + "Add to list" popover menu (one product or a bulk selection, written in one arrayUnion by _addManyToList) + multi-select on a list's rows (list context in _bulkCtx; Delete = _bulkRemoveFromList) | `renderProductsView`, `renderListsView`, `_lvSyncSelection`, `_openAddToListMenu` |
 | ~10266 | Message inline edit | `startMessageInlineEdit` |
 
 ---
@@ -356,7 +356,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Friend view (L40572-42576)
+## Friend view (L40572-42800)
 | L | What | Anchors |
 |---|---|---|
 | 14679-14760 | Friend inventory open/close (one-shot read, no live updates) | `openFriendInventory`, `closeFriendInventory` |
@@ -367,7 +367,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L41699-44257)
+## Display name + friend requests (L41699-44500)
 | L | What | Anchors |
 |---|---|---|
 | 15148-15191 | **Display-name setup modal** (first-login pseudo picker) | `openDisplayNameSetup` |
@@ -392,7 +392,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L43701-46378)
+## User doc sync + telemetry + bootstrap (L43701-46650)
 | L | What | Anchors |
 |---|---|---|
 | 16914-17329 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
@@ -402,7 +402,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Electron RFID integration (L45622-46944)
+## Electron RFID integration (L45622-47220)
 | L | What | Anchors |
 |---|---|---|
 | 30987-31074 | Reader indicator (topbar), reader connect/disconnect, card present/removed badge | `renderRfidReaderBadges` |

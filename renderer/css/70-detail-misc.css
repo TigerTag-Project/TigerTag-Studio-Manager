@@ -695,8 +695,6 @@
   .bulk-bar.is-products #bulkPrice,
   .bulk-bar.is-materials #bulkPrice { display: inline-flex; }
   .bulk-price-entry { display: none; align-items: center; gap: 8px; }
-  .bulk-bar.is-pricing #bulkFavorite,
-  .bulk-bar.is-pricing #bulkLike,
   .bulk-bar.is-pricing #bulkTags,
   .bulk-bar.is-pricing #bulkPrice,
   .bulk-bar.is-pricing #bulkDelete,
@@ -719,13 +717,17 @@
   #bulkLike.active     { background: color-mix(in srgb, var(--buy) 14%, transparent); border-color: var(--buy); }
   /* Catalogue selection: ★ / 🛒 / list only — the catalogue is not ours to tag or delete. */
   .bulk-bar.is-catalog #bulkFavorite,
-  .bulk-bar.is-catalog #bulkLike { display: inline-flex; }
+  .bulk-bar.is-catalog #bulkLike,
+  .bulk-bar.is-list #bulkFavorite,
+  .bulk-bar.is-list #bulkLike { display: inline-flex; }
   .bulk-bar.is-catalog #bulkTags,
   .bulk-bar.is-catalog #bulkDelete { display: none; }
   #bulkList { display: none; }
   .bulk-bar.is-materials #bulkList,
   .bulk-bar.is-products #bulkList,
   .bulk-bar.is-catalog #bulkList { display: inline-flex; }
+  .bulk-bar.is-pricing #bulkFavorite,
+  .bulk-bar.is-pricing #bulkLike,
   .bulk-bar.is-pricing #bulkList { display: none; }
   .bulk-sel-count { display: none; font-size: 13px; font-weight: 700; color: var(--text); padding: 0 4px; font-variant-numeric: tabular-nums; }
   .bulk-bar.is-catalog .bulk-sel-count { display: inline-flex; }
@@ -4801,6 +4803,9 @@
     cursor: pointer; transition: background-color .12s;
   }
   .lv-row:hover { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+  .lv-row.row-selected { background: var(--primary-soft); }
+  .lv-title-row .sel-th { display: inline-flex; margin-left: 4px; }   /* on the rows' checkbox column */
+  body.bulk-select-mode .lv-rows { padding-bottom: 84px; }            /* the last row clears the bulk bar */
   /* Drag-to-reorder — grip handle (rows) + drop cues (rows & grid cards). */
   .lv-grip { align-self: center; display: inline-flex; align-items: center; margin: 0 -4px 0 2px;
     cursor: grab; opacity: .35; transition: opacity .12s; }
