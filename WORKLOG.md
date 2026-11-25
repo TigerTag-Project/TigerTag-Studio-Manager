@@ -4,11 +4,14 @@
 
 - Requests (#331, Ptitlouis6012): each request shows the repository it went to (a tag in its line and in an open conversation's header); "All requests" and "My requests" get a search field, Status / Repository / Type filters and a reset key. i18n: `reportSearchPh`, `reportFltRepo`, `reportFltRepoAll`, `reportFltKind`, `reportFltKindAll`, `reportFltNoMatch`, `reportFltReset`. Files: `renderer/report/index.js`, `renderer/report/report.css`, `renderer/locales/*.json`.
 - Requests (#333, Ptitlouis6012): TigerMasters and admins get a notification when the author of an open request writes in it (checked at sign-in and every 30 min while visible, only for those accounts); request notices now belong to one account and leave with it. Keys `tigertag.reportTeamSeen.<uid>`, `tigertag.reportTeamNotifs.<uid>`. i18n: `notifReqAuthor`. Files: `renderer/report/index.js`, `renderer/inventory.js`, `renderer/CODEMAP.md`, `renderer/locales/*.json`.
+- Lists (rows layout): multi-select like the inventory table — a checkbox on each row, a master box beside the list's name, shift-click for a range, and the shared bulk bar (To order, Favorite, Add to a list, Tags, Price, Remove from list). Remove only takes the items off the list, never a product. The selection ends when another list or the grid is shown; own lists only. No new i18n key (`listRemoveItem`, `bulkSelectMode` reused). Files: `renderer/inventory.js`, `renderer/css/70-detail-misc.css`, `renderer/CODEMAP.md`, `FEATURES.md`.
 
 ## Changed
 
 ## Fixed
 
+- Bulk bar: while a price is being typed, To order and Favorite no longer stay beside the price field. File: `renderer/css/70-detail-misc.css`.
+- Lists: a list redrawn after a change keeps its scroll position. File: `renderer/inventory.js`.
 - Tiger Scale / Tiger Touch live screen: "Screenshot" opened its window BEHIND the live view (both overlays at the same level, the live one added to the page later). `showScreenshot` now moves its overlay to the end of the page before opening it, so it stands above whichever window asked. File: `renderer/IoT/tigertouch/panel.js`.
 
 - Search bar: the filter's field list (and the bar's other lists) no longer shows above a side card opened over the bar (Report, etc.) — the bar's lists stand at z-index 100, under the side cards (101+), instead of the shared dropdown's 600. File: `renderer/css/70-detail-misc.css`.
