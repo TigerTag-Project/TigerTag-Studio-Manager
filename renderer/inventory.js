@@ -18994,7 +18994,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     let bg = l.colorHex || "var(--surface-2)";
     if (p.cloudSeed) { try { bg = colorBg(normalizeRow("PRODUCT_" + (p.id || ""), p.cloudSeed)); } catch (_) {} }
     return img
-      ? `<img class="pv-thumb" style="--spool-bg:${esc(bg)}" src="${esc(img)}" alt="" onerror="this.removeAttribute('src');this.classList.add('pv-thumb--swatch')" />`
+      ? `<span class="pv-thumb pv-thumb--photo" style="--spool-bg:${esc(bg)}"><img src="${esc(img)}" alt="" loading="lazy" onerror="this.parentNode.classList.replace('pv-thumb--photo','pv-thumb--swatch');this.remove()" /></span>`
       : `<span class="pv-thumb pv-thumb--swatch" style="--spool-bg:${esc(bg)}"></span>`;
   }
 
