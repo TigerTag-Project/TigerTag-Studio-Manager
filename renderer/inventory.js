@@ -19396,7 +19396,11 @@ import { initScreenTools } from './ai/screen-tools.js';
           ${(infoCardHTML || summaryCardHTML || publicCardHTML) ? `<div class="lv-rail">${infoCardHTML}${summaryCardHTML}${publicCardHTML}</div>` : ""}
         </section>
       </div>`;
-    if (keepScroll) host.querySelector(".lv-rows").scrollTop = keepScroll;
+    if (keepScroll) {
+      const box = host.querySelector(".lv-rows");
+      box._scrollRestored = true;   // not the user scrolling: the photos stay (see _photoHold)
+      box.scrollTop = keepScroll;
+    }
     if (state.bulkSelect) _afterSelectionChange();   // master checkbox, count, flags — and out when emptied
     // Removing an item from a list is hold-to-confirm (a misclick would silently
     // drop the product) — wire each remove button after every render. Reversible
@@ -38601,6 +38605,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   document.addEventListener("scroll", e => {
     const el = e.target === document ? document.scrollingElement : e.target;
     if (!(el instanceof Element)) return;
+    if (el._scrollRestored) { el._scrollRestored = false; return; }
     let holds = _photoScrollers.get(el);
     if (holds === undefined) {
       holds = !el.closest(".detail-panel, .modal-overlay")
