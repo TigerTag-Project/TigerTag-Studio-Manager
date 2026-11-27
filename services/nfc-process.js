@@ -79,7 +79,7 @@ function startNFC() {
     const name = reader.name;
     // Some smart-card interfaces are enumerated by PC/SC exactly like an
     // ACR122U without being a filament NFC reader, so the app would treat them
-    // as readers (and attempt card reads on them). Three known families:
+    // as readers (and attempt card reads on them). Four known families:
     //   • security keys — a YubiKey exposes a CCID interface over USB;
     //   • Windows virtual smart-card readers — "Windows Hello for Business"
     //     (and the generic "Microsoft Virtual Smart Card") are TPM-backed
@@ -89,12 +89,16 @@ function startNFC() {
     //     could never turn green and blocked the burn button for good;
     //   • software licence dongles — a Feitian ROCKEY-ARM ("FT ROCKEY ARM 0") is
     //     a USB key some CAD / CAM programs ask for, built around a smart-card
-    //     chip, so PC/SC lists it as a reader with a card that is never removed.
+    //     chip, so PC/SC lists it as a reader with a card that is never removed;
+    //   • a reader Windows lists on its own ("Microsoft IFD 0", seen on a Surface
+    //     Go 2, possibly its built-in NFC reader, which only the "for Business"
+    //     model has) that never holds a chip, so the burn window waited for a
+    //     chip on it for good.
     // Skip them by name so they never become a reader. Kept deliberately tight
     // to avoid excluding a real reader with an unusual name; the general,
     // user-controlled override is the reader-management panel (see
     // docs/READER-SELECTION-BRIEF.md).
-    if (/yubico|yubikey|windows hello|virtual smart card|rockey/i.test(name)) return;
+    if (/yubico|yubikey|windows hello|virtual smart card|rockey|microsoft ifd/i.test(name)) return;
     readers.set(name, reader);
     process.parentPort.postMessage({ type: 'reader-connected', name });
 
