@@ -29082,6 +29082,8 @@ import { initScreenTools } from './ai/screen-tools.js';
     const _bambuAutoKeys = new Set();
     // Same for Anycubic — always-on MQTT to the printer's local broker.
     const _acuAutoKeys = new Set();
+    // Same for Snapmaker — its Moonraker link opens with the account, not with a view.
+    const _snapAutoKeys = new Set();
     state._printerCache = cache;
     // Loading flag — flipped to false the FIRST time any brand listener
     // emits a snapshot (cached or live). Tracking per-brand "first
@@ -29223,6 +29225,25 @@ import { initScreenTools } from './ai/screen-tools.js';
               if ((!conn || conn.ip !== p.ip) && !_ppForcedOfflineKeys.has(key)) {
                 acuConnect(p, { skipCam: true });
                 _acuAutoKeys.add(key);
+              }
+            }
+          }
+          // Snapmaker: same always-on pattern. The Moonraker link used to open only
+          // with a Printers view or the side card, so until one was shown the job and
+          // the loaded filament could not be read (the MCP `list_printers` answered
+          // null for a U1 that was printing).
+          {
+            const snapNow = all.filter(p => p.brand === 'snapmaker' && p.ip);
+            const snapNowKeys = new Set(snapNow.map(p => snapKey(p)));
+            for (const key of _snapAutoKeys) {
+              if (!snapNowKeys.has(key)) { snapDisconnect(key); _snapAutoKeys.delete(key); }
+            }
+            for (const p of snapNow) {
+              const key = snapKey(p);
+              const conn = snapGetConn(key);
+              if ((!conn || conn.ip !== p.ip) && !_ppForcedOfflineKeys.has(key)) {
+                snapConnect(p);
+                _snapAutoKeys.add(key);
               }
             }
           }
