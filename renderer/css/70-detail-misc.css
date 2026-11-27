@@ -1486,10 +1486,12 @@
      product's colour like the grid cards. A transparent border shows the
      `--spool-bg` background painted under it (gradients included — a border
      colour could only be flat); the photo covers the inside. */
-  img.pv-thumb {
+  .pv-thumb--photo {
+    display: block; overflow: hidden;
     box-sizing: border-box; border: 4px solid transparent;
     background: var(--spool-bg, var(--surface-2)) border-box;
   }
+  .pv-thumb--photo > img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .pv-line-main { flex: 1; min-width: 0; }
   /* Whole identity on one line (Brand · Series · Colour name). */
   .pv-line-title { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2040,12 +2042,14 @@
      `display: none`, so the images keep loading and are simply there when released. */
   body.photos-held .spool-card .card-img--overlay,
   body.photos-held .thumb-wrap > img.thumb,
+  body.photos-held .pv-thumb--photo > img,
   body.photos-held .inv-catalog-view .cv-thumb-img { opacity: 0; transition: opacity .35s ease; }
   /* …and they fade back in when released (body.photos-fade-in, set for the
      length of the fade only). The fade lives on these two states and nowhere
      else: a fade on every load would blink each card at every grid rebuild. */
   body.photos-fade-in .spool-card .card-img--overlay,
   body.photos-fade-in .thumb-wrap > img.thumb,
+  body.photos-fade-in .pv-thumb--photo > img,
   body.photos-fade-in .inv-catalog-view .cv-thumb-img { transition: opacity .8s ease; }
   /* The TigerTag logo on the colour square is the photo's understudy: it fades
      out as the illustration fades in, and back when the photos are held — same
@@ -2058,10 +2062,6 @@
   body.photos-held .inv-catalog-view :has(> .cv-thumb-img.img-loaded) > .cv-thumb-logo { opacity: 1; transition: opacity .35s ease; }
   body.photos-fade-in .spool-card .card-img-color-placeholder > img:first-child,
   body.photos-fade-in .inv-catalog-view .cv-thumb-logo { transition: opacity .8s ease; }
-  /* A product thumb carries its colour ON the <img> (frame = its background),
-     so hiding the element would blank the whole tile. Push only the photo out
-     of the box instead: the tile stays a full colour swatch, like the grid. */
-  body.photos-held img.pv-thumb { object-position: -10000px 0; }
   /* A line between the colour picture and the text, the card's own border colour (founder). */
   .spool-card .card-body { padding: 10px 10px 8px; border-top: 1px solid var(--border); }
   .spool-card .card-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -4863,7 +4863,7 @@
   .lv-row-thumb .pv-thumb { width: 84px; height: 84px; border-radius: 10px; object-fit: cover; display: block; }
   /* Wishlist rows: the item's colour frames its photo (inner corners rounded by
      the radius minus the border). The colour swatch fallback stays plain. */
-  .lv-row-thumb img.pv-thumb { border-width: 5px; border-radius: 12px; }
+  .lv-row-thumb .pv-thumb--photo { border-width: 5px; border-radius: 12px; }
   .lv-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .lv-row-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.35; }
   .lv-row-meta { font-size: 12px; color: var(--muted); }

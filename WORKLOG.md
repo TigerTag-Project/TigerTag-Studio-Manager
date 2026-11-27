@@ -7,6 +7,8 @@
 
 ## Changed
 
+- Lists (rows) and To order: product photos fade out and back in while the list scrolls, as in the catalogue and the inventory, instead of vanishing and popping back; they also load as they come near the screen (`loading="lazy"`) instead of all at once. The tile (`.pv-thumb--photo`) holds the spool's colour and the photo is its own `<img>`, so the colour stays while the photo fades. Files: `renderer/inventory.js` (`_productThumbHTML`), `renderer/css/70-detail-misc.css`.
+
 ## Fixed
 
 - Tiger Scale / Tiger Touch live screen: "Screenshot" opened its window BEHIND the live view (both overlays at the same level, the live one added to the page later). `showScreenshot` now moves its overlay to the end of the page before opening it, so it stands above whichever window asked. File: `renderer/IoT/tigertouch/panel.js`.
