@@ -206,6 +206,7 @@ function _closePanel(id) { document.getElementById(id)?.classList.remove('open')
 function _closeAll() {
   acuAbortScan();
   _acuCloudStopPolling();
+  _acuCloudOnToken = null;
   // Unload the embedded login page so it isn't running in the background.
   try { document.getElementById('acuCloudWebview')?.setAttribute('src', 'about:blank'); } catch (_) {}
   _closePanel('acuChoiceOverlay');
@@ -534,7 +535,9 @@ function _wireDOM() {
   $('acuCloudBack')?.addEventListener('click', () => {
     _acuCloudStopPolling();
     try { $('acuCloudWebview')?.setAttribute('src', 'about:blank'); } catch (_) {}
-    _closePanel('acuCloudOverlay'); _openPanel('acuChoiceOverlay');
+    _closePanel('acuCloudOverlay');
+    // Opened to reconnect: there is no add flow to go back to.
+    if (_acuCloudOnToken) _acuCloudOnToken = null; else _openPanel('acuChoiceOverlay');
   });
   $('acuCloudRetry')?.addEventListener('click', () => _acuCloudLogin());
 
@@ -664,6 +667,10 @@ const ACU_CLOUD_LOGIN_URL = 'https://cloud-universe.anycubic.com/file';
 let _acuCloudPollTimer = null;
 let _acuCloudToken = '';
 let _acuCloudEmail = '';
+// Set while the panel is open to RENEW the session of printers already added
+// (openAcuCloudReconnect): a verified token goes to this callback and the panel
+// closes, instead of listing the account's printers.
+let _acuCloudOnToken = null;
 
 function _acuCloudStopPolling() {
   if (_acuCloudPollTimer) { clearInterval(_acuCloudPollTimer); _acuCloudPollTimer = null; }
@@ -709,7 +716,12 @@ function _acuCloudLogin() {
 
   // (Re)load the sign-in page. If a persisted session is still valid the page
   // lands logged-in and the token shows up on the first poll.
-  try { wv.src = ACU_CLOUD_LOGIN_URL; } catch (_) {}
+  // A webview created a moment ago (first open straight from a printer's
+  // Reconnect key) ignores a new src until it is attached: load on dom-ready.
+  const load = () => { try { wv.src = ACU_CLOUD_LOGIN_URL; } catch (_) {} };
+  let attached = false;
+  try { wv.getWebContentsId(); attached = true; } catch (_) {}
+  if (attached) load(); else wv.addEventListener('dom-ready', load, { once: true });
 
   _acuCloudStopPolling();
   let checking = false;
@@ -729,6 +741,12 @@ function _acuCloudLogin() {
       _acuCloudStopPolling();
       _acuCloudToken = String(tok);
       _acuCloudEmail = String(v.email || '');
+      if (_acuCloudOnToken) {
+        const done = _acuCloudOnToken; _acuCloudOnToken = null;
+        _closeAll();
+        done(_acuCloudEmail, _acuCloudToken);
+        return;
+      }
       _acuCloudListPrinters();
     } finally { checking = false; }
   }, 1200);
@@ -782,8 +800,29 @@ async function _acuCloudListPrinters() {
   }
 }
 
+// The cloud panel's title: "Add from Anycubic Cloud", or "Reconnect" when it
+// was opened to renew the session of printers already added.
+function _acuCloudTitle(reconnect) {
+  const el = document.querySelector('#acuCloudOverlay .pba-title');
+  if (el) el.textContent = ctx.t(reconnect ? 'acuCloudReconnect' : 'acuCloudTitle');
+}
+
 function _openCloudPanel() {
   _ensureDOM();
+  _acuCloudOnToken = null;
+  _acuCloudTitle(false);
+  _openPanel('acuCloudOverlay');
+  _acuCloudLogin();
+}
+
+/** Open the Anycubic Cloud sign-in to renew the session of the cloud printers
+ *  already added: `onToken(email, token)` gets the verified token and the panel
+ *  closes. A session still valid in the panel's persisted partition comes back
+ *  on the first poll, so it is often one click. */
+export function openAcuCloudReconnect(onToken) {
+  _ensureDOM();
+  _acuCloudOnToken = typeof onToken === 'function' ? onToken : null;
+  _acuCloudTitle(true);
   _openPanel('acuCloudOverlay');
   _acuCloudLogin();
 }

@@ -276,3 +276,32 @@
 #acuFileSheet .cre-file-btn--print:disabled:hover { background: var(--surface-2); border-color: var(--border); }
 #acuFileSheet .cre-file-btn--print:disabled .icon { background-color: var(--muted); }
 #acuFileSheet .cre-file-row--incompatible .cre-file-name { color: var(--muted); }
+
+/* ── Cloud session banner — top of a cloud printer's live block ──────────────
+   Same look as .ffg-error-banner (danger once the session has ended), the
+   warning tint while it is about to end, with the Reconnect key on the right. */
+.acu-auth-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; margin-bottom: 10px; border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid var(--danger); color: var(--danger-hover);
+  font-size: 13px; font-weight: 600; line-height: 1.35;
+}
+.acu-auth-banner > .icon { background-color: var(--danger); flex-shrink: 0; }
+.acu-auth-banner--soon {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border-color: var(--warning); color: var(--warning-text);
+}
+.acu-auth-banner--soon > .icon { background-color: var(--warning); }
+.acu-auth-banner-text { flex: 1 1 auto; min-width: 0; }
+.acu-auth-banner-btn { flex-shrink: 0; }
+
+/* Cloud camera while the Anycubic session has ended: the reason + Reconnect,
+   centred in the 16:9 camera box instead of a silent hero photo. */
+.acu-cam-expired { display: flex; align-items: center; justify-content: center; line-height: 1.35; }
+.acu-cam-expired-body {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  max-width: 80%; text-align: center; color: var(--on-dark);
+  font-size: 13px; font-weight: 600;
+}
+.acu-cam-expired-body > .icon { background-color: var(--danger); }

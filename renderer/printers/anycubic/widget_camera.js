@@ -17,7 +17,7 @@
  *                attaches automatically within a few seconds.
  */
 import { ctx } from '../context.js';
-import { acuGetConn, acuKey } from './index.js';
+import { acuGetConn, acuKey, acuCloudAuth } from './index.js';
 import { acuAgoraActive, acuAgoraLive } from './agora-cam.js';
 
 export function renderAcuCamBanner(p) {
@@ -29,6 +29,16 @@ export function renderAcuCamBanner(p) {
   // Cloud mode: the camera is an Agora WebRTC <video> (no LAN FLV / ffmpeg).
   // agora-cam.js plays the remote track into the .acu-cam-agora container.
   if (conn.mode === "cloud") {
+    // Session ended (10001 / past its exp): say why there is no picture, with
+    // the Reconnect key, instead of a silent hero photo.
+    if (acuCloudAuth(p)?.state === "expired") return `
+      <div class="pp-cam-full acu-cam-expired">
+        <div class="acu-cam-expired-body">
+          <span class="icon icon-info icon-18"></span>
+          <span class="acu-cam-expired-text">${ctx.esc(ctx.t("acuCloudCamExpired"))}</span>
+          <button type="button" class="adf-btn adf-btn--primary" data-acu-reconnect="1">${ctx.esc(ctx.t("acuCloudReconnect"))}</button>
+        </div>
+      </div>`;
     if (!acuAgoraActive(key)) return "";          // not requested → hero photo
     const live = acuAgoraLive(key);
     return `

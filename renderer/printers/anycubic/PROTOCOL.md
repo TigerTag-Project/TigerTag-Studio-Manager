@@ -577,9 +577,19 @@ read it the way ACE-RFID does — **CDP, attach-only**:
   attaches to `127.0.0.1:9222`, finds the Workbench page (`url`/`title` matches
   `workbench`/`orca-ac-web`), and `Runtime.evaluate`s `GET_TOKEN` / `GET_USER_INFO`
   from the Vuex store. Token + email are stored on the cloud printer doc(s).
-- The token expires (it's a session token, unlike the durable LAN cert) → re-run
-  "Add a cloud printer" to refresh. A hard failure surfaces as the shared cloud
-  client erroring/disconnecting (`anycubic:cloud-status`).
+- The token expires (it's a session token, unlike the durable LAN cert): it is a
+  JWT `{user_id, create_time, exp, isCN, mode}` good for **90 days**
+  (`exp − create_time`, read on a Kobra X token 2026-11-27), and a newer slicer
+  login can revoke it sooner. The cloud then answers **`10001`** ("Login
+  information has expired") to every REST call, camera (order 1001) included.
+  Studio (`index.js`): `acuCloudAuth(p)` reads `exp` → from 14 days before it a
+  warning banner on top of the printer's live block (+ one toast per launch in
+  the last 7 days); on `10001` it tries a bridge-mode slicer's token, else marks
+  the token dead → badge "Session expired" + a red banner, and the camera box says it too. Every cloud REST answer goes through `_acuAuthCheck`, so a 10001 from any call (orders, files, camera) starts this. Both banners carry a
+  **Reconnect** key (`acuCloudReconnect`): a bridge-mode slicer's token if one is
+  running, else the cloud sign-in panel in reconnect mode
+  (`openAcuCloudReconnect` in `add-flow.js`), whose verified token is written on
+  every cloud printer doc (`updateAnycubicCloudToken`).
 
 ### REST (signed) — `https://cloud-universe.anycubic.com/p/p/workbench/api`
 Every request carries signed headers (Node `https`, **not** `fetch` — the gateway
@@ -736,6 +746,6 @@ from the list response; the cloud rejects a bare `file_id` without it.
 
 ### Limits (cloud)
 - `setInfo` honors only `{index, type, color}` (same as LAN).
-- **Token expires** → occasional re-provision (the slicer in bridge mode again).
+- **Token expires** after 90 days (or on revocation) → Reconnect from the printer's banner (see above).
 - Camera: Agora WebRTC (§9b) — side panel + cam wall + detached window; needs the Agora SDK + the per-session order-1001 creds.
 - Dev validators: `scripts/acu-cloud-test.mjs` (full path), `acu-mqtt-sniff.mjs`.

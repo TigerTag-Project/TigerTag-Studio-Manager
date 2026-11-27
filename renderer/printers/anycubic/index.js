@@ -33,6 +33,7 @@ import { ensurePrinterIdentity } from '../identity.js';
 import { registerBrand } from '../registry.js';
 import { meta, schema, helper } from './settings.js';
 import { renderAcuFilamentCard, renderAcuJobCard, renderAcuTempCard, renderAcuControlCard } from './cards.js';
+import { openAcuCloudReconnect } from './add-flow.js';
 import { schemaWidget } from '../modal-helpers.js';
 import { acuAgoraStart, acuAgoraStop, acuAgoraActive, acuAgoraOnLive,
          acuAgoraRelaying, acuAgoraOnRelayWant, acuAgoraOnRelayEnd } from './agora-cam.js';
@@ -109,9 +110,12 @@ function _acuRefreshOnlineUI(key) {
 
 export function renderAcuOnlineBadge(printer, where) {
   if (!printer || printer.brand !== "anycubic") return "";
-  const online = acuIsOnline(printer);
+  // A cloud printer whose Anycubic session ended says so, whatever its broker does.
+  const expired = acuCloudAuth(printer)?.state === "expired";
+  const online = expired ? false : acuIsOnline(printer);
   const cls = online === true ? "is-online" : (online === false ? "is-offline" : "is-checking");
-  const lbl = online === true  ? ctx.t("snapStatusOnline")
+  const lbl = expired          ? ctx.t("acuCloudBadgeExpired")
+            : online === true  ? ctx.t("snapStatusOnline")
             : online === false ? ctx.t("snapStatusOffline")
             :                    ctx.t("snapStatusConnecting");
   const id  = where === "side" ? ` id="ppOnlineRow"` : "";
@@ -365,9 +369,9 @@ function _acuCloudOrder(conn, orderId, data, { project = false } = {}) {
   const logEntry = { orderId, data, via: "cloud" };
   if (projectId > 0) logEntry.projectId = projectId;
   _acuLogPush(conn, "→", logEntry);
-  window.anycubic?.cloud?.sendOrder({
+  Promise.resolve(window.anycubic?.cloud?.sendOrder({
     token: p.cloudToken, orderId, printerId: p.cloudPrinterId, projectId, data: data ?? {},
-  });
+  })).then(r => _acuAuthCheck(conn, r), () => {});
   // Refresh the request-log UI right away so the outgoing command is visible
   // immediately instead of only on the next poll tick.
   _acuNotify(conn);
@@ -442,14 +446,94 @@ async function _acuCloudGetInfo(conn) {
   } catch (_) {}
 }
 
-// ── Cloud token recovery (revocation) ───────────────────────────────────────
-// The workbench token isn't short-lived (90-day exp) but is REVOKED when a new
-// slicer session logs in — so a stored token goes stale across sessions. When
-// the cloud rejects it (code 10001), re-grab the current token from a running
-// bridge-mode slicer and persist it; if none is reachable, surface the need to
-// re-provision instead of silently showing offline.
+// ── Cloud token recovery (expiry / revocation) ──────────────────────────────
+// The workbench token is a JWT good for 90 days (`create_time` → `exp`, read on
+// a Kobra X token 2026-11-27) and can also be REVOKED sooner by a newer slicer
+// login. When the cloud rejects it (code 10001), re-grab the current token from
+// a running bridge-mode slicer and persist it; if none is reachable, the token
+// is marked dead: the printer's badge says "Session expired" and its panel shows
+// a Reconnect banner (acuCloudAuth) until a new token is applied. From
+// ACU_TOKEN_WARN_DAYS before `exp` the same banner warns ahead of the cut.
 let _acuCloudRecovering = false;
 let _acuCloudStaleToasted = false;
+let _acuDeadToken = "";            // the token the cloud last rejected with 10001
+const ACU_TOKEN_WARN_DAYS = 14;
+
+/** The token's `exp` in ms, or null when it is not a JWT carrying one. */
+function _acuTokenExpiresAt(token) {
+  try {
+    const part = String(token || "").split(".")[1];
+    if (!part) return null;
+    const json = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")));
+    const exp = Number(json?.exp);
+    return exp > 0 ? exp * 1000 : null;
+  } catch (_) { return null; }
+}
+
+/** Cloud session state of an Anycubic cloud printer: null (not a cloud printer),
+ *  { state: "expired" } (rejected, or past its `exp`), { state: "soon", days }
+ *  (within ACU_TOKEN_WARN_DAYS of `exp`) or { state: "ok" }. */
+export function acuCloudAuth(printer) {
+  if (!printer || printer.brand !== "anycubic" || printer.mode !== "cloud") return null;
+  const conn = _acuConns.get(acuKey(printer));
+  const token = String(conn?.printer?.cloudToken || printer.cloudToken || "");
+  if (!token || token === _acuDeadToken) return { state: "expired" };
+  const exp = _acuTokenExpiresAt(token);
+  if (!exp) return { state: "ok" };
+  const left = exp - Date.now();
+  if (left <= 0) return { state: "expired" };
+  const days = Math.ceil(left / 86400000);
+  return days <= ACU_TOKEN_WARN_DAYS ? { state: "soon", days } : { state: "ok" };
+}
+
+/** Banner on top of a cloud printer's live block: the session is about to end
+ *  or has ended, with a Reconnect key. "" while the session is fine. */
+function _acuCloudAuthBanner(p) {
+  const a = acuCloudAuth(p);
+  if (!a || a.state === "ok") return "";
+  const expired = a.state === "expired";
+  const text = expired ? ctx.t("acuCloudAuthExpired") : ctx.t("acuCloudAuthSoon", { n: a.days });
+  return `
+    <div class="acu-auth-banner${expired ? "" : " acu-auth-banner--soon"}" role="status">
+      <span class="icon icon-info icon-14"></span>
+      <span class="acu-auth-banner-text">${ctx.esc(text)}</span>
+      <button type="button" class="adf-btn adf-btn--primary acu-auth-banner-btn" data-acu-reconnect="1">
+        ${ctx.esc(ctx.t("acuCloudReconnect"))}
+      </button>
+    </div>`;
+}
+
+/** Repaint every cloud printer's badge + the open panel after the session changed. */
+function _acuCloudAuthChanged() {
+  for (const c of _acuConns.values()) {
+    if (c.mode !== "cloud") continue;
+    _acuNotify(c, /*statusChanged*/ true); _acuRefreshOnlineUI(c.key);
+    ctx.onPrinterStatusChange?.(c.key, "connected");   // camera banner: expired card ↔ stream
+  }
+}
+
+/** A fresh token: persist it on every cloud printer doc, hand it to the live
+ *  conns and reconnect the shared cloud client. */
+async function _acuApplyCloudToken(email, token, fallbackEmail = "") {
+  const mail = email || fallbackEmail || "";
+  try { await ctx.updateAnycubicCloudToken?.(mail, token); } catch (_) {}
+  for (const c of _acuConns.values()) {
+    if (c.mode === "cloud" && c.printer) {
+      c.printer.cloudToken = token;
+      if (mail) c.printer.cloudEmail = mail;
+      c.lastError = null;
+      c._camFailAt = 0;
+    }
+  }
+  _acuDeadToken = "";
+  _acuCloudStaleToasted = false;
+  _acuSoonToasted = false;
+  // Reconnect the shared client with the new token; on 'connected' the status
+  // handler re-issues getInfo for every cloud printer → online.
+  window.anycubic?.cloud?.connect({ email: mail, token });
+  _acuCloudAuthChanged();
+  ctx.toast?.(ctx.t("acuCloudTokenRefreshed"), "success");
+}
 
 async function _acuCloudRecover(_conn) {
   if (_acuCloudRecovering) return;
@@ -457,31 +541,16 @@ async function _acuCloudRecover(_conn) {
   try {
     let r = null;
     try { r = await window.anycubic?.cloud?.cdpToken(9222); } catch (_) { r = null; }
-    if (r && r.ok && r.token) {
-      const email = r.email || _conn?.printer?.cloudEmail || "";
-      // Persist the fresh token to every cloud printer doc + the live conns.
-      try { await ctx.updateAnycubicCloudToken?.(email, r.token); } catch (_) {}
-      for (const c of _acuConns.values()) {
-        if (c.mode === "cloud" && c.printer) {
-          c.printer.cloudToken = r.token;
-          if (email) c.printer.cloudEmail = email;
-          c.lastError = null;
-        }
-      }
-      // Reconnect the shared client with the new token; on 'connected' the
-      // status handler re-issues getInfo for every cloud printer → online.
-      window.anycubic?.cloud?.connect({ email, token: r.token });
-      _acuCloudStaleToasted = false;
-      ctx.toast?.(ctx.t("acuCloudTokenRefreshed"), "success");
+    if (r && r.ok && r.token && r.token !== _conn?.printer?.cloudToken) {
+      await _acuApplyCloudToken(r.email, r.token, _conn?.printer?.cloudEmail);
     } else {
-      // No bridge-mode slicer → can't refresh. Mark offline with a reason and
-      // tell the user how to fix it (once).
+      // No bridge-mode slicer → can't refresh here. Mark the token dead (the badge
+      // and the panel banner say so until a new one is applied) and tell the user once.
+      _acuDeadToken = String(_conn?.printer?.cloudToken || "");
       for (const c of _acuConns.values()) {
-        if (c.mode === "cloud") {
-          c.status = "error"; c.lastError = "token-revoked";
-          _acuNotify(c, /*statusChanged*/ true); _acuRefreshOnlineUI(c.key);
-        }
+        if (c.mode === "cloud") { c.status = "error"; c.lastError = "token-revoked"; }
       }
+      _acuCloudAuthChanged();
       if (!_acuCloudStaleToasted) { _acuCloudStaleToasted = true; ctx.toast?.(ctx.t("acuCloudTokenStale"), "error"); }
     }
   } finally {
@@ -489,15 +558,51 @@ async function _acuCloudRecover(_conn) {
   }
 }
 
+/** Pass-through for every cloud REST answer: a 10001 starts the recovery
+ *  (slicer token, else "Session expired" badge + banner). */
+function _acuAuthCheck(conn, res) {
+  if (res && res.ok === false && res.authError) _acuCloudRecover(conn);
+  return res;
+}
+
+/** Reconnect key (banner): a bridge-mode slicer's token if one is running, else
+ *  the Anycubic Cloud sign-in panel, whose token renews every cloud printer. */
+export async function acuCloudReconnect() {
+  let r = null;
+  try { r = await window.anycubic?.cloud?.cdpToken(9222); } catch (_) { r = null; }
+  if (r && r.ok && r.token) {
+    const v = await window.anycubic?.cloud?.verify?.(String(r.token)).catch(() => null);
+    if (v?.ok) { await _acuApplyCloudToken(r.email || v.email, r.token); return; }
+  }
+  openAcuCloudReconnect((email, token) => _acuApplyCloudToken(email, token));
+}
+
+// One warning per launch when the session ends within a week, so it is seen
+// even with the printer's panel closed (the banner stays in the panel).
+let _acuSoonToasted = false;
+function _acuWarnIfSoon(conn) {
+  if (_acuSoonToasted || conn?.mode !== "cloud" || !conn.printer) return;
+  const a = acuCloudAuth(conn.printer);
+  if (a?.state !== "soon" || a.days > 7) return;
+  _acuSoonToasted = true;
+  ctx.toast?.(ctx.t("acuCloudAuthSoonToast", { n: a.days }), "warning");
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("click", e => {
+    if (e.target?.closest?.("[data-acu-reconnect]")) { e.preventDefault(); acuCloudReconnect(); }
+  });
+}
+
 function _acuCloudSetInfo(conn, boxId, slot, type, rgb) {
   const p = conn.printer;
   if (!p) return Promise.resolve({ ok: false, error: "no-printer" });
   _acuLogPush(conn, "→", { type: "multiColorBox", action: "setInfo", via: "cloud",
     data: { multi_color_box: [{ id: boxId, slots: [{ index: slot, type, color: rgb }] }] } });
-  return window.anycubic?.cloud?.sendOrder({
+  return Promise.resolve(window.anycubic?.cloud?.sendOrder({
     token: p.cloudToken, orderId: ACU_ORDER_SET_SLOT, printerId: p.cloudPrinterId,
     data: { multi_color_box: [{ id: Number(boxId), slots: [{ color: rgb, index: Number(slot), type: String(type) }] }] },
-  });
+  })).then(r => _acuAuthCheck(conn, r));
 }
 
 // Standalone external spool set — its own order (1229), a single spool with just
@@ -506,10 +611,10 @@ function _acuCloudSetExtfil(conn, type, rgb) {
   const p = conn.printer;
   if (!p) return Promise.resolve({ ok: false, error: "no-printer" });
   _acuLogPush(conn, "→", { type: "extfilbox", action: "setInfo", via: "cloud", data: { type, color: rgb } });
-  return window.anycubic?.cloud?.sendOrder({
+  return Promise.resolve(window.anycubic?.cloud?.sendOrder({
     token: p.cloudToken, orderId: ACU_ORDER_SET_EXTFIL, printerId: p.cloudPrinterId,
     data: { type: String(type), color: rgb },
-  });
+  })).then(r => _acuAuthCheck(conn, r));
 }
 
 function _acuLanSetExtfil(conn, type, rgb) {
@@ -541,6 +646,8 @@ async function _acuCloudCameraCreds(conn) {
   if (!p || !p.cloudToken || p.cloudPrinterId == null) return null;
   try {
     const res = await window.anycubic?.cloud?.cameraOpen?.({ token: p.cloudToken, printerId: p.cloudPrinterId });
+    // 10001: the session ended — renew it or say so (badge + banner), not a silent black camera.
+    if (res && res.authError) _acuCloudRecover(conn);
     return res && res.ok && res.agora ? res.agora : null;
   } catch (_) { return null; }
 }
@@ -879,7 +986,7 @@ export async function acuCloudListFiles(conn) {
   _acuLogPush(conn, "→", { type: "cloudFiles", action: "list", via: "cloud" });
   let res;
   try {
-    res = await window.anycubic?.cloud?.filesList({ token: p.cloudToken, page: 1, limit: 100 });
+    res = _acuAuthCheck(conn, await window.anycubic?.cloud?.filesList({ token: p.cloudToken, page: 1, limit: 100 }));
   } catch (e) { res = { ok: false, error: e?.message }; }
   if (!_acuConns.has(conn.key)) return;
   conn.data.cloudFilesLoading = false;
@@ -916,7 +1023,7 @@ export async function acuCloudDeleteFile(conn, fileId) {
   _acuLogPush(conn, "→", { type: "cloudFiles", action: "delete", fileId, via: "cloud" });
   let res;
   try {
-    res = await window.anycubic?.cloud?.fileDelete({ token: p.cloudToken, fileId });
+    res = _acuAuthCheck(conn, await window.anycubic?.cloud?.fileDelete({ token: p.cloudToken, fileId }));
   } catch (e) { res = { ok: false, error: e?.message }; }
   if (!_acuConns.has(conn.key)) return;
   if (res && res.ok) {
@@ -1180,6 +1287,7 @@ if (typeof window !== "undefined" && window.anycubic?.cloud) {
       conn.lastError = null;
       _acuNotify(conn, /*statusChanged*/ true);
       _acuRefreshOnlineUI(connKey);
+      _acuWarnIfSoon(conn);
       // The offline→online transition must re-render the cam wall — `_acuNotify`
       // only fires `onPrinterGridChange`, a no-op there. Without this, going
       // straight to the cam wall drops the cloud camera card: the Agora player
@@ -1621,19 +1729,20 @@ function _acuLogPush(conn, dir, raw) {
 
 export function renderAnycubicLiveInner(p) {
   const conn = _acuConns.get(acuKey(p));
-  if (!conn) return `
+  const authBanner = _acuCloudAuthBanner(p);
+  if (!conn) return `${authBanner}
     <div class="snap-empty">
       <span class="icon icon-cloud icon-18"></span>
       <span>${ctx.esc(ctx.t("snapNoConnection"))}</span>
     </div>`;
   // Files browser now lives INSIDE the Control card (next to the light),
   // mirroring Snapmaker — no separate floating head row.
-  const blocks = `
+  const blocks = `${authBanner}
     ${renderAcuJobCard(p, conn)}
     ${renderAcuControlCard(p, conn)}
     ${renderAcuTempCard(conn)}
     ${renderAcuFilamentCard(p, conn)}`;
-  return blocks.trim() ? blocks : `
+  return blocks.trim() ? blocks : `${authBanner}
     <div class="snap-empty">
       <span class="icon icon-cloud icon-18"></span>
       <span>${ctx.esc(ctx.t(conn.status === "connected" ? "acuNoLayout" : "snapNoConnection"))}</span>
