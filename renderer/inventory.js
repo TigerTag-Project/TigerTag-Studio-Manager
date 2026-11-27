@@ -6643,6 +6643,15 @@ import { initScreenTools } from './ai/screen-tools.js';
         bal.setAttribute("aria-label", `${t("coinHistTitle")} — ${t("coinsBalance", { n: v })}`);
       }
     }
+    // The Deals banner's balance card follows the header's: a send (or a status read)
+    // changes the balance without redrawing the view, so it is patched in place.
+    const banner = coins?.balance != null && document.querySelector(".sqd-coins-wrap .sqd-coins[data-coins-history]");
+    if (banner) {
+      const v = coins.balance.toLocaleString(state.lang);
+      const b = banner.querySelector(".sqd-coins-bal");
+      if (b?.firstChild?.nodeType === Node.TEXT_NODE) b.firstChild.nodeValue = v;
+      banner.setAttribute("aria-label", `${t("coinHistTitle")} — ${t("coinsBalance", { n: v })}`);
+    }
   }
   // The account's coinLog, newest first — the history window's rows. Kept on
   // this computer (Cache "coinlog") and topped up with the new rows only
