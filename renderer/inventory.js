@@ -10091,6 +10091,14 @@ import { initScreenTools } from './ai/screen-tools.js';
     _updateCartBadge();
   }
 
+  // Is this product listed in the active "To order" cart? Same test as _cartCount
+  // and the cart view: a minimum is set, something is left to order (or already on
+  // order), and it is not set aside.
+  function _inActiveCart(p, stockMap) {
+    if (!p || p.savedForLater) return false;
+    const info = _productOrderInfo(p, stockMap);
+    return info.required > 0 && (info.qty > 0 || info.onOrder > 0);
+  }
   // Number of products currently in the active reorder cart (below min-stock,
   // not set aside). Drives the red badge on the "To order" view button.
   function _cartCount() {
@@ -12200,6 +12208,10 @@ import { initScreenTools } from './ai/screen-tools.js';
     }
     if ("onOrder" in patch)
       doc.onOrder = Number.isFinite(+patch.onOrder) ? Math.max(0, Math.round(+patch.onOrder)) : 0;
+    if ("orderQty" in patch && Number.isFinite(+patch.orderQty)) {   // an explicit quantity for the "To order" cart
+      doc.orderQty = Math.max(0, Math.round(+patch.orderQty));
+      if (_rec) _rec.orderQty = doc.orderQty;
+    }
     if ("note" in patch)     doc.note = (patch.note || "").trim();
     if ("tags" in patch)     doc.tags = Array.isArray(patch.tags) ? patch.tags : [];
     if ("liked" in patch)    doc.liked = !!patch.liked;        // ❤ heart = Liked
@@ -25356,6 +25368,14 @@ import { initScreenTools } from './ai/screen-tools.js';
     // says so) instead of removing it — removal happens from the To-order view.
     // The star (favorite) keeps its normal on/off toggle.
     if (field === "liked" && _getProduct(r)?.liked) {
+      const p = _getProduct(r);
+      // Marked ❤ earlier but not listed (the stock covers its minimum): the cart
+      // button must still put it there — ask for one, then show the cart.
+      if (!state.friendView && !p.savedForLater && !_inActiveCart(p, _stockCountByKey())) {
+        await _writeProductField(_productKeyHash(r), { orderQty: 1 });
+        setViewMode("order");
+        return;
+      }
       _flashMessage(t("productAlreadyInCart"));
       if (!state.friendView) setViewMode("order");
       return;
@@ -25364,7 +25384,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const next = !_getProduct(r)?.[field];
     // Optimistic local patch so the toggle buttons AND the illustration badges
     // (grid/table/deck/detail) flip instantly; the write's snapshot reconciles.
-    const cur = state.products[hash] || (state.products[hash] = { id: hash, key: _spoolProductKey(r) });
+    const cur = state.products[hash] || (state.products[hash] = { id: hash, key: _spoolProductKey(r), label: _productLabel(r) });
     // Apply the flag + its interest-hierarchy coupling (❤⇒★, ★off⇒drop ❤+min)
     // to the local record and repaint BOTH toggles so the link shows instantly.
     const coupled = _coupleFlags({ [field]: next }, +(cur.minStockSpools) || 0);
@@ -25382,6 +25402,12 @@ import { initScreenTools } from './ai/screen-tools.js';
     // mutation above already set it locally, so _writeProduct would otherwise see
     // "already ≥1" and never save it (lost on the next snapshot).
     if ("minStockSpools" in coupled) patch.minStockSpools = coupled.minStockSpools;
+    // The cart lists what is left to order (minimum − stock − on order): a product
+    // the stock already covers would stay out of it, and the click would look like
+    // it did nothing. Ask for one, as an explicit quantity.
+    if (field === "liked" && next && !state.friendView && !cur.savedForLater && !_inActiveCart(cur, _stockCountByKey())) {
+      cur.orderQty = 1; patch.orderQty = 1;
+    }
     if (state.friendView?.uid && !cur.importedFrom) {
       patch.importedFrom = { uid: state.friendView.uid, name: state.friendView.displayName || "" };
       cur.importedFrom = patch.importedFrom;
