@@ -399,8 +399,8 @@ function render(body, cur) {
         <button type="button" class="ghost sm" data-lbl-nav="1" aria-label="›"${at < n - 1 ? "" : " disabled"}><span class="icon icon-chevron-r icon-14"></span></button>
       </span></div>` : "";
   const mainKey = items
-    ? `<button type="button" class="primary sm lbl-ble" data-lbl-batch><span class="icon icon-tag icon-14"></span><span>${esc(dp ? t("labelBlePrintN", { n, name: dp.model }) : t("labelBatchPrint", { n }))}</span></button>`
-    : `<button type="button" class="primary sm lbl-ble" data-lbl-out="ble"><span class="icon icon-tag icon-14"></span><span>${esc(dp ? t("labelBlePrintTo", { name: dp.model }) : t("labelBle"))}</span></button>`;
+    ? `<button type="button" class="primary sm lbl-ble" data-lbl-batch><span class="icon icon-bluetooth icon-14"></span><span>${esc(dp ? t("labelBlePrintN", { n, name: dp.model }) : t("labelBatchPrint", { n }))}</span></button>`
+    : `<button type="button" class="primary sm lbl-ble" data-lbl-out="ble"><span class="icon icon-bluetooth icon-14"></span><span>${esc(dp ? t("labelBlePrintTo", { name: dp.model }) : t("labelBle"))}</span></button>`;
   body.innerHTML = `
     ${batchHead}
     <div class="panel-label">${esc(t("labelTemplate"))}</div>
@@ -416,9 +416,9 @@ function render(body, cur) {
     <div class="lbl-actions">
       <div class="lbl-ble-row">
         ${mainKey}
-        <button type="button" class="ghost sm lbl-ble-switch" data-lbl-ble-pick aria-label="${esc(t("labelBleChange"))}"><span class="icon icon-swap icon-14"></span></button>
+        <button type="button" class="ghost sm lbl-ble-switch" data-lbl-ble-pick aria-label="${esc(t("labelBleChange"))}"><span class="icon icon-bluetooth icon-14" aria-hidden="true"></span></button>
       </div>
-      <button type="button" class="lbl-ble-guide" data-lbl-ble-guide><span class="icon icon-book icon-12" aria-hidden="true"></span><span>${esc(t("labelBleCompat"))}</span></button>
+      <button type="button" class="lbl-ble-guide" data-lbl-ble-guide>${esc(t("labelBleCompat"))}</button>
       ${items ? "" : `<button type="button" class="ghost sm" data-lbl-out="print"><span class="icon icon-printer icon-14"></span><span>${esc(t("labelPrint"))}</span></button>
       <button type="button" class="ghost sm" data-lbl-out="pdf"><span class="icon icon-download icon-14"></span><span>PDF</span></button>
       <button type="button" class="ghost sm" data-lbl-out="png"><span class="icon icon-download icon-14"></span><span>PNG</span></button>
@@ -573,11 +573,14 @@ function printerChooser() {
   const { t, esc } = ctx;
   let chooseFn = null, picked = false;
   const stop = () => { if (!picked) { picked = true; cancelChoose(); } };
+  // The search goes on while the window is open: the spinner line stays under the printers
+  // found, outside the list, so a list update never restarts it.
+  const waitLine = `<p class="lbl-ble-wait"><span class="ttc-spinner" aria-hidden="true"></span>${esc(t("labelBleSearch"))}</p>`;
   const dlg = openDialog({
-    look: "notice", cls: "lbl-ble-dlg", icon: "tag",
-    title: t("labelBlePickTitle"), text: t("labelBlePickText"),
-    body: `<div class="lbl-ble-list" role="listbox"><p class="lbl-ble-wait"><span class="ttc-spinner" aria-hidden="true"></span>${esc(t("labelBleSearch"))}</p></div>
-      <button type="button" class="lbl-ble-guide" data-lbl-ble-guide><span class="icon icon-book icon-12" aria-hidden="true"></span><span>${esc(t("labelBleCompat"))}</span></button>`,
+    look: "notice", cls: "lbl-ble-dlg", icon: "bluetooth",
+    title: t("labelBlePickTitle"),
+    body: `<div class="lbl-ble-list" role="listbox"></div>${waitLine}
+      <button type="button" class="lbl-ble-guide" data-lbl-ble-guide>${esc(t("labelBleCompat"))}</button>`,
     actions: [{ id: "cancel", label: t("btnCancel") }],
     // Closed without a pick (Cancel, the cross, Escape, a click outside): the search stops.
     onAction: (_id, close) => { stop(); close(); },
@@ -595,14 +598,21 @@ function printerChooser() {
   });
   const list = dlg.card.querySelector(".lbl-ble-list");
   const cur = defaultBlePrinter()?.name;
+  // Chromium reports the printers in range several times a second, and a printer can be
+  // missing from one report: a printer seen stays listed while the window is open, and
+  // the rows are redrawn only when a new one shows up (nothing moves otherwise).
+  const seen = new Map();
   return {
     show(devices, choose) {
       chooseFn = choose;
-      if (!devices.length) return;
-      list.innerHTML = devices.map(d => {
+      const fresh = devices.filter(d => !seen.has(d.id));
+      if (!fresh.length) return;
+      fresh.forEach(d => seen.set(d.id, d));
+      const rows = [...seen.values()].sort((a, b) => (b.name === cur) - (a.name === cur) || a.name.localeCompare(b.name));
+      list.innerHTML = rows.map(d => {
         const model = labelPrinterModel(d.name)?.name;
         return `<button type="button" class="lbl-ble-dev${d.name === cur ? " is-default" : ""}" role="option" data-ble-id="${esc(d.id)}">
-          <span class="icon icon-tag icon-16" aria-hidden="true"></span>
+          <span class="icon icon-bluetooth icon-16" aria-hidden="true"></span>
           <span class="lbl-ble-dev-txt"><b>${esc(model || d.name)}</b><small>${esc(d.name)}</small></span>
           ${d.name === cur ? `<span class="lbl-ble-dev-pill">${esc(t("labelBleDefault"))}</span>` : ""}</button>`;
       }).join("");

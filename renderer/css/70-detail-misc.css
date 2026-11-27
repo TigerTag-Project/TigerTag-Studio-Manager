@@ -65,6 +65,7 @@
   .icon-refresh   { -webkit-mask-image: url('../../assets/svg/icons/icon_refresh.svg');      mask-image: url('../../assets/svg/icons/icon_refresh.svg'); }
   .icon-settings  { -webkit-mask-image: url('../../assets/svg/icons/icon_settings.svg');     mask-image: url('../../assets/svg/icons/icon_settings.svg'); }
   .icon-swap      { -webkit-mask-image: url('../../assets/svg/icons/icon_swap.svg');         mask-image: url('../../assets/svg/icons/icon_swap.svg'); }
+  .icon-bluetooth { -webkit-mask-image: url('../../assets/svg/icons/icon_bluetooth_searching.svg'); mask-image: url('../../assets/svg/icons/icon_bluetooth_searching.svg'); }
   .icon-wrench    { -webkit-mask-image: url('../../assets/svg/icons/icon_wrench.svg');       mask-image: url('../../assets/svg/icons/icon_wrench.svg'); }
   .icon-cloud     { -webkit-mask-image: url('../../assets/svg/icons/icon_cloud.svg');        mask-image: url('../../assets/svg/icons/icon_cloud.svg'); }
   .icon-backup    { -webkit-mask-image: url('../../assets/svg/icons/icon_backup.svg');       mask-image: url('../../assets/svg/icons/icon_backup.svg'); }
