@@ -1950,7 +1950,19 @@
   "acuCloudErrNoPrinters": "您的账户中没有云打印机。",
   "acuCloudAddFailed": "无法添加云打印机。",
   "acuCloudTokenRefreshed": "云连接已刷新",
-  "acuCloudTokenStale": "云登录已过期 — 请在桥接模式下重新添加打印机。",
+  "acuCloudTokenStale": "你的 Anycubic Cloud 会话已过期——打开打印机并点击“重新连接”。",
+  "acuCloudReconnect": "重新连接",
+  "acuCloudBadgeExpired": "会话已过期",
+  "acuCloudCamExpired": "你的 Anycubic 会话已过期。重新连接即可查看摄像头。",
+  "acuCloudAuthExpired": "Anycubic Cloud 会话已结束：没有实时数据，也没有摄像头。重新连接即可恢复。",
+  "acuCloudAuthSoonToast": {
+    "one": "Anycubic Cloud 会话明天结束——打开打印机重新连接。",
+    "other": "Anycubic Cloud 会话将在 {{n}} 天后结束——打开打印机重新连接。"
+  },
+  "acuCloudAuthSoon": {
+    "one": "你的 Anycubic Cloud 会话明天结束。现在重新连接，实时数据和摄像头就不会中断。",
+    "other": "你的 Anycubic Cloud 会话将在 {{n}} 天后结束。现在重新连接，实时数据和摄像头就不会中断。"
+  },
   "acuHomeXyz": "XYZ 轴回零",
   "acuHomeXy": "XY 轴回零",
   "acuHomeZ": "Z 轴回零",
@@ -2061,8 +2073,29 @@
   "labelSlots": "数值",
   "labelSlotNone": "空",
   "labelSlotTd": "TD",
-  "labelDpi": "打印机分辨率",
   "labelPrint": "打印",
+  "labelBle": "蓝牙标签打印机",
+  "labelBleSearch": "正在寻找你的标签打印机…",
+  "labelBleConnect": "正在连接…",
+  "labelBlePrinting": "正在打印…盯着出纸口。",
+  "labelBleDone": "已在 {{name}} 上打印。",
+  "labelBleNone": "没有找到标签打印机。它开着吗？没有被手机应用占用吧？",
+  "labelBleChoose": "附近有好几台打印机。用哪台？",
+  "labelBlePrintTo": "在 {{name}} 上打印",
+  "labelBleChange": "更换打印机",
+  "labelBlePickTitle": "选择你的标签打印机",
+  "labelBlePickText": "打开打印机：附近的打印机会显示在这里。你选的那台会成为默认打印机。",
+  "labelBleDefault": "默认",
+  "labelBleCompat": "哪些打印机可用？",
+  "bulkLabels": "标签",
+  "labelBlePrintN": {
+    "one": "在 {{name}} 上打印 {{n}} 张标签",
+    "other": "在 {{name}} 上打印 {{n}} 张标签"
+  },
+  "labelBatchCount": {
+    "one": "{{n}} 张标签",
+    "other": "{{n}} 张标签"
+  },
   "labelOpenLink": "查看二维码页面",
   "labelCopyLink": "复制链接",
   "labelExportFailed": "标签没有生成，请再试一次。",
@@ -3400,5 +3433,19 @@
   "catBrandsElsewhere": {
     "one": "{{n}} 个结果，在你未关注的品牌中",
     "other": "{{n}} 个结果，在你未关注的品牌中"
-  }
+  },
+  "labelBatchPrint": {
+    "one": "打印 {{n}} 张标签",
+    "other": "打印 {{n}} 张标签"
+  },
+  "labelBatchStop": "停止",
+  "labelBatchProgress": "标签 {{done}} / {{total}}…",
+  "labelBatchResume": "从第 {{n}} 张标签继续",
+  "labelBatchStopped": "已停止：已打印 {{done}} / {{total}}。",
+  "labelBatchDone": {
+    "one": "已在 {{name}} 上打印 {{n}} 张标签。",
+    "other": "已在 {{name}} 上打印 {{n}} 张标签。"
+  },
+  "labelBatchFailed": "打印机在 {{done}} / {{total}} 后掉线了。检查一下再继续。",
+  "labelBatchBleOnly": "批量打印只发送到蓝牙标签打印机。需要 PDF、PNG 或 SVG 时，请打开单个线轴的标签。"
 }

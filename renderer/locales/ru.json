@@ -1965,7 +1965,19 @@
   "acuCloudErrNoPrinters": "На вашем аккаунте нет облачных принтеров.",
   "acuCloudAddFailed": "Не удалось добавить облачный принтер.",
   "acuCloudTokenRefreshed": "Облачное подключение обновлено",
-  "acuCloudTokenStale": "Срок облачного входа истёк — добавьте принтер заново со слайсером в режиме моста.",
+  "acuCloudTokenStale": "Сессия Anycubic Cloud истекла — откройте принтер и нажмите «Переподключить».",
+  "acuCloudReconnect": "Переподключить",
+  "acuCloudBadgeExpired": "Сессия истекла",
+  "acuCloudCamExpired": "Сессия Anycubic истекла. Переподключитесь, чтобы увидеть камеру.",
+  "acuCloudAuthExpired": "Сессия Anycubic Cloud завершена: нет данных в реальном времени и камеры. Переподключитесь, чтобы вернуть их.",
+  "acuCloudAuthSoonToast": {
+    "one": "Сессия Anycubic Cloud заканчивается завтра — откройте принтер, чтобы переподключиться.",
+    "other": "Сессия Anycubic Cloud заканчивается через {{n}} дн. — откройте принтер, чтобы переподключиться."
+  },
+  "acuCloudAuthSoon": {
+    "one": "Сессия Anycubic Cloud заканчивается завтра. Переподключитесь сейчас — данные и камера не пропадут.",
+    "other": "Сессия Anycubic Cloud заканчивается через {{n}} дн. Переподключитесь сейчас — данные и камера не пропадут."
+  },
   "acuHomeXyz": "Парковка по осям XYZ",
   "acuHomeXy": "Парковка по осям XY",
   "acuHomeZ": "Парковка по оси Z",
@@ -2076,8 +2088,29 @@
   "labelSlots": "Значения",
   "labelSlotNone": "Пусто",
   "labelSlotTd": "TD",
-  "labelDpi": "Разрешение принтера",
   "labelPrint": "Печать",
+  "labelBle": "Bluetooth-принтер этикеток",
+  "labelBleSearch": "Ищем твой принтер этикеток…",
+  "labelBleConnect": "Подключение…",
+  "labelBlePrinting": "Печатаем… смотри на выход.",
+  "labelBleDone": "Напечатано на {{name}}.",
+  "labelBleNone": "Принтер этикеток не найден. Он включён и не занят приложением на телефоне?",
+  "labelBleChoose": "Рядом несколько принтеров. Какой?",
+  "labelBlePrintTo": "Печать на {{name}}",
+  "labelBleChange": "Сменить принтер",
+  "labelBlePickTitle": "Выбери принтер этикеток",
+  "labelBlePickText": "Включи его: принтеры рядом появятся здесь. Выбранный станет принтером по умолчанию.",
+  "labelBleDefault": "По умолчанию",
+  "labelBleCompat": "Какие принтеры подходят?",
+  "bulkLabels": "Этикетки",
+  "labelBlePrintN": {
+    "one": "Напечатать {{n}} этикетку на {{name}}",
+    "other": "Напечатать этикетки на {{name}}: {{n}}"
+  },
+  "labelBatchCount": {
+    "one": "{{n}} этикетка",
+    "other": "Этикеток: {{n}}"
+  },
   "labelOpenLink": "Открыть страницу QR-кода",
   "labelCopyLink": "Копировать ссылку",
   "labelExportFailed": "Этикетка не получилась. Попробуйте ещё раз.",
@@ -3448,5 +3481,19 @@
   "catBrandsElsewhere": {
     "one": "{{n}} результат — в бренде, который ты не отслеживаешь",
     "other": "Результатов: {{n}} — в брендах, которые ты не отслеживаешь"
-  }
+  },
+  "labelBatchPrint": {
+    "one": "Напечатать {{n}} этикетку",
+    "other": "Напечатать этикетки: {{n}}"
+  },
+  "labelBatchStop": "Стоп",
+  "labelBatchProgress": "Этикетка {{done}} / {{total}}…",
+  "labelBatchResume": "Продолжить с этикетки {{n}}",
+  "labelBatchStopped": "Остановлено: напечатано {{done}} / {{total}}.",
+  "labelBatchDone": {
+    "one": "Напечатана {{n}} этикетка на {{name}}.",
+    "other": "Напечатано этикеток на {{name}}: {{n}}."
+  },
+  "labelBatchFailed": "Принтер отвалился после {{done}} / {{total}}. Проверь его и продолжи.",
+  "labelBatchBleOnly": "Пакет печатается на Bluetooth-принтере этикеток. Для PDF, PNG или SVG открой этикетку одной катушки."
 }

@@ -1955,7 +1955,19 @@
   "acuCloudErrNoPrinters": "Nessuna stampante cloud nel tuo account.",
   "acuCloudAddFailed": "Impossibile aggiungere la stampante cloud.",
   "acuCloudTokenRefreshed": "Connessione cloud aggiornata",
-  "acuCloudTokenStale": "Accesso cloud scaduto — riaggiungi la stampante con lo slicer in modalità bridge.",
+  "acuCloudTokenStale": "La sessione Anycubic Cloud è scaduta: apri la stampante e premi Riconnetti.",
+  "acuCloudReconnect": "Riconnetti",
+  "acuCloudBadgeExpired": "Sessione scaduta",
+  "acuCloudCamExpired": "La sessione Anycubic è scaduta. Riconnettiti per vedere la videocamera.",
+  "acuCloudAuthExpired": "La sessione Anycubic Cloud è terminata: niente dati in diretta né videocamera. Riconnettiti per riaverli.",
+  "acuCloudAuthSoonToast": {
+    "one": "La sessione Anycubic Cloud finisce domani: apri la stampante per riconnetterti.",
+    "other": "La sessione Anycubic Cloud finisce tra {{n}} giorni: apri la stampante per riconnetterti."
+  },
+  "acuCloudAuthSoon": {
+    "one": "La sessione Anycubic Cloud finisce domani. Riconnettiti ora e dati in diretta e videocamera non si interromperanno.",
+    "other": "La sessione Anycubic Cloud finisce tra {{n}} giorni. Riconnettiti ora e dati in diretta e videocamera non si interromperanno."
+  },
   "acuHomeXyz": "Azzeramento assi XYZ",
   "acuHomeXy": "Azzeramento assi XY",
   "acuHomeZ": "Azzeramento asse Z",
@@ -2066,8 +2078,29 @@
   "labelSlots": "Valori",
   "labelSlotNone": "Vuoto",
   "labelSlotTd": "TD",
-  "labelDpi": "Risoluzione della stampante",
   "labelPrint": "Stampa",
+  "labelBle": "Stampante di etichette Bluetooth",
+  "labelBleSearch": "Cerco la tua stampante di etichette…",
+  "labelBleConnect": "Connessione…",
+  "labelBlePrinting": "Stampa in corso… occhi sull'uscita.",
+  "labelBleDone": "Stampata su {{name}}.",
+  "labelBleNone": "Nessuna stampante di etichette trovata. È accesa e non occupata dall'app del telefono?",
+  "labelBleChoose": "Più stampanti nei paraggi. Quale?",
+  "labelBlePrintTo": "Stampa su {{name}}",
+  "labelBleChange": "Cambia stampante",
+  "labelBlePickTitle": "Scegli la tua stampante di etichette",
+  "labelBlePickText": "Accendila: quelle a portata compaiono qui. Quella che scegli diventa la tua stampante predefinita.",
+  "labelBleDefault": "Predefinita",
+  "labelBleCompat": "Quali stampanti funzionano?",
+  "bulkLabels": "Etichette",
+  "labelBlePrintN": {
+    "one": "Stampa {{n}} etichetta su {{name}}",
+    "other": "Stampa {{n}} etichette su {{name}}"
+  },
+  "labelBatchCount": {
+    "one": "{{n}} etichetta",
+    "other": "{{n}} etichette"
+  },
   "labelOpenLink": "Vedi la pagina del QR",
   "labelCopyLink": "Copia link",
   "labelExportFailed": "L'etichetta non è uscita. Riprova.",
@@ -3412,5 +3445,19 @@
   "catBrandsElsewhere": {
     "one": "{{n}} risultato, in una marca che non segui",
     "other": "{{n}} risultati, in marche che non segui"
-  }
+  },
+  "labelBatchPrint": {
+    "one": "Stampa {{n}} etichetta",
+    "other": "Stampa {{n}} etichette"
+  },
+  "labelBatchStop": "Ferma",
+  "labelBatchProgress": "Etichetta {{done}} / {{total}}…",
+  "labelBatchResume": "Riprendi dall'etichetta {{n}}",
+  "labelBatchStopped": "Fermato: {{done}} / {{total}} stampate.",
+  "labelBatchDone": {
+    "one": "{{n}} etichetta stampata su {{name}}.",
+    "other": "{{n}} etichette stampate su {{name}}."
+  },
+  "labelBatchFailed": "La stampante si è fermata dopo {{done}} / {{total}}. Controllala, poi riprendi.",
+  "labelBatchBleOnly": "Un lotto va a una stampante di etichette Bluetooth. Per PDF, PNG o SVG, apri l'etichetta di una sola bobina."
 }

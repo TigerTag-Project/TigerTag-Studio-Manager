@@ -1955,7 +1955,19 @@
   "acuCloudErrNoPrinters": "Keine Cloud-Drucker in Ihrem Konto.",
   "acuCloudAddFailed": "Cloud-Drucker konnte nicht hinzugefügt werden.",
   "acuCloudTokenRefreshed": "Cloud-Verbindung aktualisiert",
-  "acuCloudTokenStale": "Cloud-Anmeldung abgelaufen — Drucker erneut hinzufügen, Slicer im Bridge-Modus.",
+  "acuCloudTokenStale": "Deine Anycubic-Cloud-Sitzung ist abgelaufen — öffne den Drucker und tippe auf Neu verbinden.",
+  "acuCloudReconnect": "Neu verbinden",
+  "acuCloudBadgeExpired": "Sitzung abgelaufen",
+  "acuCloudCamExpired": "Deine Anycubic-Sitzung ist abgelaufen. Verbinde dich neu, um die Kamera zu sehen.",
+  "acuCloudAuthExpired": "Die Anycubic-Cloud-Sitzung ist beendet: keine Live-Daten, keine Kamera. Verbinde dich neu, um sie zurückzuholen.",
+  "acuCloudAuthSoonToast": {
+    "one": "Anycubic-Cloud-Sitzung endet morgen — öffne den Drucker, um dich neu zu verbinden.",
+    "other": "Anycubic-Cloud-Sitzung endet in {{n}} Tagen — öffne den Drucker, um dich neu zu verbinden."
+  },
+  "acuCloudAuthSoon": {
+    "one": "Deine Anycubic-Cloud-Sitzung endet morgen. Verbinde dich jetzt neu, dann bleiben Live-Daten und Kamera an.",
+    "other": "Deine Anycubic-Cloud-Sitzung endet in {{n}} Tagen. Verbinde dich jetzt neu, dann bleiben Live-Daten und Kamera an."
+  },
   "acuHomeXyz": "XYZ-Achsen-Referenzfahrt",
   "acuHomeXy": "XY-Achsen-Referenzfahrt",
   "acuHomeZ": "Z-Achsen-Referenzfahrt",
@@ -2066,8 +2078,29 @@
   "labelSlots": "Werte",
   "labelSlotNone": "Leer",
   "labelSlotTd": "TD",
-  "labelDpi": "Druckerauflösung",
   "labelPrint": "Drucken",
+  "labelBle": "Bluetooth-Etikettendrucker",
+  "labelBleSearch": "Suche deinen Etikettendrucker…",
+  "labelBleConnect": "Verbinden…",
+  "labelBlePrinting": "Druckt… Augen auf den Ausgabeschlitz.",
+  "labelBleDone": "Gedruckt auf {{name}}.",
+  "labelBleNone": "Kein Etikettendrucker gefunden. Ist er an und nicht gerade mit der Handy-App verbunden?",
+  "labelBleChoose": "Mehrere Drucker in Reichweite. Welcher?",
+  "labelBlePrintTo": "Auf {{name}} drucken",
+  "labelBleChange": "Drucker wechseln",
+  "labelBlePickTitle": "Wähl deinen Etikettendrucker",
+  "labelBlePickText": "Schalt ihn ein: die Drucker in Reichweite erscheinen hier. Der gewählte wird dein Standarddrucker.",
+  "labelBleDefault": "Standard",
+  "labelBleCompat": "Welche Drucker funktionieren?",
+  "bulkLabels": "Etiketten",
+  "labelBlePrintN": {
+    "one": "{{n}} Etikett auf {{name}} drucken",
+    "other": "{{n}} Etiketten auf {{name}} drucken"
+  },
+  "labelBatchCount": {
+    "one": "{{n}} Etikett",
+    "other": "{{n}} Etiketten"
+  },
   "labelOpenLink": "Seite des QR-Codes ansehen",
   "labelCopyLink": "Link kopieren",
   "labelExportFailed": "Das Etikett kam nicht heraus. Versuch es nochmal.",
@@ -3412,5 +3445,19 @@
   "catBrandsElsewhere": {
     "one": "{{n}} Treffer, bei einer Marke, der du nicht folgst",
     "other": "{{n}} Treffer, bei Marken, denen du nicht folgst"
-  }
+  },
+  "labelBatchPrint": {
+    "one": "{{n}} Etikett drucken",
+    "other": "{{n}} Etiketten drucken"
+  },
+  "labelBatchStop": "Stopp",
+  "labelBatchProgress": "Etikett {{done}} / {{total}}…",
+  "labelBatchResume": "Ab Etikett {{n}} weiter",
+  "labelBatchStopped": "Gestoppt: {{done}} / {{total}} gedruckt.",
+  "labelBatchDone": {
+    "one": "{{n}} Etikett auf {{name}} gedruckt.",
+    "other": "{{n}} Etiketten auf {{name}} gedruckt."
+  },
+  "labelBatchFailed": "Der Drucker ist nach {{done}} / {{total}} ausgestiegen. Prüf ihn und mach dann weiter.",
+  "labelBatchBleOnly": "Ein Stapel geht an einen Bluetooth-Etikettendrucker. Für PDF, PNG oder SVG öffne das Etikett einer einzelnen Spule."
 }

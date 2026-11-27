@@ -1955,7 +1955,19 @@
   "acuCloudErrNoPrinters": "Geen cloudprinters op je account.",
   "acuCloudAddFailed": "Kon de cloudprinter niet toevoegen.",
   "acuCloudTokenRefreshed": "Cloudverbinding vernieuwd",
-  "acuCloudTokenStale": "Cloud-inlogsessie verlopen — voeg de printer opnieuw toe met de slicer in brugmodus.",
+  "acuCloudTokenStale": "Je Anycubic Cloud-sessie is verlopen — open de printer en tik op Opnieuw verbinden.",
+  "acuCloudReconnect": "Opnieuw verbinden",
+  "acuCloudBadgeExpired": "Sessie verlopen",
+  "acuCloudCamExpired": "Je Anycubic-sessie is verlopen. Verbind opnieuw om de camera te zien.",
+  "acuCloudAuthExpired": "De Anycubic Cloud-sessie is afgelopen: geen live gegevens, geen camera. Verbind opnieuw om ze terug te krijgen.",
+  "acuCloudAuthSoonToast": {
+    "one": "Anycubic Cloud-sessie loopt morgen af — open de printer om opnieuw te verbinden.",
+    "other": "Anycubic Cloud-sessie loopt over {{n}} dagen af — open de printer om opnieuw te verbinden."
+  },
+  "acuCloudAuthSoon": {
+    "one": "Je Anycubic Cloud-sessie loopt morgen af. Verbind nu opnieuw, dan blijven live gegevens en camera aan.",
+    "other": "Je Anycubic Cloud-sessie loopt over {{n}} dagen af. Verbind nu opnieuw, dan blijven live gegevens en camera aan."
+  },
   "acuHomeXyz": "XYZ-assen homen",
   "acuHomeXy": "XY-assen homen",
   "acuHomeZ": "Z-as homen",
@@ -2066,8 +2078,29 @@
   "labelSlots": "Waarden",
   "labelSlotNone": "Leeg",
   "labelSlotTd": "TD",
-  "labelDpi": "Printerresolutie",
   "labelPrint": "Afdrukken",
+  "labelBle": "Bluetooth-labelprinter",
+  "labelBleSearch": "Je labelprinter zoeken…",
+  "labelBleConnect": "Verbinden…",
+  "labelBlePrinting": "Bezig met printen… let op de uitvoer.",
+  "labelBleDone": "Geprint op {{name}}.",
+  "labelBleNone": "Geen labelprinter gevonden. Staat hij aan en is hij niet bezet door de telefoon-app?",
+  "labelBleChoose": "Meerdere printers binnen bereik. Welke?",
+  "labelBlePrintTo": "Afdrukken op {{name}}",
+  "labelBleChange": "Printer wisselen",
+  "labelBlePickTitle": "Kies je labelprinter",
+  "labelBlePickText": "Zet hem aan: de printers binnen bereik verschijnen hier. Die je kiest wordt je standaardprinter.",
+  "labelBleDefault": "Standaard",
+  "labelBleCompat": "Welke printers werken?",
+  "bulkLabels": "Labels",
+  "labelBlePrintN": {
+    "one": "{{n}} label afdrukken op {{name}}",
+    "other": "{{n}} labels afdrukken op {{name}}"
+  },
+  "labelBatchCount": {
+    "one": "{{n}} label",
+    "other": "{{n}} labels"
+  },
   "labelOpenLink": "Bekijk de pagina van de QR",
   "labelCopyLink": "Link kopiëren",
   "labelExportFailed": "Het etiket kwam er niet uit. Probeer het opnieuw.",
@@ -3412,5 +3445,19 @@
   "catBrandsElsewhere": {
     "one": "{{n}} resultaat, bij een merk dat je niet volgt",
     "other": "{{n}} resultaten, bij merken die je niet volgt"
-  }
+  },
+  "labelBatchPrint": {
+    "one": "{{n}} label afdrukken",
+    "other": "{{n}} labels afdrukken"
+  },
+  "labelBatchStop": "Stoppen",
+  "labelBatchProgress": "Label {{done}} / {{total}}…",
+  "labelBatchResume": "Verder vanaf label {{n}}",
+  "labelBatchStopped": "Gestopt: {{done}} / {{total}} afgedrukt.",
+  "labelBatchDone": {
+    "one": "{{n}} label afgedrukt op {{name}}.",
+    "other": "{{n}} labels afgedrukt op {{name}}."
+  },
+  "labelBatchFailed": "De printer haakte af na {{done}} / {{total}}. Check hem en ga verder.",
+  "labelBatchBleOnly": "Een reeks gaat naar een Bluetooth-labelprinter. Voor PDF, PNG of SVG open je het label van één spoel."
 }

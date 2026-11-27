@@ -233,7 +233,7 @@ write** (AI assistant › Manage access, or the setup; `writeFor` in `mcp.json`,
 | `list_changes` / `undo_change` | the journal; undo puts the values before back, refused when the spool (or rack) changed again since, and for a creation (spools or rack) |
 
 `get_label` (read-only, always listed): a spool's label or its product's, built by `labels/index.js`
-`labelFor` exactly as the label card draws it (template, up to 4 value slots, 203 / 300 dpi). `print`,
+`labelFor` exactly as the label card draws it (template, up to 4 value slots; 300 dpi unless `dpi` asks 203). `print`,
 `pdf`, `png`, `svg` open Studio's print / save dialog through `saveLabel` (the user confirms; the tool
 does not wait), `svg_text` returns the SVG in the answer, `qr_svg` only its QR code (`qrSvg`, same
 encoding, 4-module quiet zone) with its link. Online (Hub v1.75.0, live 2026-11-11): the same

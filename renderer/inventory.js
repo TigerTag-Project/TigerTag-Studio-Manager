@@ -6,7 +6,7 @@ import { openColorPop } from './color-pop.js';
 import { initLinkedChips, brandHasMakerChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, onForeignChip, holdForeignChip, pendingMakerChips, presentMakerChips, makerLinkBannerHtml, linkMakerChipsTo, linkedChipsHtml, wireLinkedChips, linkPendingTo, clearPendingLink, openBlankChipWindow, closeChipChoice, closeChipLink, wireSearchBox, linkOfferHtml, wireLinkOffer, openAddChooser, refreshChipChoice, chooseChipView } from './rfid_protocol/linked/index.js';
 import { initChipEraser, openChipEraser, closeChipEraser, chipEraserOpen, eraserCardPresent, eraserForeignChip, eraserReadersChanged } from './rfid_protocol/eraser/index.js';
 import { initChipRestore, openChipRestore, closeChipRestore, chipRestoreOpen, restoreCardPresent, restoreReadersChanged } from './rfid_protocol/restore/index.js';
-import { initLabels, openLabelCard, closeLabelCard, labelCardOpen, mountLabel, refreshLabelCard, redrawLabelCard, labelFor, saveLabel, qrSvg, LABEL_TEMPLATES, LABEL_SLOTS } from './labels/index.js';
+import { initLabels, openLabelCard, openLabelBatch, closeLabelCard, labelCardOpen, mountLabel, refreshLabelCard, redrawLabelCard, labelFor, saveLabel, qrSvg, LABEL_TEMPLATES, LABEL_SLOTS } from './labels/index.js';
 import { parseQrLink, spoolIdFromPath, linkValues, productLink, productShareLink, spoolLink, spoolShareLink } from './qr-link.js';
 
 // ── Offline timezone → country (telemetry, no IP geolocation) ──────────────
@@ -4378,6 +4378,8 @@ import { initScreenTools } from './ai/screen-tools.js';
   $("btnSelectMode")?.addEventListener("click", _toggleSelectMode);
   $("bulkExit")?.addEventListener("click", _exitSelectMode);
   $("bulkTags")?.addEventListener("click", _openBulkTags);
+  // The selected spools' labels in one go (renderer/labels openLabelBatch): one card, one print.
+  $("bulkLabels")?.addEventListener("click", () => openLabelBatch([...state.selectedSpools].map(id => state.rows.find(r => r.spoolId === id)).filter(Boolean).map(r => ({ ...r, idProduct: r.raw?.id_product }))));
   setupHoldToConfirm($("bulkDelete"), 1500, () => { _bulkCtx().del().catch(e => reportError("bulk.delete", e)); }, { hint: true });
   // Bulk ★ Favorite / ❤ Love (materials selection; also the only bulk actions in a friend view).
   $("bulkFavorite")?.addEventListener("click", () => _bulkApplyFlag("favorite").catch(e => reportError("bulk.favorite", e)));
@@ -5204,7 +5206,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     return null;
   }
   // Printed labels — the label card docked to the left of the spool card (renderer/labels).
-  initLabels({ t, esc, reportError, syncPanels: () => _syncPanels(), hideTip: () => _hideToolInfoTip(),
+  initLabels({ t, esc, reportError, syncPanels: () => _syncPanels(), hideTip: () => _hideToolInfoTip(), lang: () => state.lang,
     copy: (text, btn) => navigator.clipboard.writeText(text).then(() => _flashCopied(btn)).catch(() => {}),
     // The label card shares what its QR holds: the spool on a Spool Label, the product on a Filament Label.
     shareProduct: (row, kind) => _openProductShare(row.idProduct ?? row.raw?.id_product, _shareName(row), kind === "spool" ? row.spoolId : ""),
@@ -15382,6 +15384,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   }
   const _fbTagCase = new Map();   // lowercase tag → the casing shown
   const _lower = v => String(v).toLowerCase();
+  const _fbDiam = v => (v != null && dbFind("diameter", Number(v))) ? Number(v) : null;
   const FB_FIELDS = [
     { id: "brand", key: "thBrand", neg: true,
       keys: { inv: r => [r.brandId], prod: p => [_prodIds(p).brand], cat: it => [_catBrandKey(it)], prn: p => [p.brand] },
@@ -15410,8 +15413,12 @@ import { initScreenTools } from './ai/screen-tools.js';
       keys: { inv: r => [_rowTier(r)] }, label: v => FB_TIERS[v] || v },
     { id: "ptype", key: "thType",
       keys: { cat: it => [it.product_type] }, label: v => v },
+    // Diameter (1.75 / 2.85 mm): `data1` on a filament, an id of the diameter table. Other
+    // product types use data1 for something else, so only a known diameter id counts.
     { id: "diameter", key: "detDiameter",
-      keys: { inv: r => [r.diameterId] }, label: v => diamLabel(+v) || "" },
+      keys: { inv: r => [_fbDiam(r.diameterId)], prod: p => [_fbDiam(p?.cloudSeed?.id_diameter ?? p?.cloudSeed?.data1)],
+              cat: it => [_fbDiam(it.RFID_Data?.data1)] },
+      label: v => diamLabel(+v) || "" },
     { id: "tag", key: "filterShortTag", neg: true,
       keys: { inv: r => (r.tags || []).map(_lower), prod: p => (p.tags || []).map(_lower), prn: p => (p.tags || []).map(_lower) },
       label: v => _fbTagCase.get(v) || v },
@@ -30019,11 +30026,11 @@ import { initScreenTools } from './ai/screen-tools.js';
      what is printed on the box in front of them — and units that carry no name
      at all (a Snapmaker U1's holders are simply numbered) are labelled by the
      slots they hold rather than by a word invented here. */
-  const _UNIT_WORD = { ams: "AMS", amsHt: "AMS HT", ams3h: "AMS 3H", cfs: "CFS", ace: "ACE", ext: "Ext." };
+  const _UNIT_WORD = { ams: "AMS", amsHt: "AMS HT", ams3h: "AMS 3H", ams3p: "AMS 3P", cfs: "CFS", ace: "ACE", ext: "Ext." };
   function _unitLabel(u) {
     if (u.label) return u.label;                 // the user renamed it
     if (u.kind === "ext") return "Ext.";
-    if (u.kind === "ams3h") return _UNIT_WORD.ams3h;   // one box per machine: no "1"
+    if (u.kind === "ams3h" || u.kind === "ams3p") return _UNIT_WORD[u.kind];   // one box per machine: no "1"
     const word = _UNIT_WORD[u.kind];
     if (word) return `${word} ${(u.index || 0) + 1}`;
     const first = u.slots?.[0]?.label, last = u.slots?.[u.slots.length - 1]?.label;

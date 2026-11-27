@@ -30,11 +30,15 @@
  *                              without the card (the MCP label tool): { lbl, link, kind }
  *   saveLabel(format, lbl, row, kind) — print / PDF / PNG / SVG through the same
  *                              dialogs as the card's buttons
+ *   The card's "Bluetooth label printer" button prints on a Niimbot printer
+ *   (ble-printer.js, Web Bluetooth; main.js picks the device).
  *   qrSvg(link)              — the label's QR code alone (same encoding), as an SVG with
  *                              its 4-module quiet zone; null without a link
  */
 
 import { spoolLink, productLink } from "../qr-link.js";
+import { printLabelBle, printLabelsBle, lastBlePrinter, rememberPrinterTemplate, defaultBlePrinter, choosePrinter, cancelChoose, labelPrinterModel } from "./ble-printer.js";
+import { openDialog } from "../dialog.js";
 export { spoolLink, productLink };
 
 let ctx = null;
@@ -59,7 +63,12 @@ export const LABEL_TEMPLATES = [
 ];
 // The values a slot can show; all are print constants of the filament.
 export const LABEL_SLOTS = ["nozzle", "bed", "dry", "td", "diameter"];
-const DEFAULT_PREFS = { template: "classic", slots: ["nozzle", "bed", "dry", "td"], dpi: 203, kind: "spool" };
+const DEFAULT_PREFS = { template: "classic", slots: ["nozzle", "bed", "dry", "td"], kind: "spool" };
+// Print / PDF / PNG / SVG are always laid out at 300 dpi; nothing is asked. A Bluetooth
+// label printer gets its own head's resolution instead (ble-printer.js): a 300 dpi layout
+// resampled to a 203 dpi head prints a smaller QR (9 mm instead of 10 on the slim label,
+// modules of 2 or 3 dots) — no other visible difference (D110-M on paper, 2026-11-27).
+const EXPORT_DPI = 300;
 
 export function initLabels(c) {
   ctx = c;
@@ -73,7 +82,7 @@ function prefs() {
   try { p = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (_) {}
   const out = { ...DEFAULT_PREFS, ...p };
   if (!LABEL_TEMPLATES.some(x => x.id === out.template)) out.template = DEFAULT_PREFS.template;
-  if (![203, 300].includes(Number(out.dpi))) out.dpi = 203;
+  out.dpi = EXPORT_DPI;   // an older saved 203 / 300 choice is no longer read
   out.slots = Array.from({ length: 4 }, (_, i) => (LABEL_SLOTS.includes(out.slots?.[i]) || out.slots?.[i] === "none") ? out.slots[i] : DEFAULT_PREFS.slots[i]);
   return out;
 }
@@ -141,7 +150,7 @@ function svgLines(str, x, y, size, weight, maxW, lh, lines = 2) {
   return svgText(a, x, y, fs, weight, maxW) + svgText(b, x, y + lh * fs / size, fs, weight, maxW);
 }
 
-export function buildLabel(info, link, { template = "classic", slots = [], dpi = 203 } = {}) {
+export function buildLabel(info, link, { template = "classic", slots = [], dpi = EXPORT_DPI } = {}) {
   const tpl = LABEL_TEMPLATES.find(x => x.id === template) || LABEL_TEMPLATES[0];
   const L = LAYOUTS[tpl.id];
   const f = dpi / 25.4 / U;                         // dots per layout unit
@@ -278,14 +287,42 @@ const SLOT_LABEL = { nozzle: "lbNozzle", bed: "lbBed", dry: "addProductDrying", 
 export function openLabelCard(row, { productOnly = false } = {}) {
   if (!row) return;
   current = { row, productOnly: productOnly && !!productLink(row.idProduct) };
+  followDefaultPrinter();
   $("labelPanel")?.classList.add("open");
   render($("labelBody"), current);
   ctx.syncPanels?.();
 }
+// SEVERAL LABELS AT ONCE (the bulk bar's "Labels" on a selection of spools): one card,
+// one template and the same values for all, the preview browsable label by label,
+// printed in one go on the Bluetooth label printer. The Spool / Filament switch makes
+// it one label per spool, or one per filament (spools of the same catalogue product
+// share one; a spool with no product keeps its own).
+export function openLabelBatch(rows) {
+  const list = (rows || []).filter(Boolean);
+  if (!list.length) return;
+  if (list.length === 1) { openLabelCard(list[0]); return; }
+  current = { batch: true, rows: list, row: list[0], i: 0 };
+  followDefaultPrinter();
+  $("labelPanel")?.classList.add("open");
+  render($("labelBody"), current);
+  ctx.syncPanels?.();
+}
+function batchItems(cur, p) {
+  const perProduct = p.kind === "product", seen = new Set(), out = [];
+  for (const r of cur.rows) {
+    const prod = perProduct && productLink(r.idProduct) ? String(r.idProduct) : null;
+    if (!prod) { out.push({ row: r, kind: "spool" }); continue; }
+    if (seen.has(prod)) continue;
+    seen.add(prod);
+    out.push({ row: r, kind: "product" });
+  }
+  return out;
+}
+
 // The spool changed while its label is open (a TD set, a colour renamed…): redraw
 // with the live row, only when something the label prints has changed.
 export function refreshLabelCard(row) {
-  if (!labelCardOpen() || !current || !row || row.spoolId !== current.row.spoolId) return;
+  if (!labelCardOpen() || !current || current.batch || !row || row.spoolId !== current.row.spoolId) return;
   const next = { ...row, idProduct: current.row.idProduct };
   if (JSON.stringify(ctx.labelInfo(next)) === JSON.stringify(ctx.labelInfo(current.row))) return;
   current = { ...current, row: next };
@@ -334,13 +371,16 @@ function render(body, cur) {
   if (!body || !cur) return;
   const { t, esc } = ctx;
   const p = prefs();
-  const row = cur.row;
-  const hasProduct = !!productLink(row.idProduct);
-  const kind = cur.productOnly || (p.kind === "product" && hasProduct) ? "product" : "spool";
+  const items = cur.batch ? batchItems(cur, p) : null;
+  const at = items ? Math.max(0, Math.min(cur.i || 0, items.length - 1)) : 0;
+  const row = items ? items[at].row : cur.row;
+  const hasProduct = items ? cur.rows.some(r => productLink(r.idProduct)) : !!productLink(row.idProduct);
+  const kind = items ? items[at].kind : (cur.productOnly || (p.kind === "product" && hasProduct) ? "product" : "spool");
   const link = linkFor(row, kind);
   // A Filament Label is a catalogue product: it always carries the TigerQR+ pill.
   const info = { ...ctx.labelInfo(row), ...(kind === "product" ? { protocol: "TigerQR+" } : {}) };
   const lbl = buildLabel(info, link, p);
+  const dp = defaultBlePrinter();
   // Preview: the very page that is printed, scaled to the card.
   const boxW = 340, scale = Math.min(boxW / lbl.wDots, 220 / lbl.hDots);
   const seg = (id, on, label) => `<button type="button" class="lbl-seg-btn${on ? " is-active" : ""}" data-lbl-kind="${id}" aria-pressed="${on}">${esc(label)}</button>`;
@@ -350,7 +390,19 @@ function render(body, cur) {
   const slotSel = i => `<select class="lbl-slot" data-lbl-slot="${i}"${i >= tpl.slots ? " disabled" : ""}>
       ${["none", ...LABEL_SLOTS].map(s => `<option value="${s}"${p.slots[i] === s ? " selected" : ""}>${esc(s === "none" ? t("labelSlotNone") : t(SLOT_LABEL[s]))}</option>`).join("")}
     </select>`;
+  const n = items?.length || 0;
+  const batchHead = items ? `<div class="lbl-batch">
+      <b>${esc(t("labelBatchCount", { n }))}</b>
+      <span class="lbl-batch-nav">
+        <button type="button" class="ghost sm" data-lbl-nav="-1" aria-label="‹"${at ? "" : " disabled"}><span class="icon icon-chevron-l icon-14"></span></button>
+        <span class="lbl-batch-pos">${at + 1} / ${n}</span>
+        <button type="button" class="ghost sm" data-lbl-nav="1" aria-label="›"${at < n - 1 ? "" : " disabled"}><span class="icon icon-chevron-r icon-14"></span></button>
+      </span></div>` : "";
+  const mainKey = items
+    ? `<button type="button" class="primary sm lbl-ble" data-lbl-batch><span class="icon icon-tag icon-14"></span><span>${esc(dp ? t("labelBlePrintN", { n, name: dp.model }) : t("labelBatchPrint", { n }))}</span></button>`
+    : `<button type="button" class="primary sm lbl-ble" data-lbl-out="ble"><span class="icon icon-tag icon-14"></span><span>${esc(dp ? t("labelBlePrintTo", { name: dp.model }) : t("labelBle"))}</span></button>`;
   body.innerHTML = `
+    ${batchHead}
     <div class="panel-label">${esc(t("labelTemplate"))}</div>
     <div class="lbl-tpls">${LABEL_TEMPLATES.map(tplBtn).join("")}</div>
     ${hasProduct && !cur.productOnly ? `<div class="lbl-seg lbl-seg--kind" role="group">${seg("spool", kind === "spool", t("labelKindSpool"))}${seg("product", kind === "product", t("labelKindProduct"))}</div>` : ""}
@@ -359,15 +411,20 @@ function render(body, cur) {
       <iframe class="lbl-frame" title="" tabindex="-1" sandbox="" style="width:${lbl.wDots}px;height:${lbl.hDots}px;transform:scale(${scale})"></iframe>
       ${link ? `<span class="lbl-open-hint"><span class="icon icon-arrow-up-right icon-12" aria-hidden="true"></span>${esc(t("labelOpenLink"))}</span></button>` : "</div>"}
     </div>
-    ${link ? `<div class="lbl-linkrow"><button type="button" class="ghost sm" data-lbl-copy><span class="icon icon-copy icon-14"></span><span>${esc(t("labelCopyLink"))}</span></button>${link ? `<button type="button" class="ghost sm" data-lbl-share><span class="icon icon-send icon-14"></span><span>${esc(t("productShare"))}</span></button>` : ""}</div>` : ""}
+    ${link && !items ? `<div class="lbl-linkrow"><button type="button" class="ghost sm" data-lbl-copy><span class="icon icon-copy icon-14"></span><span>${esc(t("labelCopyLink"))}</span></button>${link ? `<button type="button" class="ghost sm" data-lbl-share><span class="icon icon-send icon-14"></span><span>${esc(t("productShare"))}</span></button>` : ""}</div>` : ""}
     <div class="panel-label">${esc(t("labelSlots"))}</div><div class="lbl-slots">${[0, 1, 2, 3].map(slotSel).join("")}</div>
-    <div class="lbl-dpi"><span>${esc(t("labelDpi"))}</span>${[203, 300].map(d => `<button type="button" class="lbl-seg-btn${p.dpi === d ? " is-active" : ""}" data-lbl-dpi="${d}" aria-pressed="${p.dpi === d}">${d} dpi</button>`).join("")}</div>
     <div class="lbl-actions">
-      <button type="button" class="primary sm" data-lbl-out="print"><span class="icon icon-printer icon-14"></span><span>${esc(t("labelPrint"))}</span></button>
+      <div class="lbl-ble-row">
+        ${mainKey}
+        <button type="button" class="ghost sm lbl-ble-switch" data-lbl-ble-pick aria-label="${esc(t("labelBleChange"))}"><span class="icon icon-swap icon-14"></span></button>
+      </div>
+      <button type="button" class="lbl-ble-guide" data-lbl-ble-guide><span class="icon icon-book icon-12" aria-hidden="true"></span><span>${esc(t("labelBleCompat"))}</span></button>
+      ${items ? "" : `<button type="button" class="ghost sm" data-lbl-out="print"><span class="icon icon-printer icon-14"></span><span>${esc(t("labelPrint"))}</span></button>
       <button type="button" class="ghost sm" data-lbl-out="pdf"><span class="icon icon-download icon-14"></span><span>PDF</span></button>
       <button type="button" class="ghost sm" data-lbl-out="png"><span class="icon icon-download icon-14"></span><span>PNG</span></button>
-      <button type="button" class="ghost sm" data-lbl-out="svg"><span class="icon icon-download icon-14"></span><span>SVG</span></button>
+      <button type="button" class="ghost sm" data-lbl-out="svg"><span class="icon icon-download icon-14"></span><span>SVG</span></button>`}
     </div>
+    ${items ? `<p class="lbl-hint">${esc(t("labelBatchBleOnly"))}</p>` : ""}
     <p class="lbl-msg"></p>`;
   // The preview draws inside its frame: a spinner on the paper until it has loaded.
   const frame = body.querySelector(".lbl-frame"), paper = body.querySelector(".lbl-paper");
@@ -377,17 +434,30 @@ function render(body, cur) {
   body.querySelectorAll(".lbl-slot").forEach(el => ctx.enhanceSelect?.(el));
   body.onclick = e => {
     const k = e.target.closest("[data-lbl-kind]"), tp = e.target.closest("[data-lbl-tpl]"),
-          d = e.target.closest("[data-lbl-dpi]"), out = e.target.closest("[data-lbl-out]");
+          out = e.target.closest("[data-lbl-out]");
     // The kind switch: let its pill slide first, then redraw with the other label.
     if (k) {
       if (k.classList.contains("is-active")) return;
       k.parentElement.querySelectorAll("[data-lbl-kind]").forEach(x => { const on = x === k; x.classList.toggle("is-active", on); x.setAttribute("aria-pressed", String(on)); });
       savePrefs({ ...prefs(), kind: k.dataset.lblKind });
+      if (cur.batch) cur.i = 0;
       setTimeout(() => render(body, cur), 200);
     }
-    else if (tp) { savePrefs({ ...prefs(), template: tp.dataset.lblTpl }); render(body, cur); }
-    else if (d) { savePrefs({ ...prefs(), dpi: Number(d.dataset.lblDpi) }); render(body, cur); }
+    // A template picked is also the roll of the Bluetooth printer used last (ble-printer.js).
+    else if (tp) { savePrefs({ ...prefs(), template: tp.dataset.lblTpl }); rememberPrinterTemplate(lastBlePrinter(), tp.dataset.lblTpl); render(body, cur); }
+    // A Bluetooth label printer gets the label built for it: its own resolution, and
+    // the slim template on the narrow 12 mm heads (ble-printer.js picks both).
+    else if (out?.dataset.lblOut === "ble") printBle(({ dpi, template }) => buildLabel(info, link, { ...p, dpi, ...(template ? { template } : {}) }), row, kind, body.querySelector(".lbl-msg"));
     else if (out) exportLabel(out.dataset.lblOut, lbl, row, kind, body.querySelector(".lbl-msg"));
+    // A batch: browse its labels, print them all, stop, resume after the last one printed.
+    else if (e.target.closest("[data-lbl-nav]")) { cur.i = at + Number(e.target.closest("[data-lbl-nav]").dataset.lblNav); render(body, cur); }
+    else if (e.target.closest("[data-lbl-batch]")) printBatch(body, items, p, 0);
+    else if (e.target.closest("[data-lbl-resume]")) printBatch(body, items, p, Number(e.target.closest("[data-lbl-resume]").dataset.lblResume));
+    else if (e.target.closest("[data-lbl-batch-stop]")) { if (batchRun) batchRun.stop = true; e.target.closest("[data-lbl-batch-stop]").disabled = true; }
+    // The wiki's page of the label printers that work (tested models, our pick).
+    else if (e.target.closest("[data-lbl-ble-guide]")) openBleGuide();
+    // Another label printer becomes the default (a list of the ones in range).
+    else if (e.target.closest("[data-lbl-ble-pick]")) pickDefaultPrinter(() => { followDefaultPrinter(); render(body, cur); });
     // What the label's QR holds, shared in the sharer's language (ctx.shareProduct).
     else if (e.target.closest("[data-lbl-share]")) ctx.shareProduct?.(row, kind);
     // The QR's link, copied (the same link the preview opens).
@@ -417,5 +487,176 @@ async function exportLabel(format, lbl, row, kind, msg) {
   } catch (e) {
     if (msg) msg.textContent = ctx.t("labelExportFailed");
     ctx.reportError?.("label." + format, e);
+  }
+}
+
+// A BATCH to the Bluetooth label printer, from label `from` on: one job, the main key
+// turned into Stop, "Label 3 / 12…" in the message line; stopped or dropped, the
+// message says how far it got and a key resumes from the next one. Every label printed
+// is counted as a print (print_label). Several printers in range, or the default one
+// not seen: the chooser window, as for one label.
+let batchRun = null;
+async function printBatch(body, items, p, from) {
+  if (batchRun || bleBusy || !items?.length) return;
+  const { t, esc } = ctx;
+  const total = items.length;
+  const run = batchRun = { stop: false };
+  const msg = body.querySelector(".lbl-msg");
+  const key = body.querySelector("[data-lbl-batch]");
+  body.querySelector("[data-lbl-resume]")?.remove();
+  const keyHtml = key?.innerHTML;
+  if (key) { key.removeAttribute("data-lbl-batch"); key.setAttribute("data-lbl-batch-stop", ""); key.innerHTML = `<span class="icon icon-close icon-14"></span><span>${esc(t("labelBatchStop"))}</span>`; }
+  const say = (k, params, info = true) => { if (!msg) return; msg.classList.toggle("is-info", info); msg.textContent = t(k, params); };
+  let pick = null;
+  const dropPick = () => { pick?.close(); pick = null; };
+  const onStep = (step, extra) => {
+    if (step === "choose") { say("labelBleChoose"); if (!pick) pick = printerChooser(); pick.show(extra.devices, extra.choose); return; }
+    dropPick();
+    if (step === "print") say("labelBatchProgress", { done: Math.min(done + 1, total), total });
+    else say({ search: "labelBleSearch", connect: "labelBleConnect" }[step]);
+  };
+  const todo = items.slice(from);
+  const makers = todo.map(it => ({ dpi, template }) => {
+    const info = { ...ctx.labelInfo(it.row), ...(it.kind === "product" ? { protocol: "TigerQR+" } : {}) };
+    return buildLabel(info, linkFor(it.row, it.kind), { ...p, dpi, ...(template ? { template } : {}) });
+  });
+  let done = from;
+  const resumeKey = () => {
+    if (done >= total || !msg) return;
+    msg.insertAdjacentHTML("afterend", `<button type="button" class="ghost sm lbl-batch-resume" data-lbl-resume="${done}"><span class="icon icon-refresh icon-14"></span><span>${esc(t("labelBatchResume", { n: done + 1 }))}</span></button>`);
+  };
+  try {
+    const res = await printLabelsBle(makers, {
+      onStep,
+      stop: () => run.stop,
+      onProgress: (printed, _n, lbl) => {
+        const it = todo[printed - 1];
+        done = from + printed;
+        ctx.onLabelOut?.({ row: it.row, kind: it.kind, template: lbl?.template, output: "print", dpi: lbl?.dpi });
+        if (done < total) say("labelBatchProgress", { done: done + 1, total });
+      },
+    });
+    if (done < total) { say("labelBatchStopped", { done, total }); resumeKey(); }
+    else say("labelBatchDone", { n: total, name: res.name || res.model });
+  } catch (e) {
+    const none = /no printer found|NotFoundError/i.test(String(e?.message || e?.name));
+    if (none && done === from) say("labelBleNone", null, false);
+    else { say("labelBatchFailed", { done, total }, false); resumeKey(); }
+    if (!none) ctx.reportError?.("label.bleBatch", e);
+    console.warn("[label] Bluetooth batch:", e);
+  } finally {
+    dropPick();
+    batchRun = null;
+    const k = body.querySelector("[data-lbl-batch-stop]");
+    if (k) { k.removeAttribute("data-lbl-batch-stop"); k.setAttribute("data-lbl-batch", ""); k.disabled = false; if (keyHtml) k.innerHTML = keyHtml; }
+  }
+}
+
+// The wiki's Bluetooth label printers page — the models that work, tested — in the app's language.
+function openBleGuide() {
+  const lang = ctx.lang?.() || "en";
+  const url = `https://wiki.tigersystem.io${lang === "en" ? "" : "/" + lang}/compatibility/label-printers/`;
+  if (window.electronAPI?.openExternal) window.electronAPI.openExternal(url); else window.open(url, "_blank", "noopener");
+}
+
+// The default label printer follows the card: its model's roll is the template shown.
+function followDefaultPrinter() {
+  const tpl = defaultBlePrinter()?.template;
+  if (tpl && tpl !== prefs().template) savePrefs({ ...prefs(), template: tpl });
+}
+
+// THE PRINTERS IN RANGE, in one window (openDialog): the default first, each by its
+// model and its Bluetooth name. Used to change the default printer, and by a print
+// whose default printer was not seen (or when there is none and several answer).
+// `choose(id)` hands the pick to main.js; closing the window cancels the search.
+function printerChooser() {
+  const { t, esc } = ctx;
+  let chooseFn = null, picked = false;
+  const stop = () => { if (!picked) { picked = true; cancelChoose(); } };
+  const dlg = openDialog({
+    look: "notice", cls: "lbl-ble-dlg", icon: "tag",
+    title: t("labelBlePickTitle"), text: t("labelBlePickText"),
+    body: `<div class="lbl-ble-list" role="listbox"><p class="lbl-ble-wait"><span class="ttc-spinner" aria-hidden="true"></span>${esc(t("labelBleSearch"))}</p></div>
+      <button type="button" class="lbl-ble-guide" data-lbl-ble-guide><span class="icon icon-book icon-12" aria-hidden="true"></span><span>${esc(t("labelBleCompat"))}</span></button>`,
+    actions: [{ id: "cancel", label: t("btnCancel") }],
+    // Closed without a pick (Cancel, the cross, Escape, a click outside): the search stops.
+    onAction: (_id, close) => { stop(); close(); },
+    onDismiss: () => stop(),
+    wire: card => {
+      card.querySelector("[data-lbl-ble-guide]").addEventListener("click", openBleGuide);
+      card.querySelector(".lbl-ble-list").addEventListener("click", e => {
+        const b = e.target.closest("[data-ble-id]");
+        if (!b || picked || !chooseFn) return;
+        picked = true;
+        chooseFn(b.dataset.bleId);
+        dlg?.close();
+      });
+    },
+  });
+  const list = dlg.card.querySelector(".lbl-ble-list");
+  const cur = defaultBlePrinter()?.name;
+  return {
+    show(devices, choose) {
+      chooseFn = choose;
+      if (!devices.length) return;
+      list.innerHTML = devices.map(d => {
+        const model = labelPrinterModel(d.name)?.name;
+        return `<button type="button" class="lbl-ble-dev${d.name === cur ? " is-default" : ""}" role="option" data-ble-id="${esc(d.id)}">
+          <span class="icon icon-tag icon-16" aria-hidden="true"></span>
+          <span class="lbl-ble-dev-txt"><b>${esc(model || d.name)}</b><small>${esc(d.name)}</small></span>
+          ${d.name === cur ? `<span class="lbl-ble-dev-pill">${esc(t("labelBleDefault"))}</span>` : ""}</button>`;
+      }).join("");
+    },
+    close() { picked = true; dlg?.close(); },
+  };
+}
+
+// Change the default label printer: the printers in range, one picked.
+async function pickDefaultPrinter(after) {
+  const ch = printerChooser();
+  try { await choosePrinter((devices, choose) => ch.show(devices, choose)); after?.(); }
+  catch (_) { ch.close(); }
+}
+
+// The label sent to a Bluetooth label printer (ble-printer.js): straight to the
+// default printer, each step said in the card's message line, the button held while
+// it runs. Default printer not seen (or none, several in range): the chooser window.
+// Counted as a print (print_label).
+let bleBusy = false;
+async function printBle(make, row, kind, msg) {
+  if (bleBusy || !msg) return;
+  bleBusy = true;
+  const btn = msg.parentElement?.querySelector('[data-lbl-out="ble"]');
+  if (btn) btn.disabled = true;
+  msg.classList.remove("is-info");
+  let pick = null;
+  const dropPick = () => { pick?.close(); pick = null; };
+  const say = (key, params) => { msg.classList.add("is-info"); msg.textContent = ctx.t(key, params); };
+  const onStep = (step, extra) => {
+    if (step !== "choose") { dropPick(); say({ search: "labelBleSearch", connect: "labelBleConnect", print: "labelBlePrinting" }[step]); return; }
+    say("labelBleChoose");
+    if (!pick) pick = printerChooser();
+    pick.show(extra.devices, extra.choose);
+  };
+  try {
+    const res = await printLabelBle(make, { onStep });
+    // Another printer, another roll: the card follows the template it printed with.
+    if (!res.turned && res.template && res.template !== prefs().template) {
+      savePrefs({ ...prefs(), template: res.template });
+      const body = msg.parentElement;
+      if (current && body === $("labelBody")) { render(body, current); msg = body.querySelector(".lbl-msg"); }
+    }
+    say("labelBleDone", { name: res.name || res.model });
+    ctx.onLabelOut?.({ row, kind, template: res.template, output: "print", dpi: res.dpi });
+  } catch (e) {
+    const none = /no printer found|NotFoundError/i.test(String(e?.message || e?.name));
+    msg.classList.remove("is-info");
+    msg.textContent = ctx.t(none ? "labelBleNone" : "labelExportFailed");
+    if (!none) ctx.reportError?.("label.ble", e);
+    console.warn("[label] Bluetooth print:", e);
+  } finally {
+    dropPick();
+    bleBusy = false;
+    if (btn) btn.disabled = false;
   }
 }

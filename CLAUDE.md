@@ -193,7 +193,8 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.catalogBackoff` | `{until, n}`: automatic `product/get` asks paused after a 5xx / timeout, 30 min doubling up to 8 h |
 | `tigertag.nfc.lastUrl` | last link written to a chip by the NFC tools, offered again |
 | `tigertag.nfc.contact` | the NFC tools' contact card as last typed `{name, phone, email, org, url}` |
-| `tigertag.label` | the label card's last choices `{template, slots, dpi, kind}` (`renderer/labels`) |
+| `tigertag.label` | the label card's last choices `{template, slots, kind}` (`renderer/labels`; exports always 300 dpi, an old `dpi` is ignored) |
+| `tigertag.blePrinter` | Bluetooth label printers `{name, templates: {modelName: templateId}}`: the default printer (used or chosen last; a print goes straight to it) and each printer model's roll template — older entries keyed by a Bluetooth name are still read (`renderer/labels/ble-printer.js`) |
 | `tigertag.containers` | `{at, items}`: the empty-spool list last read from the server (GitHub mirror, else the API), merged over the bundled file; used only while `CONTAINERS_FROM_SERVER` is on |
 | `tigertag.trophies.<id>` | the trophy ids already celebrated on this device for that account (`renderer/quests/trophies.js`) |
 | `tigertag.trophyAlbum.<id>` | that account's album `{at, earned: {id: {at, event, ctx}}}`: painted at once, then only trophies with a later `earnedAt` are read (+ a COUNT catches one taken back) |

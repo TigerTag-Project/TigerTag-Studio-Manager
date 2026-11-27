@@ -385,6 +385,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Printed labels: { html, svg, wDots, hDots, mmW, mmH, dpi, format: 'png'|'pdf'|'svg'|'print', fileName }
   // → { ok, path } once saved (Save dialog), { ok } once printed. See main.js label:render.
   renderLabel: (opts) => ipcRenderer.invoke('label:render', opts),
+  // Bluetooth label printers (renderer/labels/ble-printer.js): open a device pick
+  // before navigator.bluetooth.requestDevice() — { prefer: the default printer's
+  // name } takes it as soon as it is seen, { list: true } always lists; the printers
+  // in range arrive through onBleDevices ([{ id, name }]), one is taken with bleChoose(id);
+  // onBleGaveUp fires when nothing was picked. The on… calls return an unsubscribe.
+  blePrefer: (opts) => ipcRenderer.invoke('ble:prefer', opts || {}),
+  bleChoose: (id) => ipcRenderer.invoke('ble:choose', id),
+  bleCancel: () => ipcRenderer.invoke('ble:cancel'),
+  onBleDevices: (callback) => { const h = (_e, list) => callback(list); ipcRenderer.on('ble:devices', h); return () => ipcRenderer.removeListener('ble:devices', h); },
+  onBleGaveUp: (callback) => { const h = () => callback(); ipcRenderer.on('ble:gave-up', h); return () => ipcRenderer.removeListener('ble:gave-up', h); },
   // A TigerTag+ backup decoded: { ok, certified, raw } (the Restore card's preview).
   decodeChipBackup: (uidHex, backupHex) =>
     ipcRenderer.invoke('rfid:decode-backup', uidHex, backupHex),

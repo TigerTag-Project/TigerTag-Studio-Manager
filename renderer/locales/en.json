@@ -1955,7 +1955,19 @@
   "acuCloudErrNoPrinters": "No cloud printers on your account.",
   "acuCloudAddFailed": "Couldn't add the cloud printer.",
   "acuCloudTokenRefreshed": "Cloud connection refreshed",
-  "acuCloudTokenStale": "Cloud sign-in expired — re-add the printer with the slicer in bridge mode.",
+  "acuCloudTokenStale": "Your Anycubic Cloud session has expired — open the printer and press Reconnect.",
+  "acuCloudReconnect": "Reconnect",
+  "acuCloudBadgeExpired": "Session expired",
+  "acuCloudCamExpired": "Your Anycubic session has expired. Reconnect to see the camera.",
+  "acuCloudAuthExpired": "The Anycubic Cloud session has ended: no live data, no camera. Reconnect to bring them back.",
+  "acuCloudAuthSoonToast": {
+    "one": "Anycubic Cloud session ends tomorrow — open the printer to reconnect.",
+    "other": "Anycubic Cloud session ends in {{n}} days — open the printer to reconnect."
+  },
+  "acuCloudAuthSoon": {
+    "one": "Your Anycubic Cloud session ends tomorrow. Reconnect now and the live data and camera won't drop.",
+    "other": "Your Anycubic Cloud session ends in {{n}} days. Reconnect now and the live data and camera won't drop."
+  },
   "acuHomeXyz": "XYZ Axis Homing",
   "acuHomeXy": "XY Axis Homing",
   "acuHomeZ": "Z Axis Homing",
@@ -2066,8 +2078,29 @@
   "labelSlots": "Values",
   "labelSlotNone": "Empty",
   "labelSlotTd": "TD",
-  "labelDpi": "Printer resolution",
   "labelPrint": "Print",
+  "labelBle": "Bluetooth label printer",
+  "labelBleSearch": "Looking for your label printer…",
+  "labelBleConnect": "Connecting…",
+  "labelBlePrinting": "Printing… eyes on the slot.",
+  "labelBleDone": "Printed on {{name}}.",
+  "labelBleNone": "No label printer found. Is it on, and not busy with the phone app?",
+  "labelBleChoose": "Several printers in range. Which one?",
+  "labelBlePrintTo": "Print on {{name}}",
+  "labelBleChange": "Change printer",
+  "labelBlePickTitle": "Pick your label printer",
+  "labelBlePickText": "Switch it on: the ones in range show up here. The one you pick becomes your default printer.",
+  "labelBleDefault": "Default",
+  "labelBleCompat": "Which printers work?",
+  "bulkLabels": "Labels",
+  "labelBlePrintN": {
+    "one": "Print {{n}} label on {{name}}",
+    "other": "Print {{n}} labels on {{name}}"
+  },
+  "labelBatchCount": {
+    "one": "{{n}} label",
+    "other": "{{n}} labels"
+  },
   "labelOpenLink": "See the QR's page",
   "labelCopyLink": "Copy link",
   "labelExportFailed": "The label didn't come out. Try again.",
@@ -3412,5 +3445,19 @@
   "catBrandsElsewhere": {
     "one": "{{n}} match, in a brand you don't follow",
     "other": "{{n}} matches, in brands you don't follow"
-  }
+  },
+  "labelBatchPrint": {
+    "one": "Print {{n}} label",
+    "other": "Print {{n}} labels"
+  },
+  "labelBatchStop": "Stop",
+  "labelBatchProgress": "Label {{done}} / {{total}}…",
+  "labelBatchResume": "Resume from label {{n}}",
+  "labelBatchStopped": "Stopped: {{done}} / {{total}} printed.",
+  "labelBatchDone": {
+    "one": "{{n}} label printed on {{name}}.",
+    "other": "{{n}} labels printed on {{name}}."
+  },
+  "labelBatchFailed": "The printer dropped out after {{done}} / {{total}}. Check it, then resume.",
+  "labelBatchBleOnly": "A batch goes to a Bluetooth label printer. For PDF, PNG or SVG, open one spool's label."
 }

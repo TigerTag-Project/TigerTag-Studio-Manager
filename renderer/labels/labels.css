@@ -10,8 +10,7 @@
 /* The same tools inside the product sheet's "QR label" tab: the tab scrolls, not them. */
 .lbl-body.lbl-body--inline { flex: none; overflow: visible; padding: 4px 0 0; }
 
-.lbl-seg, .lbl-dpi { display: flex; gap: 6px; align-items: center; }
-.lbl-dpi > span { flex: 1; font-size: 12.5px; color: var(--muted); }
+.lbl-seg { display: flex; gap: 6px; align-items: center; }
 .lbl-seg .lbl-seg-btn { flex: 1; }
 /* Spool Label / Filament Label: a two-state switch whose pill SLIDES between the
    two options (the account window's .eac-seg): one ::before placed by :has(). */
@@ -57,3 +56,34 @@
 .lbl-actions .icon { background-color: currentColor; }
 .lbl-msg { margin: 0; min-height: 0; font-size: 12.5px; color: var(--danger-text); }
 .lbl-msg:empty { display: none; }
+/* Bluetooth first: the default printer's key, and the switch to another one beside it. */
+.lbl-ble-row { flex: 1 1 100%; display: flex; gap: 8px; }
+.lbl-ble-row .lbl-ble { flex: 1; min-height: 40px; font-size: 13.5px; }
+.lbl-ble-row .lbl-ble-switch { flex: 0 0 40px; padding: 0; }
+/* A batch: how many labels, and the preview browsed one by one. */
+.lbl-batch { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.lbl-batch > b { font-size: 14px; }
+.lbl-batch-nav { display: inline-flex; align-items: center; gap: 4px; }
+.lbl-batch-nav .ghost { width: 30px; padding: 0; justify-content: center; }
+.lbl-batch-nav .ghost .icon { background-color: currentColor; }
+.lbl-batch-pos { min-width: 52px; text-align: center; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lbl-batch-resume { align-self: flex-start; }
+.lbl-batch-resume .icon { background-color: currentColor; }
+/* The wiki's page of the printers that work: a quiet link under the Bluetooth key and in the chooser. */
+.lbl-ble-guide { flex: 1 1 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin: -2px 0 2px; padding: 2px 0;
+  border: 0; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.lbl-ble-guide:hover { color: var(--primary); text-decoration: underline; }
+.lbl-ble-guide .icon { background-color: currentColor; }
+/* The printers in range (openDialog, look "notice"): one row per printer, the default marked. */
+.lbl-ble-list { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 2px; text-align: left; }
+.lbl-ble-wait { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0; font-size: 12.5px; color: var(--muted); }
+.lbl-ble-wait .ttc-spinner { position: static; width: 16px; height: 16px; margin: 0; }
+.lbl-ble-dev { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px 12px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--surface-2); color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background .15s, border-color .15s; }
+.lbl-ble-dev:hover { background: var(--surface-hover); border-color: var(--primary); }
+.lbl-ble-dev .icon { background-color: var(--primary); flex: 0 0 auto; }
+.lbl-ble-dev-txt { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.lbl-ble-dev-txt b { font-size: 13.5px; }
+.lbl-ble-dev-txt small { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lbl-ble-dev-pill { flex: 0 0 auto; padding: 2px 8px; border-radius: 9px; background: var(--primary-soft); color: var(--primary); font-size: 11px; font-weight: 700; }
+.lbl-msg.is-info { color: var(--muted); }

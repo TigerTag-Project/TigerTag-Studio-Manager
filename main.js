@@ -688,6 +688,25 @@ function createWindow() {
   // chokepoint, so a value that slips past the first one still cannot execute.
   // Deliberately not a blocklist: anything not provably http(s) is refused.
 
+  // Web Bluetooth device chooser (renderer/labels/ble-printer.js prints labels on
+  // Bluetooth label printers). Chromium hands the embedder the devices matching the
+  // renderer's requestDevice filters, again each time the list grows. The default
+  // printer is taken as soon as it is seen; otherwise, after 1.5 s of listening, one
+  // printer in range is taken and several are sent to the renderer (ble:devices),
+  // which answers with ble:choose. See _blePick below.
+  mainWindow.webContents.on('select-bluetooth-device', (evt, devices, callback) => {
+    evt.preventDefault();
+    const pick = _blePick;
+    if (!pick || pick.done) return;
+    pick.cb = callback;
+    pick.devices = devices.map(d => ({ id: d.deviceId, name: d.deviceName || '' })).filter(d => d.name);
+    // The default printer (the one used last) is taken the moment it shows up.
+    const preferred = pick.prefer && !pick.list && pick.devices.find(d => d.name === pick.prefer);
+    if (preferred) { _bleChoose(preferred.id); return; }
+    if (pick.settled) _bleSettle();
+    else if (!pick.settle) pick.settle = setTimeout(() => { pick.settled = true; _bleSettle(); }, pick.prefer ? 6000 : 1500);
+  });
+
   // Navigation lock. The renderer never navigates itself (no location writes,
   // no reloads), so any attempt to leave the app's own origin is either an
   // injected link or a redirect — and the destination would inherit the preload
@@ -4321,6 +4340,58 @@ async function _askLabelPath(format, fileName) {
   });
   return canceled || !filePath ? null : filePath;
 }
+// The pending Web Bluetooth pick (see 'select-bluetooth-device' in createWindow):
+// { cb, devices, settle, settled, shown, done, timer, prefer, list }, opened by
+// ble:prefer before each requestDevice. `prefer`: the default printer's Bluetooth
+// name — taken as soon as it is seen; not seen within 6 s, the printers in range are
+// listed (never another one taken silently). `list`: always list, even one printer
+// (choosing the default printer). Nothing found in 15 s (60 s once a list is
+// offered) gives up: the request is cancelled and the renderer told (ble:gave-up).
+let _blePick = null;
+function _bleSend(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload);
+}
+function _bleChoose(id) {
+  const p = _blePick;
+  if (!p || p.done || !p.cb) return;
+  p.done = true;
+  clearTimeout(p.timer); clearTimeout(p.settle);
+  p.cb(id);
+}
+function _bleSettle() {
+  const p = _blePick;
+  if (!p || p.done) return;
+  if (p.shown) _bleSend('ble:devices', p.devices);
+  else if (p.devices.length === 1 && !p.prefer && !p.list) _bleChoose(p.devices[0].id);
+  else if (p.devices.length) {
+    p.shown = true;
+    clearTimeout(p.timer);
+    p.timer = setTimeout(_bleCancelPick, 60000);
+    _bleSend('ble:devices', p.devices);
+  }
+}
+function _bleCancelPick() {
+  const p = _blePick;
+  if (!p || p.done) return;
+  p.done = true;
+  clearTimeout(p.timer); clearTimeout(p.settle);
+  try { p.cb?.(''); } catch (_) {}
+  _bleSend('ble:gave-up');
+}
+ipcMain.handle('ble:prefer', (_evt, opts = {}) => {
+  _bleCancelPick();
+  const prefer = typeof opts?.prefer === 'string' ? opts.prefer.slice(0, 80) : '';
+  _blePick = { cb: null, devices: [], done: false, prefer, list: opts?.list === true };
+  _blePick.timer = setTimeout(_bleCancelPick, 15000);
+  return true;
+});
+ipcMain.handle('ble:choose', (_evt, id) => {
+  const p = _blePick;
+  if (p && typeof id === 'string' && p.devices.some(d => d.id === id)) _bleChoose(id);
+  return true;
+});
+ipcMain.handle('ble:cancel', () => { _bleCancelPick(); return true; });
+
 ipcMain.handle('label:render', async (_evt, opts = {}) => {
   const { html, svg, wDots, hDots, mmW, mmH, dpi, format, fileName } = opts || {};
   if (format === 'svg' && typeof svg !== 'string') return { ok: false, reason: 'bad label' };

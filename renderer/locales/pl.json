@@ -1965,7 +1965,19 @@
   "acuCloudErrNoPrinters": "Brak drukarek w chmurze na Twoim koncie.",
   "acuCloudAddFailed": "Nie udało się dodać drukarki w chmurze.",
   "acuCloudTokenRefreshed": "Połączenie z chmurą odświeżone",
-  "acuCloudTokenStale": "Sesja w chmurze wygasła — dodaj drukarkę ponownie ze slicerem w trybie mostka.",
+  "acuCloudTokenStale": "Twoja sesja Anycubic Cloud wygasła — otwórz drukarkę i naciśnij Połącz ponownie.",
+  "acuCloudReconnect": "Połącz ponownie",
+  "acuCloudBadgeExpired": "Sesja wygasła",
+  "acuCloudCamExpired": "Twoja sesja Anycubic wygasła. Połącz się ponownie, aby zobaczyć kamerę.",
+  "acuCloudAuthExpired": "Sesja Anycubic Cloud się skończyła: brak danych na żywo i kamery. Połącz się ponownie, aby je odzyskać.",
+  "acuCloudAuthSoonToast": {
+    "one": "Sesja Anycubic Cloud kończy się jutro — otwórz drukarkę, aby połączyć się ponownie.",
+    "other": "Sesja Anycubic Cloud kończy się za {{n}} dni — otwórz drukarkę, aby połączyć się ponownie."
+  },
+  "acuCloudAuthSoon": {
+    "one": "Twoja sesja Anycubic Cloud kończy się jutro. Połącz się ponownie teraz, a dane na żywo i kamera nie znikną.",
+    "other": "Twoja sesja Anycubic Cloud kończy się za {{n}} dni. Połącz się ponownie teraz, a dane na żywo i kamera nie znikną."
+  },
   "acuHomeXyz": "Bazowanie osi XYZ",
   "acuHomeXy": "Bazowanie osi XY",
   "acuHomeZ": "Bazowanie osi Z",
@@ -2076,8 +2088,29 @@
   "labelSlots": "Wartości",
   "labelSlotNone": "Puste",
   "labelSlotTd": "TD",
-  "labelDpi": "Rozdzielczość drukarki",
   "labelPrint": "Drukuj",
+  "labelBle": "Drukarka etykiet Bluetooth",
+  "labelBleSearch": "Szukam twojej drukarki etykiet…",
+  "labelBleConnect": "Łączenie…",
+  "labelBlePrinting": "Drukuję… patrz na wylot.",
+  "labelBleDone": "Wydrukowano na {{name}}.",
+  "labelBleNone": "Nie znaleziono drukarki etykiet. Jest włączona i nie zajęta przez aplikację w telefonie?",
+  "labelBleChoose": "Kilka drukarek w zasięgu. Która?",
+  "labelBlePrintTo": "Drukuj na {{name}}",
+  "labelBleChange": "Zmień drukarkę",
+  "labelBlePickTitle": "Wybierz swoją drukarkę etykiet",
+  "labelBlePickText": "Włącz ją: drukarki w zasięgu pojawią się tutaj. Wybrana zostanie twoją domyślną.",
+  "labelBleDefault": "Domyślna",
+  "labelBleCompat": "Które drukarki działają?",
+  "bulkLabels": "Etykiety",
+  "labelBlePrintN": {
+    "one": "Drukuj {{n}} etykietę na {{name}}",
+    "other": "Drukuj etykiety na {{name}}: {{n}}"
+  },
+  "labelBatchCount": {
+    "one": "{{n}} etykieta",
+    "other": "Etykiety: {{n}}"
+  },
   "labelOpenLink": "Zobacz stronę kodu QR",
   "labelCopyLink": "Kopiuj link",
   "labelExportFailed": "Etykieta nie wyszła. Spróbuj jeszcze raz.",
@@ -3448,5 +3481,19 @@
   "catBrandsElsewhere": {
     "one": "{{n}} wynik, w marce, której nie śledzisz",
     "other": "Wyniki: {{n}}, w markach, których nie śledzisz"
-  }
+  },
+  "labelBatchPrint": {
+    "one": "Drukuj {{n}} etykietę",
+    "other": "Drukuj etykiety: {{n}}"
+  },
+  "labelBatchStop": "Zatrzymaj",
+  "labelBatchProgress": "Etykieta {{done}} / {{total}}…",
+  "labelBatchResume": "Wznów od etykiety {{n}}",
+  "labelBatchStopped": "Zatrzymano: wydrukowano {{done}} / {{total}}.",
+  "labelBatchDone": {
+    "one": "Wydrukowano {{n}} etykietę na {{name}}.",
+    "other": "Wydrukowano etykiety na {{name}}: {{n}}."
+  },
+  "labelBatchFailed": "Drukarka odpadła po {{done}} / {{total}}. Sprawdź ją i wznów.",
+  "labelBatchBleOnly": "Partia trafia na drukarkę etykiet Bluetooth. PDF, PNG lub SVG: otwórz etykietę jednej szpuli."
 }

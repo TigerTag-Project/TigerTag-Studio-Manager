@@ -727,6 +727,11 @@
   .bulk-bar.is-products #bulkList,
   .bulk-bar.is-catalog #bulkList { display: inline-flex; }
   .bulk-bar.is-pricing #bulkList { display: none; }
+  /* Labels: the selected spools of one's own inventory (not a friend's, not while pricing). */
+  #bulkLabels { display: none; }
+  .bulk-bar.is-materials #bulkLabels { display: inline-flex; }
+  .bulk-bar.is-friendview #bulkLabels,
+  .bulk-bar.is-pricing #bulkLabels { display: none; }
   .bulk-sel-count { display: none; font-size: 13px; font-weight: 700; color: var(--text); padding: 0 4px; font-variant-numeric: tabular-nums; }
   .bulk-bar.is-catalog .bulk-sel-count { display: inline-flex; }
   /* Friend view: keep ONLY the ★/❤ import actions — no write-to-friend actions. */

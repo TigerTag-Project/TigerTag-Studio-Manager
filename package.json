@@ -135,7 +135,8 @@
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "extendInfo": {
-        "NSCameraUsageDescription": "Tiger Studio Manager uses the camera to read the QR code on a spool label."
+        "NSCameraUsageDescription": "Tiger Studio Manager uses the camera to read the QR code on a spool label.",
+        "NSBluetoothAlwaysUsageDescription": "Tiger Studio Manager uses Bluetooth to print spool labels on a label printer."
       },
       "entitlementsInherit": "build/entitlements.mac.plist",
       "notarize": true
