@@ -8,19 +8,24 @@
 import { ctx } from '../context.js';
 import { jobBar, jobBarFill } from '../job-bar.js';
 
-/** Bays on one AMS module: 9 on an AMS 3H (H3C), 1 on an AMS HT, otherwise 4. The module's
- *  own tray list tells an HT apart; the 3H is told by its module name (n10a, see
- *  _bblParseModules) or by carrying more than four trays. */
-/** A single external spool exists on every Bambu EXCEPT the H3C (catalogue id 14): its nine tools
- *  are fed by the AMS 3H's nine bays, and extra AMS units hang off tool 1 — there is no spool
- *  holder. Show an Ext. tile there only if the machine itself reports one (vt_tray / vir_slot). */
+/** A single external spool exists on every Bambu EXCEPT the tool changers H3C (catalogue id 14)
+ *  and P3C (15): their tools are fed by the built-in AMS 3H / 3P, and extra AMS units hang off
+ *  tool 1 — there is no spool holder. Show an Ext. tile there only if the machine itself reports
+ *  one (vt_tray / vir_slot). */
 export function bambuHasExt(conn) {
-  return Number(conn?.modelId) !== 14 || !!conn?.data?.externalTray;
+  const id = Number(conn?.modelId);
+  return (id !== 14 && id !== 15) || !!conn?.data?.externalTray;
 }
 
+/** Bays on one AMS module: 9 on an AMS 3H (H3C), 7 on an AMS 3P (P3C), 1 on an AMS HT,
+ *  otherwise 4. The 3H / 3P are told by their module name (n10a / n11a, see _bblParseModules),
+ *  else by carrying more than four trays; an HT by its single tray. */
 export function bambuBayCount(m, d) {
   const n = (m?.tray || []).length;
-  if (d?.amsType?.[String(m?.id)] === '3h' || n > 4) return 9;
+  const type = d?.amsType?.[String(m?.id)];
+  if (type === '3h') return 9;
+  if (type === '3p') return 7;
+  if (n > 4) return n;
   return n === 1 ? 1 : 4;
 }
 
@@ -120,7 +125,7 @@ export function renderBambuTempCard(conn, heatedChamber = false) {
     ? d.nozzles
     : (d.nozzleCurrent != null || d.nozzleTarget != null)
       ? [{ id: 0, current: d.nozzleCurrent, target: d.nozzleTarget }] : [];
-  // H3C "Swaptek" tool changer: nine PrintTools, one pill each (T1…T9) like every other
+  // H3C / P3C "Swaptek" tool changers: nine / seven PrintTools, one pill each (T1…T9) like every other
   // tool changer, the mounted one highlighted. They replace the single legacy nozzle pill —
   // the mounted tool's pill already says the same thing. Each tool takes a setpoint (see below).
   const tools = Array.isArray(d.tools) ? d.tools : [];
@@ -259,7 +264,8 @@ export function renderBambuFilamentCard(_p, conn) {
   // position in the list: an AMS HT reports id 128, so the third unit of a
   // 0 / 1 / 128 setup would otherwise be written to a nonexistent "ams_id 2".
   // `from` = first bay of the row. A row holds five tiles: the Ext. tile + four bays, or — on a
-  // machine with no external spool (the H3C) — five bays, so an AMS 3H (9 bays) reads 5 + 4
+  // machine with no external spool (the H3C, the P3C) — five bays, so an AMS 3H (9 bays) reads 5 + 4
+  // and an AMS 3P (7) 5 + 2
   // instead of leaving the Ext. column empty. With an Ext. tile it is A1-A4 / A5-A8 / A9.
   const perRow = hasExt ? 4 : 5;
   const makeAmsRow = (mod, rowLetter, from = 0) => {

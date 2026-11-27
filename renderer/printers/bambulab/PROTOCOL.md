@@ -1541,6 +1541,22 @@ données capturées — jamais vu sur une vraie H3C.**
 Pas encore fait : commandes de séchage par zone, AMS supplémentaires sur l'outil 1,
 éclairage de la H3C (rubans inconnus).
 
+### 16.10 P3C — la H3C à 7 outils + AMS 3P
+
+Source : Bambu Studio (`resources/printers/N11.json` comparé à `N10.json`,
+`resources/profiles/BBL/machine/Bambu Lab P3C.json`, `model_id` **`N11`**) et la fiche du store
+Bambu Lab. **Jamais vue sur une vraie P3C : on suppose qu'elle parle comme la H3C** (même famille
+Swaptek, mêmes clés dans le fichier imprimante).
+
+| Point | Bambu Studio / store | Chez nous |
+|-------|----------------------|-----------|
+| Identité | `display_name "Bambu Lab P3C"`, code `N11`, `sn_prefix` **`331`** | catalogue id **15**, `N11` → 15 et préfixe `331` → 15 (`probe.js`) |
+| **7 outils** | `default_nozzle_count` 7 (H3C : 9) ; livrée avec 5 PrintTools 0,4 mm + 2 emplacements libres | même lecture que la H3C (`device.nozzle.info[]`, `addr_id` 0-6) : pastilles `T1…T7` |
+| **AMS 3P** | `hotend_ams_type_string` **`n11a`** (H3C : `n10a`) ; 7 bobines dans la machine, séchage actif sur 2 bacs avec le Dryer Module en option | `amsType[id] = "3p"`, unité `ams3p` : 7 bacs, dessinée 4 + 3 sur le tableau, 5 + 2 sur la carte Filament |
+| Pas de bobine extérieure | comme la H3C | la case « Ext. » n'est montrée que si la machine en annonce une |
+| Chambre | `support_chamber_temp_edit` **false** dans Bambu Studio (la fiche du store annonce un chauffage actif à 65 °C) | température affichée, **pas de consigne** (id 15 absent de la liste des chambres chauffées) tant qu'une vraie P3C n'a pas montré le contraire |
+| Limites | buse 0-300 °C, plateau 0-110 °C (H3C : 350 / 120) | non utilisées |
+
 ---
 
 ## Annexe A — Modèles et IDs
@@ -1560,7 +1576,8 @@ Pas encore fait : commandes de séchage par zone, AMS supplémentaires sur l'out
 | 11 | H2C | RTSP | — | `O1C` |
 | 12 | X2D | RTSP | — | — |
 | 13 | A2L | JPEG TCP | `26A` | `N9` |
-| 14 | H3C | RTSP | — | `N10` |
+| 14 | H3C | RTSP | `32X` | `N10` |
+| 15 | P3C | RTSP | `331` | `N11` |
 
 ---
 

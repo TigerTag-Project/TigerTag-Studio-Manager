@@ -31,6 +31,7 @@ const BBL_CODE_TO_ID = {
   N2S: '2',        // A1
   N9: '13',        // A2L
   N10: '14',       // H3C
+  N11: '15',       // P3C
   C11: '4',        // P1P
   C12: '3',        // P1S
   C13: '6',        // X1E
@@ -58,6 +59,8 @@ const BBL_SERIAL_PREFIX_TO_ID = {
   '03W': '6', // C13  → X1E
   '22E': '10',// N7   → P2S
   '26A': '13',// N9   → A2L (read off a real A2L's serial, issue #244)
+  '32X': '14',// N10  → H3C (Bambu Studio's printers/N10.json `sn_prefix`)
+  '331': '15',// N11  → P3C (Bambu Studio's printers/N11.json `sn_prefix`)
   // No prefix known for N6 (X2D): a serial prefix can only be read off a real
   // machine, and none has been seen here yet. It resolves from its DevModel code
   // above, which is the path discovery and the cloud use.

@@ -618,10 +618,14 @@ function _bblParseModules(conn, msg) {
   let changed = false;
   for (const m of mods) {
     // AMS 3H (H3C): nine bays, two drying zones. Named "n10a" with the unit id in
-    // `id` (32 on the unit captured by ha-bambulab), not "n10a/<n>".
-    if (m?.name === "n10a" || String(m?.name || "").startsWith("n10a/")) {
-      const id = String(m.id ?? String(m.name).split("/")[1] ?? "");
-      if (id && types[id] !== "3h") { types[id] = "3h"; changed = true; }
+    // `id` (32 on the unit captured by ha-bambulab), not "n10a/<n>". The P3C's AMS 3P is
+    // the same box with seven bays, "n11a" (Bambu Studio printers/N11.json
+    // `hotend_ams_type_string`), assumed to report the same way.
+    const tm = String(m?.name || "").match(/^(n10a|n11a)(?:\/(\d+))?$/);
+    if (tm) {
+      const id = String(m.id ?? tm[2] ?? "");
+      const type = tm[1] === "n11a" ? "3p" : "3h";
+      if (id && types[id] !== type) { types[id] = type; changed = true; }
       continue;
     }
     const mm = String(m?.name || "").match(/^(ams_f1|ams|n3f|n3s)\/(\d+)/);
@@ -1504,13 +1508,13 @@ export function bambuGetUnits(printer) {
     const n = bambuBayCount(m, d);
     const amsId = Number(m?.id ?? mi);
     units.push({
-      kind: n === 1 ? 'amsHt' : n === 9 ? 'ams3h' : 'ams', index: mi, label: '',
+      kind: n === 1 ? 'amsHt' : n === 9 ? 'ams3h' : n === 7 ? 'ams3p' : 'ams', index: mi, label: '',
       // The AMS's own id — what makes the same physical box recognisable after
       // a reconnect, however the user reorders them.
       hwId: m?.id != null ? String(m.id) : null,
-      // An AMS 3H (9 bays) is drawn 4 + 4 + 1, never as one row of nine: the board strip honours
-      // `cols`, and four across is exactly the board's one card width.
-      rows: n === 9 ? 3 : 1, cols: n === 9 ? 4 : n,
+      // An AMS 3H (9 bays) is drawn 4 + 4 + 1 and an AMS 3P (7) 4 + 3, never as one long row:
+      // the board strip honours `cols`, and four across is exactly the board's one card width.
+      rows: n > 4 ? Math.ceil(n / 4) : 1, cols: n > 4 ? 4 : n,
       slots: Array.from({ length: n }, (_, ti) => ({
         ...slot(`${'ABCDEFGH'[mi] || mi + 1}${ti + 1}`, (m?.tray || [])[ti] ?? null,
                 { amsId, trayId: ti }),
