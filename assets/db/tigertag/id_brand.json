@@ -54,6 +54,14 @@
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=1421&v=1794706748"
   },
   {
+    "id": 1621,
+    "name": "DoPro 3D",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 2049,
     "name": "Inslogic",
     "type_ids": [
@@ -224,6 +232,14 @@
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=7980&v=1794706866"
   },
   {
+    "id": 8163,
+    "name": "Sakata3D",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 8182,
     "name": "Fiberlogy",
     "type_ids": [
@@ -361,6 +377,14 @@
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=11429&v=1794706901"
   },
   {
+    "id": 11474,
+    "name": "FilamentOn",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 11501,
     "name": "InnovateFil",
     "type_ids": [
@@ -404,6 +428,14 @@
     "printer": true
   },
   {
+    "id": 13061,
+    "name": "GratKit",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 13667,
     "name": "RS Pro",
     "type_ids": [
@@ -434,6 +466,14 @@
       142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=14982&v=1794706926"
+  },
+  {
+    "id": 15248,
+    "name": "3DK Berlin",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
   },
   {
     "id": 15899,
@@ -520,6 +560,14 @@
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=20523&v=1794706952"
   },
   {
+    "id": 20644,
+    "name": "Filamatrix",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 20851,
     "name": "Tronxy",
     "type_ids": [
@@ -536,12 +584,28 @@
     "logo_url": null
   },
   {
+    "id": 21210,
+    "name": "Spool-Craft",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 21492,
     "name": "Eolas Prints",
     "type_ids": [
       142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=21492&v=1795388381"
+  },
+  {
+    "id": 22239,
+    "name": "Aurapol",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
   },
   {
     "id": 22652,
@@ -966,6 +1030,14 @@
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=45678&v=1794707060"
   },
   {
+    "id": 45993,
+    "name": "U3Print",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 46010,
     "name": "AceAddity",
     "type_ids": [
@@ -1198,6 +1270,14 @@
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=54112&v=1794707130"
   },
   {
+    "id": 54744,
+    "name": "HERZ",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
+  },
+  {
     "id": 55195,
     "name": "CR-3D",
     "type_ids": [
@@ -1353,6 +1433,14 @@
       142
     ],
     "logo_url": "https://cdn.tigertag.io/img?type=brand&id=62674&v=1794707172"
+  },
+  {
+    "id": 62835,
+    "name": "Epelay",
+    "type_ids": [
+      142
+    ],
+    "logo_url": null
   },
   {
     "id": 63024,

@@ -15832,6 +15832,12 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _catColorSet(v, { search = true } = {}) {
     state.catColor = v && v.hex ? { ...v, lab: hexToLab(v.hex) } : null;
     if (!state.catColor) _csr?.setValue({ hex: null, ral: "" });
+    // One way to ask for a colour at a time: a colour search puts the colour bars back.
+    else if (_hueFilterOn()) {
+      const f = _hueFilter();
+      Object.assign(f.hue, HUE_DEFAULT); Object.assign(f.lum, LUM_DEFAULT); f.axis = "hue";
+      _hueViewsRedraw?.();
+    }
     // Trophies (backend trophyRules APP_REPORTED): a first colour search, a RAL, a photo point.
     if (state.catColor) {
       _appTrophy("colorSearchFirst");
@@ -15860,10 +15866,18 @@ import { initScreenTools } from './ai/screen-tools.js';
     }
     return l;
   }
-  // The RAL codes a brand declared, one per colour (`rals`), or the first colour's (`ral`).
+  // The RAL codes the brand itself gave, read from the catalogue item's
+  // `color_info`: one per colour (`rals` + `ral_sources`), or the first colour's
+  // (`ral` + `ral_source`). A code the Manager estimated from the colour
+  // (source "auto") is not declared, so it never jumps the ΔE order.
   function _catRals(it) {
-    const list = Array.isArray(it.rals) && it.rals.length ? it.rals : [it.ral];
-    return list.map(c => ralColor(c)?.code || "");
+    const ci = it?.color_info;
+    if (!ci || typeof ci !== "object") return [];
+    const list = Array.isArray(ci.rals) && ci.rals.length ? ci.rals : [ci.ral];
+    const sources = Array.isArray(ci.ral_sources) ? ci.ral_sources : [];
+    return list
+      .map((c, i) => ((sources[i] ?? ci.ral_source) === "brand" ? ralColor(c)?.code : null))
+      .filter(Boolean);
   }
   // item → { de, declared } for the hits of the current colour search.
   const _catColorDE = new Map();
@@ -38642,6 +38656,14 @@ import { initScreenTools } from './ai/screen-tools.js';
       };
       const views = hueGroup(f, () => _onFilterChange());
       _hueViewsRedraw = () => views.redraw();   // the filter bar's colour chip resets them
+      /* The colour bars and the colour search (HEX / RAL / photo) are two ways to
+         ask for a colour: one at a time, as the two bars are. Touching a bar drops
+         the colour search; picking a colour puts the bars back (_catColorSet). */
+      const viewsSolo = views.solo;
+      views.solo = name => {
+        if (state.catColor) _catColorSet(null, { search: false });
+        viewsSolo(name);
+      };
 
       /* One selector, driven twice. `win` is the {lo,width,active} it owns and
          `axis` says how wide the scale is, how thin the window may get, and

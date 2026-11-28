@@ -130,6 +130,12 @@ function _nextSeq() {
    Not covered: the restarts that bypass bambuConnect (_bblAdoptLanAddress, failover.js) do not
    stamp camAskedAt. */
 const CAM_ASK_GUARD_MS = 20_000;
+/* A camera counts as running only while pictures arrive. The main process stops retrying after
+   10 restarts (a printer rebooting outlasts them); the last picture then stays in lastCamUrl, so a
+   test on lastCamUrl alone would never start that camera again. Longer than the main process's
+   12 s retry backoff, so a stream that is only reconnecting is not restarted on top of it. */
+const CAM_STALE_MS = 20_000;
+const _camRunning = (c) => !!c.data?.lastCamUrl && Date.now() - (c.camFrameAt || 0) < CAM_STALE_MS;
 
 export function bambuConnect(printer, { skipCam = false } = {}) {
   const key = bambuKey(printer);
@@ -140,9 +146,9 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
   // Idempotent: already connected/connecting with the same IP →
   // only (re-)start the camera if the caller wants it AND the stream
   // is not already delivering frames in the background (panel close no
-  // longer stops the camera, so lastCamUrl being non-null means the
-  // ffmpeg/JPEG-TCP process is alive — restarting it would cause a
-  // brief interruption for no benefit).
+  // longer stops the camera, so a recent picture means the ffmpeg/JPEG-TCP
+  // process is alive — restarting it would cause a brief interruption for
+  // no benefit; a stream that went quiet is started again, see _camRunning).
   // Preserve live data across reconnections so UI doesn't flicker to zero.
   // We only carry it over when the IP hasn't changed (same physical printer).
   let _prevData = null;
@@ -154,7 +160,7 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
          cloud printer is "already connected" whatever its IP says, and an address
          that has just been learned can never be read as a different machine. */
       if (existing.ip === ip || existing.cloud) {
-        if (!skipCam && ip && password && !existing.data?.lastCamUrl && !existing.data?.camDisabled) {
+        if (!skipCam && ip && password && !_camRunning(existing) && !existing.data?.camDisabled) {
           if (Date.now() - (existing.camAskedAt || 0) < CAM_ASK_GUARD_MS) return;   // a start is already under way
           existing.camAskedAt = Date.now();
           if (bambuUsesJpegCam(printer)) {
@@ -520,6 +526,7 @@ if (typeof window !== "undefined" && window.bambulab) {
     const conn = _bambuConns.get(key);
     if (!conn) return;
     const firstFrame = !conn.data.lastCamUrl;
+    conn.camFrameAt = Date.now();
     // Keep only the newest raw JPEG bytes; the Blob URL is built once per
     // painted frame inside the rAF below (not per incoming frame).
     conn.data.lastCamBuf = buf;

@@ -511,7 +511,7 @@
   "catEmptyTitle": "Dazu steht nichts im Katalog",
   "catEmptySub": "Kein Problem — leg sie selbst an, als TigerData in der Cloud oder auf einem TigerTag-Chip.",
   "catEmptyCta": "Selbst anlegen",
-  "catEmptyFilteredTitle": "Ist da — deine Filter verstecken es",
+  "catEmptyFilteredTitle": "Kein Produkt passt zu diesen Filtern",
   "catEmptyFilteredCta": "Filter entfernen",
   "colorSearchBtn": "Nach Farbe suchen",
   "colorSearchSub": "Wähle eine Farbe, gib einen HEX- oder RAL-Code ein oder nimm sie aus einem Foto: Alle Filamente und Harze des Katalogs werden nach ihrer Ähnlichkeit sortiert.",

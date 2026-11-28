@@ -16034,5 +16034,184 @@
         }
       }
     ]
+  },
+  "2.62.0": {
+    "date": "2026-11-28",
+    "items": [
+      {
+        "icon": "bluetooth",
+        "title": {
+          "en": "Labels go straight to your Bluetooth printer",
+          "fr": "Les étiquettes partent direct sur ton imprimante Bluetooth",
+          "de": "Etiketten gehen direkt an deinen Bluetooth-Drucker",
+          "es": "Las etiquetas salen directas a tu impresora Bluetooth",
+          "it": "Le etichette vanno dritte alla tua stampante Bluetooth",
+          "zh": "标签直接发到你的蓝牙打印机",
+          "pt": "As etiquetas vão direto para a sua impressora Bluetooth",
+          "pt-pt": "As etiquetas vão direitas para a tua impressora Bluetooth",
+          "pl": "Etykiety lecą prosto do drukarki Bluetooth",
+          "ru": "Этикетки летят прямо на ваш Bluetooth-принтер",
+          "nl": "Labels gaan rechtstreeks naar je Bluetooth-printer"
+        },
+        "body": {
+          "en": "Niimbot, Phomemo or Marklife: one click on Print and the label comes out. No PDF detour, no fuss. Studio remembers your printer and your roll.",
+          "fr": "Niimbot, Phomemo ou Marklife : un clic sur Imprimer et l'étiquette sort. Pas de détour par un PDF. Studio retient ton imprimante et ton rouleau.",
+          "de": "Niimbot, Phomemo oder Marklife: ein Klick auf Drucken und das Etikett kommt raus. Kein PDF-Umweg. Studio merkt sich Drucker und Rolle.",
+          "es": "Niimbot, Phomemo o Marklife: un clic en Imprimir y sale la etiqueta. Sin rodeos por PDF. Studio recuerda tu impresora y tu rollo.",
+          "it": "Niimbot, Phomemo o Marklife: un clic su Stampa ed esce l'etichetta. Niente giri col PDF. Studio ricorda stampante e rotolo.",
+          "zh": "Niimbot、Phomemo 或 Marklife：点一下打印，标签就出来了，不用绕道 PDF。Studio 会记住你的打印机和标签卷。",
+          "pt": "Niimbot, Phomemo ou Marklife: um clique em Imprimir e a etiqueta sai. Sem desvio por PDF. O Studio lembra da sua impressora e do rolo.",
+          "pt-pt": "Niimbot, Phomemo ou Marklife: um clique em Imprimir e a etiqueta sai. Sem desvios por PDF. O Studio lembra-se da tua impressora e do rolo.",
+          "pl": "Niimbot, Phomemo lub Marklife: jedno kliknięcie w Drukuj i etykieta wychodzi. Bez objazdu przez PDF. Studio pamięta drukarkę i rolkę.",
+          "ru": "Niimbot, Phomemo или Marklife: один клик по «Печать», и этикетка готова. Без обходных путей через PDF. Studio помнит ваш принтер и рулон.",
+          "nl": "Niimbot, Phomemo of Marklife: één klik op Printen en het label komt eruit. Geen PDF-omweg. Studio onthoudt je printer en je rol."
+        }
+      },
+      {
+        "icon": "tag",
+        "title": {
+          "en": "A whole stack of labels in one go",
+          "fr": "Toute une pile d'étiquettes d'un coup",
+          "de": "Ein ganzer Stapel Etiketten auf einmal",
+          "es": "Una pila entera de etiquetas de golpe",
+          "it": "Una pila di etichette in un colpo solo",
+          "zh": "一次打印一整叠标签",
+          "pt": "Uma pilha de etiquetas de uma vez",
+          "pt-pt": "Uma pilha de etiquetas de uma só vez",
+          "pl": "Cały stos etykiet za jednym razem",
+          "ru": "Целая стопка этикеток за раз",
+          "nl": "Een hele stapel labels in één keer"
+        },
+        "body": {
+          "en": "Select your spools, hit Labels, and print them all on your Bluetooth printer. If it stops halfway, it picks up where it left off.",
+          "fr": "Sélectionne tes bobines, appuie sur Étiquettes, et imprime-les toutes sur ton imprimante Bluetooth. Si ça s'arrête en route, ça reprend où ça s'est arrêté.",
+          "de": "Wähle deine Spulen, tippe auf Etiketten und drucke alle auf deinem Bluetooth-Drucker. Bricht es ab, geht es dort weiter, wo es aufgehört hat.",
+          "es": "Selecciona tus bobinas, pulsa Etiquetas e imprímelas todas en tu impresora Bluetooth. Si se corta a medias, sigue donde lo dejó.",
+          "it": "Seleziona le bobine, premi Etichette e stampale tutte sulla tua stampante Bluetooth. Se si interrompe, riparte da dove si era fermata.",
+          "zh": "选中你的耗材盘，点“标签”，一次全部打印到蓝牙打印机。中途中断了，也能从断点继续。",
+          "pt": "Selecione suas bobinas, toque em Etiquetas e imprima todas na sua impressora Bluetooth. Se parar no meio, continua de onde parou.",
+          "pt-pt": "Seleciona as tuas bobinas, toca em Etiquetas e imprime-as todas na tua impressora Bluetooth. Se parar a meio, continua onde ficou.",
+          "pl": "Zaznacz szpule, kliknij Etykiety i wydrukuj wszystkie na drukarce Bluetooth. Jak się zatnie w połowie, wznowi od miejsca przerwania.",
+          "ru": "Выберите катушки, нажмите «Этикетки» и напечатайте все на Bluetooth-принтере. Если остановится на полпути, продолжит с того же места.",
+          "nl": "Selecteer je spoelen, tik op Labels en print ze allemaal op je Bluetooth-printer. Stopt het halverwege, dan gaat het verder waar het bleef."
+        }
+      },
+      {
+        "icon": "camera",
+        "title": {
+          "en": "Bambu Lab cameras stop freezing",
+          "fr": "Les caméras Bambu Lab arrêtent de se figer",
+          "de": "Bambu-Lab-Kameras frieren nicht mehr ein",
+          "es": "Las cámaras Bambu Lab dejan de congelarse",
+          "it": "Le fotocamere Bambu Lab smettono di bloccarsi",
+          "zh": "Bambu Lab 摄像头不再卡住",
+          "pt": "As câmeras Bambu Lab param de congelar",
+          "pt-pt": "As câmaras Bambu Lab deixam de congelar",
+          "pl": "Kamery Bambu Lab przestają się zacinać",
+          "ru": "Камеры Bambu Lab больше не зависают",
+          "nl": "Bambu Lab-camera's blijven niet meer hangen"
+        },
+        "body": {
+          "en": "The live view now shows a fresh picture instead of the same one for seconds, and a camera that gave up wakes up again when you reopen it.",
+          "fr": "Le direct affiche maintenant une image fraîche au lieu de la même pendant des secondes, et une caméra qui avait abandonné se réveille quand tu la rouvres.",
+          "de": "Die Live-Ansicht zeigt jetzt ein frisches Bild statt sekundenlang dasselbe, und eine aufgegebene Kamera wacht beim erneuten Öffnen wieder auf.",
+          "es": "La vista en directo muestra ahora una imagen fresca en vez de la misma durante segundos, y una cámara que se rindió despierta al reabrirla.",
+          "it": "La diretta mostra ora un'immagine fresca invece della stessa per secondi, e una camera che si era arresa si risveglia quando la riapri.",
+          "zh": "实时画面现在会显示新的图像，而不是好几秒都是同一张；放弃的摄像头重新打开时也会醒来。",
+          "pt": "A visualização ao vivo agora mostra uma imagem nova em vez da mesma por segundos, e uma câmera que desistiu acorda ao reabrir.",
+          "pt-pt": "A visualização em direto mostra agora uma imagem nova em vez da mesma durante segundos, e uma câmara que desistiu acorda quando a reabres.",
+          "pl": "Podgląd na żywo pokazuje teraz świeży obraz zamiast tego samego przez kilka sekund, a kamera, która się poddała, budzi się po ponownym otwarciu.",
+          "ru": "Прямой эфир теперь показывает свежую картинку, а не одну и ту же по несколько секунд, а сдавшаяся камера просыпается при повторном открытии.",
+          "nl": "De livebeelden tonen nu een vers beeld in plaats van seconden hetzelfde, en een camera die het opgaf wordt wakker als je hem heropent."
+        }
+      },
+      {
+        "icon": "cloud",
+        "title": {
+          "en": "Anycubic Cloud tells you when your session ends",
+          "fr": "Anycubic Cloud te prévient quand ta session se termine",
+          "de": "Anycubic Cloud sagt dir, wann deine Sitzung abläuft",
+          "es": "Anycubic Cloud te avisa cuando tu sesión termina",
+          "it": "Anycubic Cloud ti avvisa quando la sessione scade",
+          "zh": "Anycubic Cloud 会在会话到期时提醒你",
+          "pt": "O Anycubic Cloud avisa quando sua sessão termina",
+          "pt-pt": "O Anycubic Cloud avisa-te quando a tua sessão termina",
+          "pl": "Anycubic Cloud uprzedza, kiedy sesja wygasa",
+          "ru": "Anycubic Cloud предупредит, когда сеанс закончится",
+          "nl": "Anycubic Cloud waarschuwt je als je sessie afloopt"
+        },
+        "body": {
+          "en": "A heads-up shows up before it expires, and once it has, a Reconnect key gets you back in. No more black camera and a mystery.",
+          "fr": "Un avertissement apparaît avant l'expiration, et une fois expirée, une touche Reconnecter te ramène. Fini la caméra noire et le mystère.",
+          "de": "Vor dem Ablauf erscheint ein Hinweis, danach bringt dich eine Taste Neu verbinden zurück. Schluss mit schwarzer Kamera und Rätselraten.",
+          "es": "Aparece un aviso antes de que caduque y, una vez caducada, un botón Reconectar te devuelve dentro. Se acabó la cámara negra y el misterio.",
+          "it": "Compare un avviso prima della scadenza e, scaduta, un tasto Riconnetti ti rimette dentro. Basta camera nera e mistero.",
+          "zh": "到期前会先提醒你，到期后点“重新连接”即可回来。再也不会面对黑屏摄像头一头雾水。",
+          "pt": "Aparece um aviso antes de expirar e, depois disso, um botão Reconectar traz você de volta. Chega de câmera preta e mistério.",
+          "pt-pt": "Aparece um aviso antes de expirar e, depois disso, um botão Religar traz-te de volta. Acabou a câmara preta e o mistério.",
+          "pl": "Przed wygaśnięciem pojawia się ostrzeżenie, a po nim przycisk Połącz ponownie wprowadza cię z powrotem. Koniec z czarną kamerą i zagadką.",
+          "ru": "Перед окончанием появится предупреждение, а потом кнопка «Подключиться заново» вернёт вас обратно. Больше никакой чёрной камеры и загадок.",
+          "nl": "Je krijgt een seintje voor het afloopt, en daarna brengt een knop Opnieuw verbinden je terug. Geen zwarte camera en raadsels meer."
+        }
+      },
+      {
+        "icon": "filter",
+        "title": {
+          "en": "Diameter filter now works in the catalogue",
+          "fr": "Le filtre Diamètre marche aussi dans le catalogue",
+          "de": "Der Durchmesserfilter funktioniert jetzt auch im Katalog",
+          "es": "El filtro de diámetro también funciona en el catálogo",
+          "it": "Il filtro Diametro funziona anche nel catalogo",
+          "zh": "直径筛选现在也适用于目录",
+          "pt": "O filtro de diâmetro agora também funciona no catálogo",
+          "pt-pt": "O filtro de diâmetro também funciona no catálogo",
+          "pl": "Filtr średnicy działa teraz także w katalogu",
+          "ru": "Фильтр диаметра теперь работает и в каталоге",
+          "nl": "Het diameterfilter werkt nu ook in de catalogus"
+        },
+        "body": {
+          "en": "1.75 or 2.85 mm: narrow down the catalogue, your products and your lists the same way you do your spools.",
+          "fr": "1,75 ou 2,85 mm : affine le catalogue, tes produits et tes listes comme tu le fais pour tes bobines.",
+          "de": "1,75 oder 2,85 mm: Grenze Katalog, Produkte und Listen genauso ein wie deine Spulen.",
+          "es": "1,75 o 2,85 mm: afina el catálogo, tus productos y tus listas igual que haces con tus bobinas.",
+          "it": "1,75 o 2,85 mm: restringi catalogo, prodotti e liste come fai con le bobine.",
+          "zh": "1.75 或 2.85 毫米：像筛选耗材盘一样筛选目录、产品和清单。",
+          "pt": "1,75 ou 2,85 mm: filtre o catálogo, seus produtos e suas listas como faz com as bobinas.",
+          "pt-pt": "1,75 ou 2,85 mm: filtra o catálogo, os teus produtos e as tuas listas como fazes com as bobinas.",
+          "pl": "1,75 lub 2,85 mm: zawężaj katalog, produkty i listy tak jak szpule.",
+          "ru": "1,75 или 2,85 мм: сужайте каталог, продукты и списки так же, как катушки.",
+          "nl": "1,75 of 2,85 mm: verfijn de catalogus, je producten en je lijsten net als je spoelen."
+        }
+      },
+      {
+        "icon": "printer",
+        "title": {
+          "en": "The Bambu Lab P3C joins the family",
+          "fr": "La Bambu Lab P3C rejoint la famille",
+          "de": "Die Bambu Lab P3C gehört jetzt dazu",
+          "es": "La Bambu Lab P3C se une a la familia",
+          "it": "La Bambu Lab P3C entra in famiglia",
+          "zh": "Bambu Lab P3C 加入大家庭",
+          "pt": "A Bambu Lab P3C entra para a família",
+          "pt-pt": "A Bambu Lab P3C junta-se à família",
+          "pl": "Bambu Lab P3C dołącza do rodziny",
+          "ru": "Bambu Lab P3C теперь в семье",
+          "nl": "De Bambu Lab P3C hoort er nu bij"
+        },
+        "body": {
+          "en": "Studio recognises it, with its seven tools and its AMS 3P. Not yet seen on a real one, so tell us how it goes.",
+          "fr": "Studio la reconnaît, avec ses sept outils et son AMS 3P. Pas encore vue sur une vraie, dis-nous comment ça se passe.",
+          "de": "Studio erkennt sie, mit sieben Werkzeugen und AMS 3P. Noch nicht an einer echten gesehen, sag uns, wie es läuft.",
+          "es": "Studio la reconoce, con sus siete herramientas y su AMS 3P. Aún no vista en una real, cuéntanos qué tal.",
+          "it": "Studio la riconosce, con i suoi sette utensili e l'AMS 3P. Mai vista su una vera, dicci com'è andata.",
+          "zh": "Studio 能识别它，包括七个工具和 AMS 3P。还没在真机上见过，用起来如何请告诉我们。",
+          "pt": "O Studio a reconhece, com as sete ferramentas e o AMS 3P. Ainda não vista numa real, conte como foi.",
+          "pt-pt": "O Studio reconhece-a, com as sete ferramentas e o AMS 3P. Ainda não vista numa real, conta-nos como correu.",
+          "pl": "Studio ją rozpoznaje, z siedmioma narzędziami i AMS 3P. Jeszcze nie widziana na prawdziwej, daj znać, jak działa.",
+          "ru": "Studio её узнаёт, с семью инструментами и AMS 3P. На реальной ещё не видели, расскажите, как работает.",
+          "nl": "Studio herkent hem, met zijn zeven tools en AMS 3P. Nog niet op een echte gezien, laat weten hoe het gaat."
+        }
+      }
+    ]
   }
 }

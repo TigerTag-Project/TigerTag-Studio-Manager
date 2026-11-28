@@ -506,7 +506,7 @@
   "catEmptyTitle": "目录里没有找到这一款",
   "catEmptySub": "没关系——自己创建吧：云端的 TigerData，或写入 TigerTag 芯片。",
   "catEmptyCta": "手动创建",
-  "catEmptyFilteredTitle": "有的——被你的筛选条件挡住了",
+  "catEmptyFilteredTitle": "没有产品符合这些筛选条件",
   "catEmptyFilteredCta": "清除筛选",
   "colorSearchBtn": "按颜色查找",
   "colorSearchSub": "选择颜色、输入 HEX 或 RAL 色号，或从照片中取色：目录中的所有耗材和树脂按相似度排序。",

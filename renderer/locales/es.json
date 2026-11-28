@@ -511,7 +511,7 @@
   "catEmptyTitle": "Nada en el catálogo para esa",
   "catEmptySub": "Tranquilo — créala tú mismo, como TigerData en la nube o en un chip TigerTag.",
   "catEmptyCta": "Crearla a mano",
-  "catEmptyFilteredTitle": "Está ahí — tus filtros lo esconden",
+  "catEmptyFilteredTitle": "Ningún producto pasa estos filtros",
   "catEmptyFilteredCta": "Quitar los filtros",
   "colorSearchBtn": "Buscar por color",
   "colorSearchSub": "Elige un color, escribe un código HEX o RAL, o tómalo de una foto: todos los filamentos y resinas del catálogo se ordenan por cercanía.",

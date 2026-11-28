@@ -5,6 +5,78 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.62.0 — 2026-11-28
+
+### Added
+- **Labels: Bluetooth label printers.** The label card prints straight to a Niimbot (B1, B1 Pro,
+  B21, B21 Pro, B3S, B18, D11, D101, D110, D110_M), a Phomemo (M110 / M120 / M200 / M220 / M221) or
+  a Marklife P15 over Web Bluetooth (`renderer/labels/ble-printer.js`). The model is read from the
+  Bluetooth name and the label is built at the head's own resolution (203 dpi, 300 on the B1 Pro /
+  B21 Pro); the 12 mm heads (D-series, B18, P15) always print the slim 40 × 12 template turned a
+  quarter; a 0.5 mm safety margin is added on each side. Niimbot speaks three sequences (the D110_M
+  asks its protocol, v4 from 300). The main key prints to the default printer ("Print on Niimbot
+  B1") with a "Change printer" key beside it; Print, PDF, PNG, SVG are secondary keys. The default
+  printer is taken as soon as it is seen (`ble:prefer`, 6 s), else the printers in range open in an
+  `openDialog` window (`printerChooser`; `select-bluetooth-device` in `main.js`, `ble:choose` /
+  `ble:cancel` / `ble:devices` / `ble:gave-up`, bridged in `preload.js`). The roll template is kept
+  per printer model (`tigertag.blePrinter.templates`). A "Compatible printers" link opens the wiki's
+  Bluetooth label printers page in the app's language (`openBleGuide`). New icon
+  `assets/svg/icons/icon_bluetooth_searching.svg` (`.icon-bluetooth`). macOS:
+  `NSBluetoothAlwaysUsageDescription` in `build.mac.extendInfo`. Checked on paper from Studio on a
+  D110_M and a B1. The 203 / 300 dpi switch is gone: Print, PDF, PNG and SVG are always 300 dpi
+  (`EXPORT_DPI`); MCP `get_label` keeps an optional `dpi`. Removed `labelDpi`, `labelBlePickText`.
+- **Labels in a batch.** In select mode the bulk bar's "Labels" (own inventory) opens the label card
+  on the selected spools: one template and the same values for all, previews browsed one by one, the
+  Spool / Filament switch giving one label per spool or per filament. "Print N labels on <model>"
+  sends them to the default Bluetooth printer: Niimbot b1 / v4 as one connection and one job of N
+  pages, the old Niimbot form repeating its one-page job, the Marklife P15 and Phomemo one connection
+  per label (P15 at LOW speed, medium density). The key becomes Stop, progress reads "Label 3 / 12…",
+  and "Resume from label N" goes on after a stop or a drop. Every label counts as a `print_label`.
+  Validated on paper on the B1, B1 Pro, D110_M and P15 (2026-11-26). `printLabelsBle`, `niimbotRun`,
+  `phomemoOne`, `marklifeOne`, `openLabelBatch`, `batchItems`, `printBatch`, `#bulkLabels`; keys
+  `bulkLabels`, `labelBatch*`, `labelBlePrintN`.
+- **Bambu Lab P3C.** Catalogue id 15 (`data/printers/bbl_printer_models.json`, `p3c.png`), model code
+  `N11` and serial prefix `331` in `probe.js` (plus the H3C's `32X` → 14). Seven PrintTools (pills
+  T1–T7) and a new unit kind `ams3p` (module `n11a`, seven bays: 4 + 3 on the board, 5 + 2 on the
+  Filament card), no external spool tile unless reported; chamber shown without a setpoint. Never
+  seen on a real P3C, assumed to report like the H3C. `PROTOCOL.md` §16.10, `docs/printer-storage-terms.md`.
+
+### Changed
+- **Search filters:** Diameter (1.75 / 2.85 mm) now filters the catalogue and the products / Lists
+  views as well, from `data1` of a filament (`_fbDiam`, `FB_FIELDS`).
+- Bundled data: brand table and catalogue refreshed (`db_update.py`).
+- **Docs / i18n:** `CLAUDE.md` and `docs/MCP.md` follow the fixed 300 dpi.
+
+### Fixed
+- **Bambu Lab RTSP cameras (X1C / X1E / P2S / H2x): the live view repeated one picture for
+  seconds.** The `fps=30` filter dropped bursts of pictures arriving together; it is gone and
+  `-fps_mode vfr` sends each decoded picture once. Measured on an X1C: 585 pictures in 64 s, all
+  different, longest gap 1.4 s.
+- **Bambu Lab cameras stayed frozen for good.** The RTSP restart count never went back to zero, so
+  the once-a-minute TLS cuts (`-9806`) used up the 10 restarts; it now resets with each launch that
+  delivers a picture. A stopped camera restarts when the camera wall or printer card is reopened
+  (`_camRunning`, 20 s).
+- **Anycubic Cloud: an expired session is said, and announced.** `acuCloudAuth` reads the token's
+  `exp` (JWT, 90 days): a warning banner from 14 days before, one toast per launch in the last 7;
+  once rejected (`10001`, camera order 1001 included, via `_acuAuthCheck`) or past `exp`, the badge
+  reads "Session expired", a red banner says what is lost and the camera box says so
+  (`acuCloudCamExpired`). Both banners carry a Reconnect key (`acuCloudReconnect`,
+  `openAcuCloudReconnect`, `_acuApplyCloudToken`). The sign-in webview also loads when created a
+  moment earlier.
+- **Snapmaker:** the Moonraker link opens with the account like the other brands, so MCP
+  `list_printers` reads a printing U1 (#366, Ptitlouis6012; checked on the demo U1).
+- **Cart:** adding a product the stock already covers lists it (explicit quantity 1, `orderQty`),
+  and the cart button on a previously marked but hidden product does the same (#365, Ptitlouis6012).
+- **RFID readers on Windows:** the "Microsoft IFD" reader is skipped like YubiKey / Windows Hello /
+  ROCKEY, so the burn window no longer waits on it (#362, Ptitlouis6012; not tested on a Surface).
+- **TigerCoins:** the Deals banner's balance follows a send (`_paintDealsBadge` patches it in place).
+- **Colour search:** a product's brand-declared RAL counts (`_catRals` reads `color_info.rals` with
+  `ral_sources` = `brand`; estimated `auto` codes never jump the ΔE order). Colour bars and colour
+  search are one at a time (`_catColorSet`).
+- **Catalogue:** an emptied view now says "Nothing gets through these filters" (`catEmptyFilteredTitle`).
+
+---
+
 ## v2.61.0 — 2026-11-24
 
 ### Added

@@ -123,7 +123,7 @@ Registers `services/demo` (`demo:faces`, `demo:allocate`, `demo:sync`, `demo:sta
 |---|---|---|
 | 3683-3743 | MQTTS 8883 control bus (`bambulab:connect` / `disconnect` / `publish`) | — |
 | 3744-3891 | JPEG-TCP camera, port 6000 (`bambulab:cam-start` / `cam-stop`) — 80-byte auth packet, retry/timeout | `_bambuCamAuthPacket` |
-| 3892-4009 | RTSP camera via ffmpeg, port 322 (`bambulab:cam-start-rtsp` / `cam-stop-rtsp`) — 30 fps + low-latency flags; the spawn is guarded (it throws synchronously on a bad CPU type) | — |
+| 3892-4009 | RTSP camera via ffmpeg, port 322 (`bambulab:cam-start-rtsp` / `cam-stop-rtsp`) — low-latency flags, pictures passed through as decoded (no fps resampling); the spawn is guarded (it throws synchronously on a bad CPU type) | — |
 | 4234-4301 | Prusa Buddy3D camera — plain RTSP `rtsp://<camera-ip>/live` via the same ffmpeg pipeline, 15 fps (`prusa:cam-start-rtsp` / `prusa:cam-stop-rtsp`, frames on `prusa:cam-frame`) | — |
 
 ## Bambu Lab cloud — REST + shared cloud MQTT (L5135-6024)

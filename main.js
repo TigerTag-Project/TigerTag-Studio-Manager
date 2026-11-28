@@ -5331,19 +5331,27 @@ let _ffmpegBin = null;
         '-flags', 'low_delay',
         '-probesize', '32',
         '-analyzeduration', '0',
-        /* Pictures are dated by the moment they ARRIVE, not by the printer's RTP clock.
-           Measured on Windows with a P2S (never seen on macOS, an X1C there is fine): after a recording, the `fps=30` below began to write 110 MB/s
-           (a normal stream is 2-4) at 45-50 % of the processor, minutes on end, filling
-           the main process with duplicates — `fps` repeats frames to fill a jump forward
-           in the stream's timestamps, so one jump in the camera's clock became thousands
-           of copies. Dated on arrival, a gap can never be longer than the real stall. */
+        /* Pictures are dated by the moment they ARRIVE, not by the printer's RTP clock,
+           and nothing resamples them: no `fps` filter, and `-fps_mode vfr` below (ffmpeg's
+           default keeps a constant rate and repeats pictures to hold it), so every
+           decoded picture goes out once, as it comes. Not `passthrough`: two pictures
+           arriving in the same instant get the same date, and passthrough hands them to
+           the encoder as is, which stops ffmpeg ("Invalid pts <= last"); vfr drops the
+           second one instead.
+           An `fps=30` filter used to sit here. With the printer's clock, one jump in it
+           made `fps` write thousands of copies (measured on Windows with a P2S after a
+           recording: 110 MB/s at 45-50 % of the processor). With arrival dates, a burst
+           of pictures arriving together (TCP + TLS deliver them in bursts) fell into one
+           1/30 s slot: `fps` kept one, dropped the rest and repeated it until the next
+           burst — an X1C measured at 468 pictures in 15 s but only 61 different ones,
+           the same one shown for up to 3.5 s, a live view that looked frozen. */
         '-use_wallclock_as_timestamps', '1',
         // No -tls_verify: the rtsp demuxer in older ffmpeg (e.g. the bundled
         // ffmpeg-static 6.0) doesn't expose it → "Option tls_verify not found".
         // The tls protocol defaults to verify=0 anyway, so the printer's
         // self-signed cert is accepted without it (works on ffmpeg 6.0 and 8.x).
         '-i', rtspUrl,
-        '-vf', 'fps=30',               // smooth live view (parity with Bambu Studio)
+        '-fps_mode', 'vfr',            // each picture once, never repeated (vfr, not passthrough: see above)
         '-f', 'image2pipe',
         '-vcodec', 'mjpeg',
         '-qscale:v', '3',
@@ -5369,7 +5377,12 @@ let _ffmpegBin = null;
 
       // Parse raw stdout for JPEG frames: SOI (FF D8) → EOI (FF D9).
       // ffmpeg -f image2pipe -vcodec mjpeg outputs raw JPEG files concatenated.
+      /* A picture means this launch worked: the next cut starts the count again. Without it every
+         short TLS cut (an X1C drops one about once a minute) used up one of the 10 restarts, and the
+         camera gave up for good after ten minutes or so of a healthy stream. */
+      let gotFrame = false;
       proc.stdout.on('data', _jpegSplitter(frame => {
+        if (!gotFrame) { gotFrame = true; restarts = 0; }
         _camTaps.get(key)?.forEach(tap => tap(frame));   // the recordings of this camera
         if (!event.sender.isDestroyed())
           event.sender.send('bambulab:cam-frame', key, frame);
